@@ -1,0 +1,52 @@
+body {
+  font-family: Arial;
+  background: #111;
+  color: white;
+}
+
+.page {
+  padding: 20px;
+}
+
+.card {
+  background: #222;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+}
+
+button {
+  margin-right: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+button.danger {
+  background: red;
+  color: white;
+}
+
+.approved {
+  color: lightgreen;
+}
+
+.rejected {
+  color: red;
+}
+
+.pending {
+  color: orange;
+}
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #000;
+}
+
+.bell span {
+  background: red;
+  padding: 2px 6px;
+  border-radius: 50%;
+}  

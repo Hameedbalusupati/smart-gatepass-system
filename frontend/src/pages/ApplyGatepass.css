@@ -1,0 +1,75 @@
+.apply-container {
+  width: 420px;
+  margin: 80px auto;
+  padding: 30px;
+  background: linear-gradient(145deg, #020617, #0f172a);
+  border-radius: 14px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  color: #e5e7eb;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.apply-title {
+  text-align: center;
+  margin-bottom: 25px;
+  color: #f8fafc;
+}
+
+.apply-label {
+  font-size: 14px;
+  margin-bottom: 6px;
+  display: block;
+  color: #cbd5f5;
+}
+
+.apply-textarea,
+.apply-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background-color: #020617;
+  border: 1px solid #334155;
+  color: #f1f5f9;
+  margin-bottom: 20px;
+  outline: none;
+  transition: border 0.2s ease;
+}
+
+.apply-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.apply-textarea:focus,
+.apply-input:focus {
+  border-color: #2563eb;
+}
+
+.apply-button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(90deg, #2563eb, #1e40af);
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.apply-button:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.apply-button:disabled {
+  background: #475569;
+  cursor: not-allowed;
+}
+
+.apply-message {
+  margin-top: 18px;
+  text-align: center;
+  font-weight: 500;
+  color: #93c5fd;
+}
