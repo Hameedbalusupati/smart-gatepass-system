@@ -14,8 +14,7 @@ class User(db.Model):
 
     college_id = db.Column(db.String(50), unique=True, nullable=False)
     name = db.Column(db.String(100), nullable=False)
-
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
 
     # student | faculty | hod | security
@@ -25,11 +24,7 @@ class User(db.Model):
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(2), nullable=True)
 
-    # 🔐 Security fields
-    failed_attempts = db.Column(db.Integer, default=0)
-    is_locked = db.Column(db.Boolean, default=False)
-    last_login = db.Column(db.DateTime, nullable=True)
-
+    # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.student_id",
@@ -87,17 +82,28 @@ class GatePass(db.Model):
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
 
-    status = db.Column(db.String(30), default="PendingFaculty", index=True)
+    status = db.Column(
+        db.String(30),
+        default="PendingFaculty",
+        index=True
+    )
 
+    # ================= QR SYSTEM =================
     qr_token = db.Column(db.Text, nullable=True)
 
+    # Prevent QR reuse
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
+    # Exit tracking
     out_time = db.Column(db.DateTime, nullable=True)
     in_time = db.Column(db.DateTime, nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        index=True
+    )
 
     def __repr__(self):
         return f"<GatePass {self.id} {self.status}>"
