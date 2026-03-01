@@ -19,7 +19,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Enable CORS
+    # Enable CORS for API routes
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
     # Initialize extensions
@@ -34,14 +34,16 @@ def create_app():
         except Exception as e:
             print("❌ Database Connection Failed:", e)
 
-    # Register Blueprints
+    # Register Blueprints (ALL inside /api)
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
     app.register_blueprint(student_bp, url_prefix="/api/student")
     app.register_blueprint(faculty_bp, url_prefix="/api/faculty")
     app.register_blueprint(hod_bp, url_prefix="/api/hod")
     app.register_blueprint(security_bp, url_prefix="/api/security")
-    app.register_blueprint(notifications_bp)
+
+    # 🔔 FIXED HERE
+    app.register_blueprint(notifications_bp, url_prefix="/api")
 
     # Health check route
     @app.route("/")
@@ -55,10 +57,10 @@ def create_app():
     return app
 
 
-# Create app instance for Gunicorn
+# Create app instance for Gunicorn (Render)
 app = create_app()
 
-# For local development only
+# For local development
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

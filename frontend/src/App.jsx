@@ -14,6 +14,8 @@ import HodDashboard from "./pages/HodDashboard";
 import SecurityScan from "./pages/SecurityScan";
 import NotificationsPage from "./pages/NotificationsPage";
 
+/* ================= PROTECTED ROUTE ================= */
+
 function ProtectedRoute({ children, role }) {
   const token = localStorage.getItem("access_token");
   const userRole = localStorage.getItem("role");
@@ -29,17 +31,20 @@ function ProtectedRoute({ children, role }) {
   return children;
 }
 
+/* ================= APP ================= */
+
 export default function App() {
   return (
     <BrowserRouter>
       <Navbar />
 
       <Routes>
+        {/* ---------- PUBLIC ---------- */}
         <Route path="/" element={<Home />} />
-
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
+        {/* ---------- STUDENT ---------- */}
         <Route
           path="/student"
           element={
@@ -67,6 +72,7 @@ export default function App() {
           }
         />
 
+        {/* ---------- FACULTY ---------- */}
         <Route
           path="/faculty"
           element={
@@ -76,6 +82,7 @@ export default function App() {
           }
         />
 
+        {/* ---------- HOD ---------- */}
         <Route
           path="/hod"
           element={
@@ -85,6 +92,7 @@ export default function App() {
           }
         />
 
+        {/* ---------- SECURITY ---------- */}
         <Route
           path="/security"
           element={
@@ -93,8 +101,18 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/notifications" element={<NotificationsPage />} />
 
+        {/* ---------- NOTIFICATIONS (Protected) ---------- */}
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- FALLBACK ---------- */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
