@@ -12,21 +12,21 @@ from routes.student_routes import student_bp
 from routes.faculty_routes import faculty_bp
 from routes.hod_routes import hod_bp
 from routes.security_routes import security_bp
-from routes.notifications import notifications_bp
+from routes.notification_routes import notifications_bp
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Enable CORS for API routes
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    # ✅ Enable CORS only for API routes
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-    # Initialize extensions
+    # ✅ Initialize extensions
     db.init_app(app)
     JWTManager(app)
 
-    # Database initialization
+    # ✅ Create tables safely
     with app.app_context():
         try:
             db.create_all()
@@ -34,7 +34,8 @@ def create_app():
         except Exception as e:
             print("❌ Database Connection Failed:", e)
 
-    # Register Blueprints (ALL inside /api)
+    # ================= REGISTER BLUEPRINTS =================
+
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
     app.register_blueprint(student_bp, url_prefix="/api/student")
@@ -42,25 +43,26 @@ def create_app():
     app.register_blueprint(hod_bp, url_prefix="/api/hod")
     app.register_blueprint(security_bp, url_prefix="/api/security")
 
-    # 🔔 FIXED HERE
-    app.register_blueprint(notifications_bp, url_prefix="/api")
+    # 🔔 Notifications
+    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
-    # Health check route
+    # ================= HEALTH CHECK =================
     @app.route("/")
     def health():
         return jsonify({
             "status": "Smart Gatepass Backend Running",
             "database": "Connected",
             "jwt": "Active"
-        })
+        }), 200
 
     return app
 
 
-# Create app instance for Gunicorn (Render)
+# Render & Gunicorn entry point
 app = create_app()
 
-# For local development
+
+# Local development only
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)
