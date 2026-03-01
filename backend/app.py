@@ -12,6 +12,7 @@ from routes.student_routes import student_bp
 from routes.faculty_routes import faculty_bp
 from routes.hod_routes import hod_bp
 from routes.security_routes import security_bp
+from routes.notifications import notifications_bp
 
 
 def create_app():
@@ -40,6 +41,7 @@ def create_app():
     app.register_blueprint(faculty_bp, url_prefix="/api/faculty")
     app.register_blueprint(hod_bp, url_prefix="/api/hod")
     app.register_blueprint(security_bp, url_prefix="/api/security")
+    app.register_blueprint(notifications_bp)
 
     # Health check route
     @app.route("/")

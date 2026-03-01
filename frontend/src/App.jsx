@@ -1,34 +1,25 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-// Components
 import Navbar from "./components/Navbar";
 
-// Auth
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Home from "./pages/Home";
 
-// Student
 import StudentDashboard from "./pages/StudentDashboard";
 import ApplyGatepass from "./pages/ApplyGatepass";
 import StudentStatus from "./pages/StudentStatus";
 
-// Faculty
 import FacultyDashboard from "./pages/FacultyDashboard";
-
-// HOD
 import HodDashboard from "./pages/HodDashboard";
-
-// Security
 import SecurityScan from "./pages/SecurityScan";
-
-/* ================= PROTECTED ROUTE ================= */
+import NotificationsPage from "./pages/NotificationsPage";
 
 function ProtectedRoute({ children, role }) {
   const token = localStorage.getItem("access_token");
   const userRole = localStorage.getItem("role");
 
   if (!token) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   if (role && userRole !== role) {
@@ -38,19 +29,17 @@ function ProtectedRoute({ children, role }) {
   return children;
 }
 
-/* ================= APP ================= */
-
 export default function App() {
   return (
     <BrowserRouter>
       <Navbar />
 
       <Routes>
-        {/* -------- AUTH -------- */}
-        <Route path="/" element={<Login />} />
+        <Route path="/" element={<Home />} />
+
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* -------- STUDENT -------- */}
         <Route
           path="/student"
           element={
@@ -78,7 +67,6 @@ export default function App() {
           }
         />
 
-        {/* -------- FACULTY -------- */}
         <Route
           path="/faculty"
           element={
@@ -88,7 +76,6 @@ export default function App() {
           }
         />
 
-        {/* -------- HOD -------- */}
         <Route
           path="/hod"
           element={
@@ -98,7 +85,6 @@ export default function App() {
           }
         />
 
-        {/* -------- SECURITY -------- */}
         <Route
           path="/security"
           element={
@@ -107,8 +93,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/notifications" element={<NotificationsPage />} />
 
-        {/* -------- FALLBACK -------- */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
