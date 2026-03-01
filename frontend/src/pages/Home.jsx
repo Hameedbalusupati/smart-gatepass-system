@@ -2,22 +2,42 @@ export default function Home() {
   return (
     <>
       <style>{`
-        html, body {
+        body {
           margin: 0;
-          padding: 0;
         }
 
-        .hero-section {
-          background-image: url("/college.jpg");
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
+        .hero {
+          margin-top: 60px; /* navbar height */
           width: 100%;
-          height: 100vh;
+          height: calc(100vh - 60px);
+          overflow: hidden;
+          background-color: #111827;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+
+        .hero img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover; /* prevents distortion */
+        }
+
+        @media (max-width: 768px) {
+          .hero {
+            height: auto;
+          }
+
+          .hero img {
+            height: auto;
+            object-fit: contain; /* show full image on mobile */
+          }
         }
       `}</style>
 
-      <div className="hero-section"></div>
+      <div className="hero">
+        <img src="/college.jpg" alt="College" />
+      </div>
     </>
   );
 }
