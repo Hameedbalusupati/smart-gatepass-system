@@ -2,8 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
-const ROLL_REGEX =
+// Student strict format
+const STUDENT_REGEX =
   /^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$/;
+
+// All roles domain format
+const DOMAIN_REGEX = /^[A-Za-z0-9._-]+@pace\.ac\.in$/;
 
 export default function Register() {
   const navigate = useNavigate();
@@ -24,9 +28,6 @@ export default function Register() {
     profile_image: null,
   });
 
-  // ================================
-  // HANDLE INPUT CHANGE
-  // ================================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -48,21 +49,15 @@ export default function Register() {
     });
   };
 
-  // ================================
-  // HANDLE IMAGE CHANGE
-  // ================================
   const handleImageChange = (e) => {
     const file = e.target.files[0];
-
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       setError("Only image files allowed");
       return;
     }
 
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       setError("Image size must be less than 2MB");
       return;
@@ -76,24 +71,25 @@ export default function Register() {
     setPreview(URL.createObjectURL(file));
   };
 
-  // ================================
-  // HANDLE REGISTER
-  // ================================
   const handleRegister = async (e) => {
     e.preventDefault();
     if (loading) return;
 
     setError("");
 
-    const email = form.email.trim();
+    const email = form.email.trim().toLowerCase();
 
-    // ---- Email Format Validation ----
-    if (!ROLL_REGEX.test(email)) {
-      setError("Use valid college email (e.g., 23KQ1A54G7@pace.ac.in)");
+    // 🔥 ROLE BASED EMAIL VALIDATION
+    if (!DOMAIN_REGEX.test(email)) {
+      setError("Use valid college email (@pace.ac.in)");
       return;
     }
 
-    // ---- Required Fields ----
+    if (form.role === "student" && !STUDENT_REGEX.test(email)) {
+      setError("Invalid student email format (e.g., 23KQ1A54G7@pace.ac.in)");
+      return;
+    }
+
     if (!form.college_id || !form.name || !form.password || !form.role) {
       setError("All required fields must be filled");
       return;
@@ -138,13 +134,7 @@ export default function Register() {
         body: formData,
       });
 
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        setError("Invalid server response");
-        return;
-      }
+      const data = await res.json();
 
       if (!res.ok) {
         setError(data.message || "Registration failed");
@@ -193,7 +183,7 @@ export default function Register() {
           style={input}
           type="email"
           name="email"
-          placeholder="College Email (23KQ1A54G7@pace.ac.in)"
+          placeholder="College Email (@pace.ac.in)"
           value={form.email}
           onChange={handleChange}
         />
@@ -207,7 +197,12 @@ export default function Register() {
           onChange={handleChange}
         />
 
-        <select style={input} name="role" value={form.role} onChange={handleChange}>
+        <select
+          style={input}
+          name="role"
+          value={form.role}
+          onChange={handleChange}
+        >
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="hod">HOD</option>
@@ -235,7 +230,12 @@ export default function Register() {
 
         {showYearSection && (
           <>
-            <select style={input} name="year" value={form.year} onChange={handleChange}>
+            <select
+              style={input}
+              name="year"
+              value={form.year}
+              onChange={handleChange}
+            >
               <option value="">Select Year</option>
               <option value="1">1st</option>
               <option value="2">2nd</option>
@@ -243,7 +243,12 @@ export default function Register() {
               <option value="4">4th</option>
             </select>
 
-            <select style={input} name="section" value={form.section} onChange={handleChange}>
+            <select
+              style={input}
+              name="section"
+              value={form.section}
+              onChange={handleChange}
+            >
               <option value="">Select Section</option>
               <option value="A">A</option>
               <option value="B">B</option>
@@ -282,7 +287,6 @@ export default function Register() {
   );
 }
 
-// ================= STYLES =================
 const container = {
   minHeight: "100vh",
   display: "flex",

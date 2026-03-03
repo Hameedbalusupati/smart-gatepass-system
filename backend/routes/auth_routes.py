@@ -10,9 +10,6 @@ from models import db, User
 
 auth_bp = Blueprint("auth_bp", __name__)
 
-# =================================================
-# IMAGE STORAGE SETUP
-# =================================================
 UPLOAD_FOLDER = "uploads/student_images"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -23,9 +20,6 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @auth_bp.route("/register", methods=["POST"])
 def register():
     try:
-        # -------------------------------
-        # GET FORM DATA (FormData)
-        # -------------------------------
         college_id = (request.form.get("college_id") or "").strip()
         name = (request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip()
@@ -35,10 +29,8 @@ def register():
         department = request.form.get("department")
         year = request.form.get("year")
         section = request.form.get("section")
-
         image = request.files.get("profile_image")
 
-        # Convert email to lowercase (standard practice)
         email = email.lower()
 
         # -------------------------------
@@ -51,18 +43,25 @@ def register():
             return jsonify({"message": "Invalid role"}), 400
 
         # -------------------------------
-        # STRICT COLLEGE EMAIL VALIDATION
-        # Pattern example: 23KQ1A54G7@pace.ac.in
+        # DOMAIN VALIDATION (ALL ROLES)
         # -------------------------------
-        roll_pattern = r'^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$'
-
-        if not re.match(roll_pattern, email):
-            return jsonify({
-                "message": "Invalid college email format (e.g., 23KQ1A54G7@pace.ac.in)"
-            }), 400
+        domain_pattern = r'^[A-Za-z0-9._-]+@pace\.ac\.in$'
+        if not re.match(domain_pattern, email):
+            return jsonify({"message": "Use valid college email (@pace.ac.in)"}), 400
 
         # -------------------------------
-        # ROLE-BASED VALIDATION
+        # STUDENT STRICT ROLL FORMAT
+        # Example: 23KQ1A54G7@pace.ac.in
+        # -------------------------------
+        if role == "student":
+            roll_pattern = r'^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$'
+            if not re.match(roll_pattern, email):
+                return jsonify({
+                    "message": "Invalid student email format (e.g., 23KQ1A54G7@pace.ac.in)"
+                }), 400
+
+        # -------------------------------
+        # ROLE BASED FIELD VALIDATION
         # -------------------------------
         if role in ["student", "faculty"]:
             if not department or not year or not section:
@@ -85,7 +84,7 @@ def register():
             section = None
 
         # -------------------------------
-        # IMAGE VALIDATION (STUDENT ONLY)
+        # STUDENT IMAGE REQUIRED
         # -------------------------------
         image_path = None
 
