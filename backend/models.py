@@ -22,14 +22,18 @@ class User(db.Model):
 
     department = db.Column(db.String(20), nullable=True)
     year = db.Column(db.Integer, nullable=True)
-    section = db.Column(db.String(2), nullable=True)
+    section = db.Column(db.String(5), nullable=True)
+
+    # 🔵 NEW: Profile image (for student)
+    profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.student_id",
         backref="student",
-        lazy=True
+        lazy=True,
+        cascade="all, delete-orphan"
     )
 
     faculty_gatepasses = db.relationship(
@@ -58,6 +62,8 @@ class GatePass(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    # ================= USERS =================
+
     student_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id"),
@@ -79,6 +85,8 @@ class GatePass(db.Model):
         index=True
     )
 
+    # ================= CORE DATA =================
+
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
 
@@ -88,14 +96,20 @@ class GatePass(db.Model):
         index=True
     )
 
+    # 🔵 NEW: Rejection tracking
+    rejected_by = db.Column(db.String(50), nullable=True)
+    rejection_reason = db.Column(db.String(255), nullable=True)
+
     # ================= QR SYSTEM =================
+
     qr_token = db.Column(db.Text, nullable=True)
 
     # Prevent QR reuse
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
-    # Exit tracking
+    # ================= TIME TRACKING =================
+
     out_time = db.Column(db.DateTime, nullable=True)
     in_time = db.Column(db.DateTime, nullable=True)
 

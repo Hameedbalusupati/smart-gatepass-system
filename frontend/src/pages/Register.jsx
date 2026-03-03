@@ -2,12 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
-const COLLEGE_DOMAIN = "@pace.ac.in";
+const ROLL_REGEX =
+  /^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$/;
 
 export default function Register() {
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState(null);
 
   const [form, setForm] = useState({
     college_id: "",
@@ -18,8 +21,12 @@ export default function Register() {
     department: "",
     year: "",
     section: "",
+    profile_image: null,
   });
 
+  // ================================
+  // HANDLE INPUT CHANGE
+  // ================================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -41,22 +48,52 @@ export default function Register() {
     });
   };
 
+  // ================================
+  // HANDLE IMAGE CHANGE
+  // ================================
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Only image files allowed");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Image size must be less than 2MB");
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      profile_image: file,
+    }));
+
+    setPreview(URL.createObjectURL(file));
+  };
+
+  // ================================
+  // HANDLE REGISTER
+  // ================================
   const handleRegister = async (e) => {
     e.preventDefault();
     if (loading) return;
 
     setError("");
 
-    const email = form.email.trim().toLowerCase();
+    const email = form.email.trim();
 
-    // ===============================
-    // VALIDATION
-    // ===============================
-    if (!email.endsWith(COLLEGE_DOMAIN)) {
-      setError("Use college email (@pace.ac.in)");
+    // ---- Email Format Validation ----
+    if (!ROLL_REGEX.test(email)) {
+      setError("Use valid college email (e.g., 23KQ1A54G7@pace.ac.in)");
       return;
     }
 
+    // ---- Required Fields ----
     if (!form.college_id || !form.name || !form.password || !form.role) {
       setError("All required fields must be filled");
       return;
@@ -70,44 +107,44 @@ export default function Register() {
       return;
     }
 
-    if (form.role === "hod" && !form.department) {
-      setError("Department required for HOD");
+    if (form.role === "student" && !form.profile_image) {
+      setError("Student image is required");
       return;
     }
 
     setLoading(true);
 
-    // ===============================
-    // BUILD PAYLOAD (MATCH BACKEND)
-    // ===============================
-    const payload = {
-      college_id: form.college_id.trim(),
-      name: form.name.trim(),
-      email,
-      password: form.password,
-      role: form.role,
-    };
-
-    if (form.role === "student" || form.role === "faculty") {
-      payload.department = form.department;
-      payload.year = parseInt(form.year, 10); // 🔥 IMPORTANT
-      payload.section = form.section;
-    }
-
-    if (form.role === "hod") {
-      payload.department = form.department;
-    }
-
     try {
+      const formData = new FormData();
+
+      formData.append("college_id", form.college_id.trim());
+      formData.append("name", form.name.trim());
+      formData.append("email", email);
+      formData.append("password", form.password);
+      formData.append("role", form.role);
+
+      if (form.role === "student" || form.role === "faculty") {
+        formData.append("department", form.department);
+        formData.append("year", form.year);
+        formData.append("section", form.section);
+      }
+
+      if (form.profile_image) {
+        formData.append("profile_image", form.profile_image);
+      }
+
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: formData,
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        setError("Invalid server response");
+        return;
+      }
 
       if (!res.ok) {
         setError(data.message || "Registration failed");
@@ -115,10 +152,9 @@ export default function Register() {
       }
 
       alert("Registered successfully ✅");
-      navigate("/");
-
+      navigate("/login");
     } catch (err) {
-      console.error(err);
+      console.error("Register Error:", err);
       setError("Cannot reach server");
     } finally {
       setLoading(false);
@@ -133,7 +169,9 @@ export default function Register() {
       <form onSubmit={handleRegister} style={box}>
         <h2 style={title}>Register</h2>
 
-        {error && <p style={{ color: "red", textAlign: "center" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "#ef4444", textAlign: "center" }}>{error}</p>
+        )}
 
         <input
           style={input}
@@ -155,7 +193,7 @@ export default function Register() {
           style={input}
           type="email"
           name="email"
-          placeholder={`Email (${COLLEGE_DOMAIN})`}
+          placeholder="College Email (23KQ1A54G7@pace.ac.in)"
           value={form.email}
           onChange={handleChange}
         />
@@ -169,12 +207,7 @@ export default function Register() {
           onChange={handleChange}
         />
 
-        <select
-          style={input}
-          name="role"
-          value={form.role}
-          onChange={handleChange}
-        >
+        <select style={input} name="role" value={form.role} onChange={handleChange}>
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="hod">HOD</option>
@@ -202,12 +235,7 @@ export default function Register() {
 
         {showYearSection && (
           <>
-            <select
-              style={input}
-              name="year"
-              value={form.year}
-              onChange={handleChange}
-            >
+            <select style={input} name="year" value={form.year} onChange={handleChange}>
               <option value="">Select Year</option>
               <option value="1">1st</option>
               <option value="2">2nd</option>
@@ -215,17 +243,34 @@ export default function Register() {
               <option value="4">4th</option>
             </select>
 
-            <select
-              style={input}
-              name="section"
-              value={form.section}
-              onChange={handleChange}
-            >
+            <select style={input} name="section" value={form.section} onChange={handleChange}>
               <option value="">Select Section</option>
               <option value="A">A</option>
               <option value="B">B</option>
               <option value="C">C</option>
             </select>
+          </>
+        )}
+
+        {form.role === "student" && (
+          <>
+            <input
+              style={input}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+            {preview && (
+              <img
+                src={preview}
+                alt="Preview"
+                style={{
+                  width: "120px",
+                  marginBottom: "10px",
+                  borderRadius: "8px",
+                }}
+              />
+            )}
           </>
         )}
 
@@ -237,7 +282,7 @@ export default function Register() {
   );
 }
 
-/* ===== STYLES ===== */
+// ================= STYLES =================
 const container = {
   minHeight: "100vh",
   display: "flex",
@@ -275,4 +320,5 @@ const btn = {
   color: "white",
   border: "none",
   borderRadius: "6px",
+  cursor: "pointer",
 };

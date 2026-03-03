@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from datetime import datetime
 import jwt
+import os
 
 from models import db, GatePass, User
 from config import Config
@@ -80,22 +81,36 @@ def scan_qr(qr_token):
 
         student = gatepass.student
 
+        # =========================
+        # BUILD IMAGE URL
+        # =========================
+        image_url = None
+        if student.profile_image:
+            # Extract only filename
+            filename = os.path.basename(student.profile_image)
+            image_url = f"/uploads/student_images/{filename}"
+
         return jsonify({
             "success": True,
             "message": "Gatepass Verified",
+
             "student": {
+                "id": student.id,
                 "name": student.name,
                 "college_id": student.college_id,
                 "department": student.department,
                 "year": student.year,
-                "section": student.section
+                "section": student.section,
+                "profile_image": image_url
             },
+
             "gatepass": {
                 "id": gatepass.id,
                 "reason": gatepass.reason,
                 "parent_mobile": gatepass.parent_mobile,
                 "out_time": gatepass.out_time.isoformat()
             }
+
         }), 200
 
     # =========================

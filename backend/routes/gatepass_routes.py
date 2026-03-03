@@ -1,14 +1,14 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import and_
+import jwt
 
 from models import db, GatePass, User
+from config import Config
 
-# =================================================
-# BLUEPRINT
-# =================================================
 gatepass_bp = Blueprint("gatepass_bp", __name__)
+
+QR_ALGORITHM = "HS256"
 
 
 # =================================================
@@ -18,36 +18,18 @@ gatepass_bp = Blueprint("gatepass_bp", __name__)
 @jwt_required()
 def apply_gatepass():
 
-    try:
-        student_id = int(get_jwt_identity())
-    except:
-        return jsonify({
-            "success": False,
-            "message": "Invalid token"
-        }), 401
-
+    student_id = int(get_jwt_identity())
     student = db.session.get(User, student_id)
 
-    if not student:
+    if not student or student.role != "student":
         return jsonify({
             "success": False,
-            "message": "User not found"
-        }), 404
-
-    if student.role != "student":
-        return jsonify({
-            "success": False,
-            "message": "Only students can apply for gatepass"
+            "message": "Only students can apply"
         }), 403
 
-    data = request.get_json(silent=True) or {}
-
+    data = request.get_json() or {}
     reason = (data.get("reason") or "").strip()
-    parent_mobile = (
-        data.get("parent_mobile")
-        or data.get("parentMobile")
-        or ""
-    ).strip()
+    parent_mobile = (data.get("parent_mobile") or "").strip()
 
     if not reason or not parent_mobile:
         return jsonify({
@@ -55,45 +37,31 @@ def apply_gatepass():
             "message": "Reason and parent mobile are required"
         }), 400
 
-    # =================================================
-    # ONE GATEPASS PER DAY
-    # =================================================
-    start_today = datetime.utcnow().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
-    end_today = start_today + timedelta(days=1)
-
-    existing_today = GatePass.query.filter(
-        and_(
-            GatePass.student_id == student.id,
-            GatePass.created_at >= start_today,
-            GatePass.created_at < end_today,
-            GatePass.status.in_([
-                "PendingFaculty",
-                "PendingHOD",
-                "Approved"
-            ])
-        )
+    # ---------------------------------------------
+    # CHECK IF ACTIVE GATEPASS EXISTS
+    # ---------------------------------------------
+    existing_active = GatePass.query.filter(
+        GatePass.student_id == student.id,
+        GatePass.status.in_([
+            "PendingFaculty",
+            "PendingHOD",
+            "Approved"
+        ])
     ).first()
 
-    if existing_today:
+    if existing_active:
         return jsonify({
             "success": False,
-            "message": "You can apply only one gatepass per day"
+            "message": "You already have an active gatepass"
         }), 400
 
-    # =================================================
-    # CREATE GATEPASS
-    # =================================================
     new_gp = GatePass(
         student_id=student.id,
         reason=reason,
         parent_mobile=parent_mobile,
         status="PendingFaculty",
         created_at=datetime.utcnow(),
-        is_used=False,
-        used_at=None,
-        qr_token=None
+        is_used=False
     )
 
     db.session.add(new_gp)
@@ -106,20 +74,131 @@ def apply_gatepass():
 
 
 # =================================================
-# VIEW STUDENT GATEPASSES
+# FACULTY ACTION
+# =================================================
+@gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
+@jwt_required()
+def faculty_action(gatepass_id):
+
+    faculty_id = int(get_jwt_identity())
+    faculty = db.session.get(User, faculty_id)
+
+    if not faculty or faculty.role != "faculty":
+        return jsonify({
+            "success": False,
+            "message": "Only faculty can perform this action"
+        }), 403
+
+    data = request.get_json() or {}
+    action = data.get("action")
+    rejection_reason = data.get("rejection_reason")
+
+    gatepass = db.session.get(GatePass, gatepass_id)
+
+    if not gatepass or gatepass.status != "PendingFaculty":
+        return jsonify({
+            "success": False,
+            "message": "Invalid gatepass"
+        }), 400
+
+    gatepass.faculty_id = faculty.id
+
+    if action == "approve":
+        gatepass.status = "PendingHOD"
+
+    elif action == "reject":
+        gatepass.status = "Rejected"
+        gatepass.rejected_by = "Faculty"
+        gatepass.rejection_reason = rejection_reason
+
+    else:
+        return jsonify({
+            "success": False,
+            "message": "Invalid action"
+        }), 400
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Gatepass {action}d successfully"
+    })
+
+
+# =================================================
+# HOD ACTION
+# =================================================
+@gatepass_bp.route("/hod_action/<int:gatepass_id>", methods=["POST"])
+@jwt_required()
+def hod_action(gatepass_id):
+
+    hod_id = int(get_jwt_identity())
+    hod = db.session.get(User, hod_id)
+
+    if not hod or hod.role != "hod":
+        return jsonify({
+            "success": False,
+            "message": "Only HOD can perform this action"
+        }), 403
+
+    data = request.get_json() or {}
+    action = data.get("action")
+    rejection_reason = data.get("rejection_reason")
+
+    gatepass = db.session.get(GatePass, gatepass_id)
+
+    if not gatepass or gatepass.status != "PendingHOD":
+        return jsonify({
+            "success": False,
+            "message": "Invalid gatepass"
+        }), 400
+
+    gatepass.hod_id = hod.id
+
+    if action == "approve":
+        gatepass.status = "Approved"
+
+        # -----------------------------------------
+        # GENERATE QR TOKEN
+        # -----------------------------------------
+        qr_payload = {
+            "gatepass_id": gatepass.id,
+            "exp": datetime.utcnow() + timedelta(hours=6)
+        }
+
+        gatepass.qr_token = jwt.encode(
+            qr_payload,
+            Config.QR_SECRET_KEY,
+            algorithm=QR_ALGORITHM
+        )
+
+    elif action == "reject":
+        gatepass.status = "Rejected"
+        gatepass.rejected_by = "HOD"
+        gatepass.rejection_reason = rejection_reason
+
+    else:
+        return jsonify({
+            "success": False,
+            "message": "Invalid action"
+        }), 400
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": f"Gatepass {action}d successfully"
+    })
+
+
+# =================================================
+# STUDENT VIEW MY GATEPASSES
 # =================================================
 @gatepass_bp.route("/my_gatepasses", methods=["GET"])
 @jwt_required()
 def my_gatepasses():
 
-    try:
-        student_id = int(get_jwt_identity())
-    except:
-        return jsonify({
-            "success": False,
-            "message": "Invalid token"
-        }), 401
-
+    student_id = int(get_jwt_identity())
     student = db.session.get(User, student_id)
 
     if not student or student.role != "student":
@@ -128,12 +207,9 @@ def my_gatepasses():
             "message": "Access denied"
         }), 403
 
-    gatepasses = (
-        GatePass.query
-        .filter(GatePass.student_id == student.id)
-        .order_by(GatePass.created_at.desc())
-        .all()
-    )
+    gatepasses = GatePass.query.filter(
+        GatePass.student_id == student.id
+    ).order_by(GatePass.created_at.desc()).all()
 
     return jsonify({
         "success": True,
@@ -149,7 +225,9 @@ def my_gatepasses():
                     g.qr_token
                     if g.status == "Approved" and not g.is_used
                     else None
-                )
+                ),
+                "rejected_by": g.rejected_by,
+                "rejection_reason": g.rejection_reason
             }
             for g in gatepasses
         ]

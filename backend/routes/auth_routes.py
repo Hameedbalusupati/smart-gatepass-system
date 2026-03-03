@@ -1,55 +1,77 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
+import os
+import re
 
 from models import db, User
 
-# Blueprint (NO url_prefix here – added in app.py)
 auth_bp = Blueprint("auth_bp", __name__)
+
+# =================================================
+# IMAGE STORAGE SETUP
+# =================================================
+UPLOAD_FOLDER = "uploads/student_images"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 # =================================================
 # REGISTER
 # =================================================
 @auth_bp.route("/register", methods=["POST"])
 def register():
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"message": "Invalid JSON data"}), 400
-
-    # Common fields
-    college_id = (data.get("college_id") or "").strip()
-    name = (data.get("name") or "").strip()
-    email = (data.get("email") or "").lower().strip()
-    password = data.get("password")
-    role = (data.get("role") or "").lower()
-
-    # Optional / role-based fields
-    department = data.get("department")
-    year = data.get("year")
-    section = data.get("section")
-
-    # Basic validation
-    if not college_id or not name or not email or not password or not role:
-        return jsonify({"message": "All fields are required"}), 400
-
-    if role not in ["student", "faculty", "hod", "security"]:
-        return jsonify({"message": "Invalid role"}), 400
-
     try:
-        # -------------------------------------------------
+        # -------------------------------
+        # GET FORM DATA (FormData)
+        # -------------------------------
+        college_id = (request.form.get("college_id") or "").strip()
+        name = (request.form.get("name") or "").strip()
+        email = (request.form.get("email") or "").strip()
+        password = request.form.get("password")
+        role = (request.form.get("role") or "").strip().lower()
+
+        department = request.form.get("department")
+        year = request.form.get("year")
+        section = request.form.get("section")
+
+        image = request.files.get("profile_image")
+
+        # Convert email to lowercase (standard practice)
+        email = email.lower()
+
+        # -------------------------------
+        # BASIC VALIDATION
+        # -------------------------------
+        if not college_id or not name or not email or not password or not role:
+            return jsonify({"message": "All fields are required"}), 400
+
+        if role not in ["student", "faculty", "hod", "security"]:
+            return jsonify({"message": "Invalid role"}), 400
+
+        # -------------------------------
+        # STRICT COLLEGE EMAIL VALIDATION
+        # Pattern example: 23KQ1A54G7@pace.ac.in
+        # -------------------------------
+        roll_pattern = r'^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$'
+
+        if not re.match(roll_pattern, email):
+            return jsonify({
+                "message": "Invalid college email format (e.g., 23KQ1A54G7@pace.ac.in)"
+            }), 400
+
+        # -------------------------------
         # ROLE-BASED VALIDATION
-        # -------------------------------------------------
+        # -------------------------------
         if role in ["student", "faculty"]:
             if not department or not year or not section:
                 return jsonify({
                     "message": "Department, Year and Section are required"
                 }), 400
 
-            # FIX: Convert "3rd" → 3 safely
             try:
-                year = int(str(year)[0])
+                year = int(year)
             except Exception:
                 return jsonify({"message": "Invalid year format"}), 400
 
@@ -62,18 +84,34 @@ def register():
             year = None
             section = None
 
-        # -------------------------------------------------
+        # -------------------------------
+        # IMAGE VALIDATION (STUDENT ONLY)
+        # -------------------------------
+        image_path = None
+
+        if role == "student":
+            if not image:
+                return jsonify({
+                    "message": "Student profile image is required"
+                }), 400
+
+            filename = secure_filename(college_id.upper() + ".jpg")
+            image_path = os.path.join(UPLOAD_FOLDER, filename)
+            image.save(image_path)
+
+        # -------------------------------
         # CREATE USER
-        # -------------------------------------------------
+        # -------------------------------
         user = User(
-            college_id=college_id,
+            college_id=college_id.upper(),
             name=name,
             email=email,
             password=generate_password_hash(password),
             role=role,
             department=department,
             year=year,
-            section=section
+            section=section,
+            profile_image=image_path
         )
 
         db.session.add(user)
@@ -91,8 +129,7 @@ def register():
         db.session.rollback()
         print("REGISTER ERROR:", e)
         return jsonify({
-            "message": "Internal server error",
-            "error": str(e)
+            "message": "Internal server error"
         }), 500
 
 
@@ -106,7 +143,7 @@ def login():
     if not data:
         return jsonify({"message": "Invalid JSON data"}), 400
 
-    email = (data.get("email") or "").lower().strip()
+    email = (data.get("email") or "").strip().lower()
     password = data.get("password")
 
     if not email or not password:

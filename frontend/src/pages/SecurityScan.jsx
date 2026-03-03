@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 
 export default function SecurityScan() {
-  const [result, setResult] = useState("");
+  const [studentData, setStudentData] = useState(null);
+  const [message, setMessage] = useState("");
   const scannerRef = useRef(null);
   const lockedRef = useRef(false);
 
@@ -10,7 +11,7 @@ export default function SecurityScan() {
 
   useEffect(() => {
     if (!API_BASE_URL) {
-      console.error("API Base URL not set in .env");
+      console.error("API Base URL not set");
       return;
     }
 
@@ -27,7 +28,8 @@ export default function SecurityScan() {
         if (lockedRef.current) return;
 
         lockedRef.current = true;
-        setResult("🔄 Verifying QR...");
+        setMessage("🔄 Verifying QR...");
+        setStudentData(null);
 
         try {
           const encodedToken = encodeURIComponent(decodedText.trim());
@@ -36,62 +38,103 @@ export default function SecurityScan() {
             `${API_BASE_URL}/security/scan/${encodedToken}`
           );
 
-          if (!res.ok) {
-            const errText = await res.text();
-            console.error("Backend error:", errText);
-            setResult("❌ Scan rejected by server");
-            return;
-          }
-
           const data = await res.json();
 
-          if (!data.success) {
-            setResult(`❌ ${data.message}`);
+          if (!res.ok || !data.success) {
+            setMessage(`❌ ${data.message || "Verification failed"}`);
             return;
           }
 
-          setResult(
-            `✅ GATE OPENED\n\n` +
-              `Student: ${data.student.name}\n` +
-              `College ID: ${data.student.college_id}\n` +
-              `Department: ${data.student.department}\n` +
-              `Time: ${data.gatepass.out_time}`
-          );
+          setMessage("✅ Gate Opened");
+          setStudentData(data);
+
         } catch (err) {
-          console.error("Scan error:", err);
-          setResult("❌ Server connection error");
+          console.error(err);
+          setMessage("❌ Server connection error");
         } finally {
           setTimeout(() => {
             lockedRef.current = false;
           }, 3000);
         }
       },
-      () => {} // Removed unused parameter
+      () => {}
     );
 
     return () => {
       scanner.clear().catch(() => {});
     };
-  }, [API_BASE_URL]); // Only dependency needed
+  }, [API_BASE_URL]);
+
+  const baseURL = API_BASE_URL.replace("/api", "");
 
   return (
-    <div style={{ maxWidth: "350px", margin: "auto", textAlign: "center" }}>
-      <h2>Security QR Scanner</h2>
+    <div style={container}>
+      <h2 style={{ marginBottom: "15px" }}>Security QR Scanner</h2>
+
       <div id="qr-reader" style={{ width: "100%" }} />
-      {result && (
-        <pre
+
+      {message && (
+        <p
           style={{
             marginTop: "15px",
-            background: "#111",
-            color: "lightgreen",
-            padding: "10px",
-            borderRadius: "6px",
-            whiteSpace: "pre-wrap",
+            fontWeight: "bold",
+            color: message.startsWith("✅") ? "green" : "red",
           }}
         >
-          {result}
-        </pre>
+          {message}
+        </p>
+      )}
+
+      {studentData && (
+        <div style={card}>
+          {studentData.student.profile_image && (
+            <img
+              src={`${baseURL}${studentData.student.profile_image}`}
+              alt="Student"
+              style={imageStyle}
+            />
+          )}
+
+          <h3>{studentData.student.name}</h3>
+
+          <p><strong>College ID:</strong> {studentData.student.college_id}</p>
+          <p><strong>Department:</strong> {studentData.student.department}</p>
+          <p><strong>Year:</strong> {studentData.student.year}</p>
+          <p><strong>Section:</strong> {studentData.student.section}</p>
+
+          <hr />
+
+          <p><strong>Reason:</strong> {studentData.gatepass.reason}</p>
+          <p><strong>Parent Mobile:</strong> {studentData.gatepass.parent_mobile}</p>
+          <p><strong>Out Time:</strong> {studentData.gatepass.out_time}</p>
+        </div>
       )}
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+
+const container = {
+  maxWidth: "400px",
+  margin: "30px auto",
+  textAlign: "center",
+};
+
+const card = {
+  marginTop: "20px",
+  padding: "15px",
+  background: "#f1f5f9",
+  borderRadius: "10px",
+  textAlign: "left",
+  boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
+};
+
+const imageStyle = {
+  width: "120px",
+  height: "120px",
+  objectFit: "cover",
+  borderRadius: "8px",
+  display: "block",
+  margin: "0 auto 10px auto",
+};
