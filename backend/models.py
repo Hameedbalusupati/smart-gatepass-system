@@ -4,30 +4,34 @@ from datetime import datetime
 db = SQLAlchemy()
 
 
-# =================================================
+# =====================================================
 # USER MODEL
-# =================================================
+# =====================================================
 class User(db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    college_id = db.Column(db.String(50), unique=True, nullable=False)
+    # Basic Info
+    college_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False, index=True)
     password = db.Column(db.String(200), nullable=False)
 
-    # student | faculty | hod | security
-    role = db.Column(db.String(20), nullable=False)
+    # Roles → student | faculty | hod | security
+    role = db.Column(db.String(20), nullable=False, index=True)
 
-    department = db.Column(db.String(20), nullable=True)
+    # Academic Details
+    department = db.Column(db.String(20), nullable=True, index=True)
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(5), nullable=True)
 
-    # 🔵 NEW: Profile image (for student)
+    # Optional profile image (for students)
     profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
+
+    # Student created gatepasses
     student_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.student_id",
@@ -36,6 +40,7 @@ class User(db.Model):
         cascade="all, delete-orphan"
     )
 
+    # Faculty approved gatepasses
     faculty_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.faculty_id",
@@ -43,6 +48,7 @@ class User(db.Model):
         lazy=True
     )
 
+    # HOD approved gatepasses
     hod_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.hod_id",
@@ -54,15 +60,16 @@ class User(db.Model):
         return f"<User {self.id} {self.role}>"
 
 
-# =================================================
+
+# =====================================================
 # GATEPASS MODEL
-# =================================================
+# =====================================================
 class GatePass(db.Model):
     __tablename__ = "gate_passes"
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # ================= USERS =================
+    # ================= USERS (FOREIGN KEYS) =================
 
     student_id = db.Column(
         db.Integer,
@@ -85,18 +92,27 @@ class GatePass(db.Model):
         index=True
     )
 
-    # ================= CORE DATA =================
+    # ================= CORE DETAILS =================
 
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
 
+    # Status Flow
+    # PendingFaculty → PendingHOD → Approved / Rejected
     status = db.Column(
         db.String(30),
         default="PendingFaculty",
+        nullable=False,
         index=True
     )
 
-    # 🔵 NEW: Rejection tracking
+    # ================= APPROVAL TRACKING =================
+
+    faculty_approved_at = db.Column(db.DateTime, nullable=True)
+    hod_approved_at = db.Column(db.DateTime, nullable=True)
+
+    # ================= REJECTION TRACKING =================
+
     rejected_by = db.Column(db.String(50), nullable=True)
     rejection_reason = db.Column(db.String(255), nullable=True)
 
@@ -108,16 +124,19 @@ class GatePass(db.Model):
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
-    # ================= TIME TRACKING =================
+    # ================= IN / OUT TRACKING =================
 
     out_time = db.Column(db.DateTime, nullable=True)
     in_time = db.Column(db.DateTime, nullable=True)
 
+    # ================= CREATED TIME =================
+
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
+        nullable=False,
         index=True
     )
 
     def __repr__(self):
-        return f"<GatePass {self.id} {self.status}>"
+        return f"<GatePass {self.id} - {self.status}>"

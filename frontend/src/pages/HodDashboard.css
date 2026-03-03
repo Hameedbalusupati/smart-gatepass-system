@@ -1,0 +1,88 @@
+/* ============================
+   HOD DASHBOARD STYLES
+============================ */
+
+.hod-container {
+  padding: 30px;
+  background-color: #f4f6f9;
+  min-height: 100vh;
+}
+
+.hod-title {
+  text-align: center;
+  margin-bottom: 25px;
+  font-size: 26px;
+  font-weight: bold;
+  color: #1e293b;
+}
+
+.error-message {
+  color: red;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.no-data {
+  text-align: center;
+  color: #64748b;
+  font-size: 16px;
+}
+
+.gatepass-card {
+  background: white;
+  padding: 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  margin-bottom: 15px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gatepass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.student-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #0f172a;
+}
+
+.gatepass-info {
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #334155;
+}
+
+.action-btn {
+  margin-top: 12px;
+  background-color: #16a34a;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.action-btn:hover {
+  background-color: #15803d;
+}
+
+.action-btn:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .gatepass-card {
+    padding: 14px;
+  }
+
+  .hod-title {
+    font-size: 20px;
+  }
+}

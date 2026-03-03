@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import API_BASE_URL from "../config";
+import "./HodDashboard.css";
 
 export default function HodDashboard() {
   const [passes, setPasses] = useState([]);
@@ -8,49 +9,51 @@ export default function HodDashboard() {
 
   const token = localStorage.getItem("access_token");
 
-  // =========================================
-  // FETCH PENDING GATEPASSES (HOD)
-  // =========================================
-  const fetchPending = async () => {
-    if (!token) {
-      setError("Please login again");
-      return;
-    }
+  useEffect(() => {
+    let isMounted = true;
 
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/pending`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.message || "Failed to load gatepasses");
+    const fetchPending = async () => {
+      if (!token) {
+        if (isMounted) setError("Please login again");
         return;
       }
 
-      setError("");
-      setPasses(data.gatepasses || []);
-    } catch (err) {
-      console.error(err);
-      setError("Server not reachable");
-    }
-  };
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/hod/gatepasses/pending`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-  useEffect(() => {
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (isMounted) setError(data.message || "Failed to load");
+          return;
+        }
+
+        if (isMounted) {
+          setPasses(data.gatepasses || []);
+          setError("");
+        }
+      } catch {
+        if (isMounted) setError("Server not reachable");
+      }
+    };
+
     fetchPending();
-  }, []);
 
-  // =========================================
-  // APPROVE → FORWARD TO SECURITY
-  // =========================================
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
   const approveGatepass = async (id) => {
-    if (!window.confirm("Approve and forward to security?")) return;
+    if (!window.confirm("Approve this gatepass?")) return;
+
     setLoadingId(id);
 
     try {
@@ -66,134 +69,46 @@ export default function HodDashboard() {
 
       const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!res.ok) {
         alert(data.message || "Approval failed");
-        return;
+      } else {
+        setPasses((prev) => prev.filter((p) => p.id !== id));
       }
-
-      fetchPending(); // refresh list
-    } catch (err) {
-      console.error(err);
-      alert("Server not reachable");
-    } finally {
-      setLoadingId(null);
+    } catch {
+      alert("Server error");
     }
+
+    setLoadingId(null);
   };
 
-  // =========================================
-  // REJECT
-  // =========================================
-  const rejectGatepass = async (id) => {
-    if (!window.confirm("Reject this gatepass?")) return;
-    setLoadingId(id);
-
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/reject/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        alert(data.message || "Rejection failed");
-        return;
-      }
-
-      fetchPending(); // refresh list
-    } catch (err) {
-      console.error(err);
-      alert("Server not reachable");
-    } finally {
-      setLoadingId(null);
-    }
-  };
-
-  // =========================================
-  // UI
-  // =========================================
   return (
-    <div style={styles.container}>
-      <h2>HOD Dashboard</h2>
+    <div className="hod-container">
+      <h2 className="hod-title">HOD Dashboard</h2>
 
-      {error && <p style={styles.error}>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
 
       {!error && passes.length === 0 && (
-        <p style={styles.info}>No pending gatepasses</p>
+        <p className="no-data">No pending gatepasses</p>
       )}
 
       {passes.map((p) => (
-        <div key={p.id} style={styles.card}>
-          <p><b>Student:</b> {p.student_name}</p>
-          <p><b>College ID:</b> {p.college_id}</p>
-          <p><b>Year:</b> {p.year}</p>
-          <p><b>Section:</b> {p.section}</p>
-          <p><b>Reason:</b> {p.reason}</p>
+        <div key={p.id} className="gatepass-card">
+          <div className="student-name">{p.student_name}</div>
+          <div className="gatepass-info">College ID: {p.college_id}</div>
+          <div className="gatepass-info">Department: {p.department}</div>
+          <div className="gatepass-info">Year: {p.year}</div>
+          <div className="gatepass-info">Section: {p.section}</div>
+          <div className="gatepass-info">Reason: {p.reason}</div>
 
-          <div style={styles.actions}>
-            <button
-              onClick={() => approveGatepass(p.id)}
-              disabled={loadingId === p.id}
-              style={styles.approve}
-            >
-              {loadingId === p.id ? "Processing..." : "Approve"}
-            </button>
-
-            <button
-              onClick={() => rejectGatepass(p.id)}
-              disabled={loadingId === p.id}
-              style={styles.reject}
-            >
-              Reject
-            </button>
-          </div>
+          <button
+            className="action-btn"
+            disabled={loadingId === p.id}
+            onClick={() => approveGatepass(p.id)}
+          >
+            {loadingId === p.id ? "Processing..." : "Approve"}
+          </button>
         </div>
       ))}
     </div>
   );
 }
-
-/* ================= STYLES ================= */
-
-const styles = {
-  container: {
-    padding: "20px",
-  },
-  error: {
-    color: "red",
-    textAlign: "center",
-  },
-  info: {
-    textAlign: "center",
-    color: "#555",
-  },
-  card: {
-    border: "1px solid #ccc",
-    padding: "10px",
-    marginBottom: "10px",
-    borderRadius: "6px",
-  },
-  actions: {
-    marginTop: "10px",
-    display: "flex",
-    gap: "10px",
-  },
-  approve: {
-    background: "#22c55e",
-    border: "none",
-    padding: "6px 12px",
-    cursor: "pointer",
-  },
-  reject: {
-    background: "#ef4444",
-    border: "none",
-    padding: "6px 12px",
-    cursor: "pointer",
-    color: "white",
-  },
-};
