@@ -39,7 +39,7 @@ def create_app():
     # =====================================================
     with app.app_context():
         try:
-            db.drop_all()
+            # db.drop_all()
             db.create_all()
             print("✅ Database Connected Successfully")
         except Exception as e:
