@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
-// Student strict format
 const STUDENT_REGEX =
   /^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$/;
 
-// All roles domain format
 const DOMAIN_REGEX = /^[A-Za-z0-9._-]+@pace\.ac\.in$/;
 
 export default function Register() {
@@ -39,7 +37,9 @@ export default function Register() {
           updated.department = "";
           updated.year = "";
           updated.section = "";
-        } else if (value === "hod") {
+        }
+
+        if (value === "hod") {
           updated.year = "";
           updated.section = "";
         }
@@ -59,15 +59,11 @@ export default function Register() {
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setError("Image size must be less than 2MB");
+      setError("Image must be less than 2MB");
       return;
     }
 
-    setForm((prev) => ({
-      ...prev,
-      profile_image: file,
-    }));
-
+    setForm((prev) => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
   };
 
@@ -79,27 +75,36 @@ export default function Register() {
 
     const email = form.email.trim().toLowerCase();
 
-    // 🔥 ROLE BASED EMAIL VALIDATION
+    // Email validation
     if (!DOMAIN_REGEX.test(email)) {
       setError("Use valid college email (@pace.ac.in)");
       return;
     }
 
     if (form.role === "student" && !STUDENT_REGEX.test(email)) {
-      setError("Invalid student email format (e.g., 23KQ1A54G7@pace.ac.in)");
+      setError("Invalid student email format");
       return;
     }
 
-    if (!form.college_id || !form.name || !form.password || !form.role) {
+    if (!form.college_id || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
 
+    // 🔥 Department required for student, faculty, HOD
     if (
-      (form.role === "student" || form.role === "faculty") &&
-      (!form.department || !form.year || !form.section)
+      ["student", "faculty", "hod"].includes(form.role) &&
+      !form.department
     ) {
-      setError("Department, Year and Section are required");
+      setError("Department is required");
+      return;
+    }
+
+    if (
+      ["student", "faculty"].includes(form.role) &&
+      (!form.year || !form.section)
+    ) {
+      setError("Year and Section are required");
       return;
     }
 
@@ -119,8 +124,12 @@ export default function Register() {
       formData.append("password", form.password);
       formData.append("role", form.role);
 
-      if (form.role === "student" || form.role === "faculty") {
+      // ✅ Department for student / faculty / HOD
+      if (["student", "faculty", "hod"].includes(form.role)) {
         formData.append("department", form.department);
+      }
+
+      if (["student", "faculty"].includes(form.role)) {
         formData.append("year", form.year);
         formData.append("section", form.section);
       }
@@ -141,10 +150,10 @@ export default function Register() {
         return;
       }
 
-      alert("Registered successfully ✅");
+      alert("Registered Successfully ✅");
       navigate("/login");
     } catch (err) {
-      console.error("Register Error:", err);
+      console.error(err);
       setError("Cannot reach server");
     } finally {
       setLoading(false);
@@ -183,7 +192,7 @@ export default function Register() {
           style={input}
           type="email"
           name="email"
-          placeholder="College Email (@pace.ac.in)"
+          placeholder="College Email"
           value={form.email}
           onChange={handleChange}
         />
@@ -269,11 +278,7 @@ export default function Register() {
               <img
                 src={preview}
                 alt="Preview"
-                style={{
-                  width: "120px",
-                  marginBottom: "10px",
-                  borderRadius: "8px",
-                }}
+                style={{ width: "120px", borderRadius: "8px" }}
               />
             )}
           </>

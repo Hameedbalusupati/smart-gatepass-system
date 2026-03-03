@@ -20,72 +20,75 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @auth_bp.route("/register", methods=["POST"])
 def register():
     try:
-        college_id = (request.form.get("college_id") or "").strip()
+        college_id = (request.form.get("college_id") or "").strip().upper()
         name = (request.form.get("name") or "").strip()
-        email = (request.form.get("email") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
         password = request.form.get("password")
         role = (request.form.get("role") or "").strip().lower()
 
-        department = request.form.get("department")
+        department = (request.form.get("department") or "").strip().upper()
         year = request.form.get("year")
-        section = request.form.get("section")
+        section = (request.form.get("section") or "").strip().upper()
+
         image = request.files.get("profile_image")
 
-        email = email.lower()
-
-        # -------------------------------
+        # ---------------------------------
         # BASIC VALIDATION
-        # -------------------------------
+        # ---------------------------------
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # -------------------------------
-        # DOMAIN VALIDATION (ALL ROLES)
-        # -------------------------------
+        # ---------------------------------
+        # EMAIL DOMAIN VALIDATION
+        # ---------------------------------
         domain_pattern = r'^[A-Za-z0-9._-]+@pace\.ac\.in$'
         if not re.match(domain_pattern, email):
             return jsonify({"message": "Use valid college email (@pace.ac.in)"}), 400
 
-        # -------------------------------
-        # STUDENT STRICT ROLL FORMAT
-        # Example: 23KQ1A54G7@pace.ac.in
-        # -------------------------------
+        # ---------------------------------
+        # STUDENT STRICT EMAIL FORMAT
+        # ---------------------------------
         if role == "student":
             roll_pattern = r'^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$'
             if not re.match(roll_pattern, email):
                 return jsonify({
-                    "message": "Invalid student email format (e.g., 23KQ1A54G7@pace.ac.in)"
+                    "message": "Invalid student email format"
                 }), 400
 
-        # -------------------------------
-        # ROLE BASED FIELD VALIDATION
-        # -------------------------------
-        if role in ["student", "faculty"]:
-            if not department or not year or not section:
+        # ---------------------------------
+        # ROLE BASED VALIDATION
+        # ---------------------------------
+
+        if role in ["student", "faculty", "hod"]:
+            if not department:
                 return jsonify({
-                    "message": "Department, Year and Section are required"
+                    "message": "Department is required for this role"
                 }), 400
 
+        if role in ["student", "faculty"]:
+            if not year or not section:
+                return jsonify({
+                    "message": "Year and Section are required"
+                }), 400
             try:
                 year = int(year)
-            except Exception:
+            except ValueError:
                 return jsonify({"message": "Invalid year format"}), 400
-
-        elif role == "hod":
+        else:
             year = None
             section = None
 
-        else:  # security
+        if role == "security":
             department = None
             year = None
             section = None
 
-        # -------------------------------
+        # ---------------------------------
         # STUDENT IMAGE REQUIRED
-        # -------------------------------
+        # ---------------------------------
         image_path = None
 
         if role == "student":
@@ -94,15 +97,15 @@ def register():
                     "message": "Student profile image is required"
                 }), 400
 
-            filename = secure_filename(college_id.upper() + ".jpg")
+            filename = secure_filename(college_id + ".jpg")
             image_path = os.path.join(UPLOAD_FOLDER, filename)
             image.save(image_path)
 
-        # -------------------------------
+        # ---------------------------------
         # CREATE USER
-        # -------------------------------
+        # ---------------------------------
         user = User(
-            college_id=college_id.upper(),
+            college_id=college_id,
             name=name,
             email=email,
             password=generate_password_hash(password),
@@ -137,27 +140,35 @@ def register():
 # =================================================
 @auth_bp.route("/login", methods=["POST"])
 def login():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    if not data:
-        return jsonify({"message": "Invalid JSON data"}), 400
+        if not data:
+            return jsonify({"message": "Invalid JSON data"}), 400
 
-    email = (data.get("email") or "").strip().lower()
-    password = data.get("password")
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password")
 
-    if not email or not password:
-        return jsonify({"message": "Email and password required"}), 400
+        if not email or not password:
+            return jsonify({"message": "Email and password required"}), 400
 
-    user = User.query.filter_by(email=email).first()
+        user = User.query.filter_by(email=email).first()
 
-    if not user or not check_password_hash(user.password, password):
-        return jsonify({"message": "Invalid credentials"}), 401
+        if not user or not check_password_hash(user.password, password):
+            return jsonify({"message": "Invalid credentials"}), 401
 
-    token = create_access_token(identity=str(user.id))
+        token = create_access_token(identity=str(user.id))
 
-    return jsonify({
-        "access_token": token,
-        "role": user.role,
-        "name": user.name,
-        "id": user.id
-    }), 200
+        return jsonify({
+            "access_token": token,
+            "role": user.role,
+            "name": user.name,
+            "id": user.id,
+            "department": user.department
+        }), 200
+
+    except Exception as e:
+        print("LOGIN ERROR:", e)
+        return jsonify({
+            "message": "Internal server error"
+        }), 500
