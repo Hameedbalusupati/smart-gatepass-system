@@ -8,22 +8,33 @@ export default function ApplyGatepass() {
   const [isError, setIsError] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("access_token");
-
   const applyGatepass = async (e) => {
     e.preventDefault();
+
+    if (loading) return;
+
     setMessage("");
     setIsError(false);
 
+    const token = localStorage.getItem("access_token");
+
+    // ✅ Token check
     if (!token) {
       setIsError(true);
-      setMessage("You are not logged in. Please login again.");
+      setMessage("Session expired. Please login again.");
       return;
     }
 
-    if (!reason.trim() || !parentMobile.trim()) {
+    // ✅ Field validation
+    if (!reason.trim()) {
       setIsError(true);
-      setMessage("Reason and Parent Mobile are required.");
+      setMessage("Reason is required.");
+      return;
+    }
+
+    if (!parentMobile.trim()) {
+      setIsError(true);
+      setMessage("Parent Mobile is required.");
       return;
     }
 
@@ -42,14 +53,35 @@ export default function ApplyGatepass() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      // ✅ Try parsing safely
+      let data;
+      try {
+        data = await res.json();
+      } catch {
         setIsError(true);
-        setMessage(data.message || "Failed to apply gatepass.");
+        setMessage("Invalid server response.");
+        setLoading(false);
         return;
       }
 
+      // ✅ Handle token expired
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        setIsError(true);
+        setMessage("Session expired. Please login again.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Handle backend validation
+      if (!res.ok || data.success === false) {
+        setIsError(true);
+        setMessage(data.message || "Failed to apply gatepass.");
+        setLoading(false);
+        return;
+      }
+
+      // ✅ Success
       setIsError(false);
       setMessage("✅ Gatepass applied successfully.");
       setReason("");
@@ -57,7 +89,7 @@ export default function ApplyGatepass() {
     } catch (err) {
       console.error("Apply Gatepass Error:", err);
       setIsError(true);
-      setMessage("Server not reachable. Please try again.");
+      setMessage("Backend not responding. Try again in 30 seconds.");
     } finally {
       setLoading(false);
     }
@@ -88,7 +120,10 @@ export default function ApplyGatepass() {
           <button
             type="submit"
             disabled={loading}
-            style={styles.button}
+            style={{
+              ...styles.button,
+              opacity: loading ? 0.7 : 1,
+            }}
           >
             {loading ? "Applying..." : "Apply Gatepass"}
           </button>
@@ -100,6 +135,7 @@ export default function ApplyGatepass() {
               marginTop: "15px",
               color: isError ? "#ef4444" : "#22c55e",
               textAlign: "center",
+              fontWeight: "bold",
             }}
           >
             {message}
