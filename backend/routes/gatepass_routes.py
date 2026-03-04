@@ -31,18 +31,46 @@ def apply_gatepass():
     if not reason or not parent_mobile:
         return jsonify({"success": False, "message": "Reason and parent mobile are required"}), 400
 
-    # Only one active gatepass
-    existing_active = GatePass.query.filter(
+    # =================================================
+    # CHECK EXISTING GATEPASS
+    # =================================================
+    existing_gatepasses = GatePass.query.filter(
         GatePass.student_id == student.id,
         GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"])
-    ).first()
+    ).all()
 
-    if existing_active:
-        return jsonify({
-            "success": False,
-            "message": "You already have an active gatepass"
-        }), 400
+    for gp in existing_gatepasses:
 
+        # if still pending -> block
+        if gp.status in ["PendingFaculty", "PendingHOD"]:
+            return jsonify({
+                "success": False,
+                "message": "You already have a pending gatepass"
+            }), 400
+
+        # if approved -> check QR expiry
+        if gp.status == "Approved" and gp.qr_token:
+
+            try:
+                jwt.decode(
+                    gp.qr_token,
+                    Config.QR_SECRET_KEY,
+                    algorithms=[QR_ALGORITHM]
+                )
+
+                return jsonify({
+                    "success": False,
+                    "message": "You already have an active gatepass"
+                }), 400
+
+            except jwt.ExpiredSignatureError:
+                # QR expired → mark expired
+                gp.status = "Expired"
+                db.session.commit()
+
+    # =================================================
+    # CREATE NEW GATEPASS
+    # =================================================
     new_gp = GatePass(
         student_id=student.id,
         reason=reason,
@@ -99,7 +127,7 @@ def faculty_action(gatepass_id):
 
 
 # =================================================
-# HOD FETCH PENDING GATEPASSES  🔥 (IMPORTANT)
+# HOD FETCH PENDING GATEPASSES
 # =================================================
 @gatepass_bp.route("/hod/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -156,6 +184,7 @@ def hod_action(gatepass_id):
     gatepass.hod_id = hod.id
 
     if action == "approve":
+
         gatepass.status = "Approved"
 
         qr_payload = {
@@ -170,6 +199,7 @@ def hod_action(gatepass_id):
         )
 
     elif action == "reject":
+
         gatepass.status = "Rejected"
         gatepass.rejected_by = "HOD"
         gatepass.rejection_reason = rejection_reason
