@@ -12,7 +12,6 @@ export default function ScanQR() {
     setMessage("🔄 Scanning QR...");
 
     try {
-      // QR already contains FULL backend URL
       const scanUrl = result.text;
 
       const res = await fetch(scanUrl);
@@ -24,7 +23,7 @@ export default function ScanQR() {
         return;
       }
 
-      // ✅ SUCCESS
+      // SUCCESS
       setMessage(
         `✅ GATE OPENED\n\n` +
         `Student: ${data.student_name}\n` +
@@ -43,13 +42,15 @@ export default function ScanQR() {
 
   return (
     <div style={containerStyle}>
-      <h2>Security QR Scanner</h2>
+      <h2 style={titleStyle}>Security QR Scanner</h2>
 
-      <QrReader
-        onResult={handleResult}
-        constraints={{ facingMode: "environment" }}
-        style={{ width: "100%" }}
-      />
+      <div style={cameraBox}>
+        <QrReader
+          onResult={handleResult}
+          constraints={{ facingMode: "environment" }}
+          style={{ width: "100%" }}
+        />
+      </div>
 
       {message && (
         <pre style={messageStyle}>
@@ -64,16 +65,34 @@ export default function ScanQR() {
 
 const containerStyle = {
   width: "90%",
-  maxWidth: "400px",
+  maxWidth: "420px",
   margin: "20px auto",
-  padding: "15px",
-  background: "#111827",
+  padding: "20px",
+  background: "#020617",
   color: "white",
+  borderRadius: "12px",
+  textAlign: "center",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+};
+
+const titleStyle = {
+  marginBottom: "15px",
+};
+
+const cameraBox = {
   borderRadius: "10px",
+  overflow: "hidden",
+  border: "2px solid #22c55e",
 };
 
 const messageStyle = {
-  marginTop: "10px",
-  color: "lightgreen",
+  marginTop: "15px",
+  padding: "12px",
+  borderRadius: "8px",
+  background: "#111827",
+  color: "#22c55e",
   whiteSpace: "pre-wrap",
+  textAlign: "left",
+  fontSize: "14px",
+  border: "1px solid #334155",
 };
