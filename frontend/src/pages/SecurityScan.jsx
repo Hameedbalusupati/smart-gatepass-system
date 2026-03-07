@@ -124,7 +124,7 @@ const container = {
 const card = {
   marginTop: "20px",
   padding: "15px",
-  background: "#f1f5f9",
+  background: "#020a12",
   borderRadius: "10px",
   textAlign: "left",
   boxShadow: "0px 4px 12px rgba(0,0,0,0.1)",
