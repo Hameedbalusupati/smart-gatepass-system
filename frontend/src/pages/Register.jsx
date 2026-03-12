@@ -2,17 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
-/* ======================================
-   STRICT EMAIL FORMAT
-   23kq1a54g7@pace.ac.in
-====================================== */
-
-const STUDENT_REGEX =
-  /^[0-9]{2}[a-z]{2}[0-9][a-z][0-9]{2}[a-z0-9]@pace\.ac\.in$/;
-
-const DOMAIN_REGEX =
-  /^[a-z0-9._-]+@pace\.ac\.in$/;
-
 export default function Register() {
 
   const navigate = useNavigate();
@@ -30,8 +19,9 @@ export default function Register() {
     department: "",
     year: "",
     section: "",
-    profile_image: null,
+    profile_image: null
   });
+
 
   /* ================= HANDLE INPUT ================= */
 
@@ -39,13 +29,12 @@ export default function Register() {
 
     const { name, value } = e.target;
 
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       [name]: value
     }));
 
   };
-
 
 
   /* ================= IMAGE VALIDATION ================= */
@@ -65,11 +54,10 @@ export default function Register() {
       return;
     }
 
-    setForm((prev) => ({ ...prev, profile_image: file }));
+    setForm(prev => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
 
   };
-
 
 
   /* ================= REGISTER ================= */
@@ -77,85 +65,63 @@ export default function Register() {
   const handleRegister = async (e) => {
 
     e.preventDefault();
+
     if (loading) return;
 
     setError("");
 
-    const email = form.email.trim().toLowerCase();
-    const collegeId = form.college_id.trim().toLowerCase();
+    const collegeId = form.college_id.trim();
+    const email = form.email.trim();
 
+    /* ===== EMAIL FORMAT ===== */
 
+    const parts = email.split("@");
 
-    /* ===== EMAIL DOMAIN CHECK ===== */
-
-    if (!DOMAIN_REGEX.test(email)) {
-      setError("Use valid college email (@pace.ac.in)");
+    if (parts.length !== 2) {
+      setError("Invalid email format");
       return;
     }
 
+    const emailUser = parts[0];
+    const domain = parts[1];
 
+    /* ===== DOMAIN CHECK ===== */
 
-    /* ===== STUDENT EMAIL FORMAT ===== */
-
-    if (form.role === "student" && !STUDENT_REGEX.test(email)) {
-      setError("Email must be like 23kq1a54g7@pace.ac.in");
+    if (domain.toLowerCase() !== "pace.ac.in") {
+      setError("Email must end with @pace.ac.in");
       return;
     }
 
+    /* ===== EMAIL MUST MATCH ROLL NUMBER ===== */
 
-
-    /* ===== EMAIL = COLLEGE ID CHECK ===== */
-
-    if (form.role === "student") {
-
-      const expectedEmail = `${collegeId}@pace.ac.in`;
-
-      if (email !== expectedEmail) {
-        setError("Email must match your College ID");
-        return;
-      }
-
+    if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
+      setError("Email must match your Roll Number");
+      return;
     }
 
-
+    /* ===== REQUIRED FIELDS ===== */
 
     if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
 
-
-
-    if (
-      ["student", "faculty", "hod"].includes(form.role) &&
-      !form.department
-    ) {
+    if (["student", "faculty", "hod"].includes(form.role) && !form.department) {
       setError("Department is required");
       return;
     }
 
-
-
-    if (
-      ["student", "faculty"].includes(form.role) &&
-      (!form.year || !form.section)
-    ) {
+    if (["student", "faculty"].includes(form.role) && (!form.year || !form.section)) {
       setError("Year and Section are required");
       return;
     }
-
-
 
     if (form.role === "student" && !form.profile_image) {
       setError("Student image is required");
       return;
     }
 
-
-
     setLoading(true);
-
-
 
     try {
 
@@ -180,11 +146,9 @@ export default function Register() {
         formData.append("profile_image", form.profile_image);
       }
 
-
-
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
-        body: formData,
+        body: formData
       });
 
       const data = await res.json();
@@ -211,14 +175,16 @@ export default function Register() {
   };
 
 
+  /* ================= UI ================= */
 
   const showYearSection =
     form.role === "student" || form.role === "faculty";
 
 
-
   return (
+
     <div style={container}>
+
       <form onSubmit={handleRegister} style={box}>
 
         <h2 style={title}>Register</h2>
@@ -232,7 +198,7 @@ export default function Register() {
         <input
           style={input}
           name="college_id"
-          placeholder="College ID (23kq1a54g7)"
+          placeholder="Roll Number (23kq1a54g7)"
           value={form.college_id}
           onChange={handleChange}
         />
@@ -247,7 +213,6 @@ export default function Register() {
 
         <input
           style={input}
-          type="text"
           name="email"
           placeholder="College Email (23kq1a54g7@pace.ac.in)"
           value={form.email}
@@ -269,19 +234,24 @@ export default function Register() {
           value={form.role}
           onChange={handleChange}
         >
+
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="hod">HOD</option>
           <option value="security">Security</option>
+
         </select>
 
+
         {form.role !== "security" && (
+
           <select
             style={input}
             name="department"
             value={form.department}
             onChange={handleChange}
           >
+
             <option value="">Select Department</option>
             <option value="CSE">CSE</option>
             <option value="EEE">EEE</option>
@@ -291,22 +261,28 @@ export default function Register() {
             <option value="AIDS">AIDS</option>
             <option value="AIML">AIML</option>
             <option value="IT">IT</option>
+
           </select>
+
         )}
 
         {showYearSection && (
+
           <>
+
             <select
               style={input}
               name="year"
               value={form.year}
               onChange={handleChange}
             >
+
               <option value="">Select Year</option>
               <option value="1">1st</option>
               <option value="2">2nd</option>
               <option value="3">3rd</option>
               <option value="4">4th</option>
+
             </select>
 
             <select
@@ -315,16 +291,22 @@ export default function Register() {
               value={form.section}
               onChange={handleChange}
             >
+
               <option value="">Select Section</option>
               <option value="A">A</option>
               <option value="B">B</option>
               <option value="C">C</option>
+
             </select>
+
           </>
+
         )}
 
         {form.role === "student" && (
+
           <>
+
             <input
               style={input}
               type="file"
@@ -333,13 +315,17 @@ export default function Register() {
             />
 
             {preview && (
+
               <img
                 src={preview}
                 alt="Preview"
                 style={{ width: "120px", borderRadius: "8px" }}
               />
+
             )}
+
           </>
+
         )}
 
         <button style={btn} disabled={loading}>
@@ -347,10 +333,12 @@ export default function Register() {
         </button>
 
       </form>
-    </div>
-  );
-}
 
+    </div>
+
+  );
+
+}
 
 
 /* ================= STYLES ================= */
@@ -360,19 +348,19 @@ const container = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  background: "#0f172a",
+  background: "#0f172a"
 };
 
 const box = {
   width: "420px",
   background: "#020617",
   padding: "25px",
-  borderRadius: "10px",
+  borderRadius: "10px"
 };
 
 const title = {
   color: "white",
-  textAlign: "center",
+  textAlign: "center"
 };
 
 const input = {
@@ -382,7 +370,7 @@ const input = {
   borderRadius: "6px",
   background: "#020617",
   color: "white",
-  border: "1px solid #374151",
+  border: "1px solid #374151"
 };
 
 const btn = {
@@ -392,5 +380,5 @@ const btn = {
   color: "white",
   border: "none",
   borderRadius: "6px",
-  cursor: "pointer",
+  cursor: "pointer"
 };
