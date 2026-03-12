@@ -22,7 +22,6 @@ export default function Register() {
     profile_image: null
   });
 
-
   /* ================= HANDLE INPUT ================= */
 
   const handleChange = (e) => {
@@ -36,8 +35,7 @@ export default function Register() {
 
   };
 
-
-  /* ================= IMAGE VALIDATION ================= */
+  /* ================= IMAGE ================= */
 
   const handleImageChange = (e) => {
 
@@ -59,7 +57,6 @@ export default function Register() {
 
   };
 
-
   /* ================= REGISTER ================= */
 
   const handleRegister = async (e) => {
@@ -73,7 +70,7 @@ export default function Register() {
     const collegeId = form.college_id.trim();
     const email = form.email.trim();
 
-    /* ===== EMAIL FORMAT ===== */
+    /* ===== EMAIL VALIDATION ===== */
 
     const parts = email.split("@");
 
@@ -85,14 +82,10 @@ export default function Register() {
     const emailUser = parts[0];
     const domain = parts[1];
 
-    /* ===== DOMAIN CHECK ===== */
-
     if (domain.toLowerCase() !== "pace.ac.in") {
       setError("Email must end with @pace.ac.in");
       return;
     }
-
-    /* ===== EMAIL MUST MATCH ROLL NUMBER ===== */
 
     if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
       setError("Email must match your Roll Number");
@@ -174,12 +167,10 @@ export default function Register() {
 
   };
 
-
-  /* ================= UI ================= */
-
   const showYearSection =
     form.role === "student" || form.role === "faculty";
 
+  /* ================= UI ================= */
 
   return (
 
@@ -241,7 +232,6 @@ export default function Register() {
           <option value="security">Security</option>
 
         </select>
-
 
         {form.role !== "security" && (
 
@@ -315,13 +305,11 @@ export default function Register() {
             />
 
             {preview && (
-
               <img
                 src={preview}
                 alt="Preview"
                 style={{ width: "120px", borderRadius: "8px" }}
               />
-
             )}
 
           </>
@@ -339,7 +327,6 @@ export default function Register() {
   );
 
 }
-
 
 /* ================= STYLES ================= */
 
