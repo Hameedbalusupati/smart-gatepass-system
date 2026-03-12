@@ -185,3 +185,53 @@ def hod_reject(gatepass_id):
         "success": True,
         "message": "Gatepass rejected successfully"
     }), 200
+# =====================================================
+# HOD GATEPASS HISTORY
+# =====================================================
+@hod_bp.route("/gatepasses/history", methods=["GET"])
+@jwt_required()
+def hod_history():
+
+    try:
+        user_id = int(get_jwt_identity())
+    except:
+        return jsonify({"success": False, "message": "Invalid token"}), 401
+
+    hod = db.session.get(User, user_id)
+
+    if not hod or hod.role.lower() != "hod":
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    if not hod.department:
+        return jsonify({
+            "success": False,
+            "message": "HOD department not assigned"
+        }), 400
+
+    gatepasses = (
+        GatePass.query
+        .join(User, GatePass.student_id == User.id)
+        .filter(User.department == hod.department)
+        .order_by(GatePass.created_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "gatepasses": [
+            {
+                "id": gp.id,
+                "student_name": gp.student.name,
+                "college_id": gp.student.college_id,
+                "department": gp.student.department,
+                "year": gp.student.year,
+                "section": gp.student.section,
+                "reason": gp.reason,
+                "status": gp.status,
+                "rejected_by": gp.rejected_by,
+                "rejection_reason": gp.rejection_reason,
+                "created_at": gp.created_at.isoformat()
+            }
+            for gp in gatepasses
+        ]
+    }), 200
