@@ -4,7 +4,6 @@ from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 import os
-import re
 
 from models import db, User
 
@@ -21,7 +20,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def register():
     try:
 
-        college_id = (request.form.get("college_id") or "").strip().upper()
+        college_id = (request.form.get("college_id") or "").strip()
         name = (request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip()
         password = request.form.get("password")
@@ -33,9 +32,6 @@ def register():
 
         image = request.files.get("profile_image")
 
-        # ================================
-        # BASIC VALIDATION
-        # ================================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
@@ -43,37 +39,31 @@ def register():
             return jsonify({"message": "Invalid role"}), 400
 
         # ================================
-        # EMAIL DOMAIN VALIDATION
+        # EMAIL VALIDATION
         # ================================
-        domain_pattern = r'^[A-Z0-9._-]+@pace\.ac\.in$'
+        parts = email.split("@")
 
-        if not re.match(domain_pattern, email):
-            return jsonify({
-                "message": "Use valid college email like 23KQ1A54G7@pace.ac.in"
-            }), 400
+        if len(parts) != 2:
+            return jsonify({"message": "Invalid email format"}), 400
+
+        email_user = parts[0]
+        domain = parts[1]
+
+        if domain.lower() != "pace.ac.in":
+            return jsonify({"message": "Email must end with @pace.ac.in"}), 400
 
         # ================================
-        # STUDENT EMAIL STRICT FORMAT
+        # STUDENT EMAIL CHECK
         # ================================
         if role == "student":
 
-            roll_pattern = r'^[0-9]{2}[A-Z]{2}[0-9][A-Z][0-9]{2}[A-Z0-9]@pace\.ac\.in$'
-
-            if not re.match(roll_pattern, email):
+            if email_user.lower() != college_id.lower():
                 return jsonify({
-                    "message": "Email must be uppercase like 23KQ1A54G7@pace.ac.in"
-                }), 400
-
-            # Email must match college ID
-            expected_email = f"{college_id}@pace.ac.in"
-
-            if email != expected_email:
-                return jsonify({
-                    "message": "Email must match your College ID"
+                    "message": "Email must match your Roll Number"
                 }), 400
 
         # ================================
-        # ROLE BASED VALIDATION
+        # ROLE VALIDATION
         # ================================
         if role in ["student", "faculty", "hod"]:
             if not department:
@@ -90,9 +80,7 @@ def register():
             try:
                 year = int(year)
             except:
-                return jsonify({
-                    "message": "Invalid year format"
-                }), 400
+                return jsonify({"message": "Invalid year format"}), 400
         else:
             year = None
             section = None
@@ -103,7 +91,7 @@ def register():
             section = None
 
         # ================================
-        # STUDENT IMAGE VALIDATION
+        # STUDENT IMAGE
         # ================================
         image_path = None
 
@@ -115,7 +103,6 @@ def register():
                 }), 400
 
             filename = secure_filename(college_id + ".jpg")
-
             image_path = os.path.join(UPLOAD_FOLDER, filename)
 
             image.save(image_path)
@@ -138,9 +125,7 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({
-            "message": "Registered successfully"
-        }), 201
+        return jsonify({"message": "Registered successfully"}), 201
 
     except IntegrityError:
         db.session.rollback()
@@ -152,9 +137,7 @@ def register():
         db.session.rollback()
         print("REGISTER ERROR:", e)
 
-        return jsonify({
-            "message": "Internal server error"
-        }), 500
+        return jsonify({"message": "Internal server error"}), 500
 
 
 # =================================================
@@ -167,11 +150,6 @@ def login():
 
         data = request.get_json()
 
-        if not data:
-            return jsonify({
-                "message": "Invalid JSON data"
-            }), 400
-
         email = (data.get("email") or "").strip()
         password = data.get("password")
 
@@ -183,9 +161,7 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if not user or not check_password_hash(user.password, password):
-            return jsonify({
-                "message": "Invalid credentials"
-            }), 401
+            return jsonify({"message": "Invalid credentials"}), 401
 
         token = create_access_token(identity=str(user.id))
 
@@ -201,6 +177,4 @@ def login():
 
         print("LOGIN ERROR:", e)
 
-        return jsonify({
-            "message": "Internal server error"
-        }), 500
+        return jsonify({"message": "Internal server error"}), 500
