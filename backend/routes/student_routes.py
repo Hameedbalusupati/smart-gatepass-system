@@ -41,7 +41,7 @@ def profile():
 
 
 # =================================================
-# STUDENT GATEPASS STATUS / HISTORY
+# STUDENT CURRENT GATEPASS STATUS (NO HISTORY)
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
@@ -63,32 +63,34 @@ def student_status():
             "message": "Access denied"
         }), 403
 
-    gatepasses = (
+    # Get latest gatepass only
+    gp = (
         GatePass.query
         .filter(GatePass.student_id == student.id)
         .order_by(GatePass.created_at.desc())
-        .all()
+        .first()
     )
+
+    if not gp:
+        return jsonify({
+            "success": True,
+            "gatepass": None
+        }), 200
 
     return jsonify({
         "success": True,
-        "gatepasses": [
-            {
-                "id": gp.id,
-                "reason": gp.reason,
-                "status": gp.status,
-                "created_at": gp.created_at.isoformat(),
-                "is_used": gp.is_used,
+        "gatepass": {
+            "id": gp.id,
+            "reason": gp.reason,
+            "status": gp.status,
+            "created_at": gp.created_at.isoformat(),
+            "is_used": gp.is_used,
 
-                # ✅ QR visible ONLY if:
-                # 1. HOD approved (status == Approved)
-                # 2. QR not used
-                "qr_token": (
-                    gp.qr_token
-                    if gp.status == "Approved" and not gp.is_used
-                    else None
-                )
-            }
-            for gp in gatepasses
-        ]
+            # QR visible only if approved and unused
+            "qr_token": (
+                gp.qr_token
+                if gp.status == "Approved" and not gp.is_used
+                else None
+            )
+        }
     }), 200
