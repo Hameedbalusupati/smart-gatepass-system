@@ -4,14 +4,14 @@ import API_BASE_URL from "../config";
 
 /* ===============================
    VALID EMAIL FORMAT
-   23kq1a54g7@pace.ac.in
+   23KQ1A54G7@pace.ac.in
 ================================ */
 
 const STUDENT_REGEX =
-  /^[0-9]{2}[a-z]{2}[0-9][a-z][0-9]{2}[a-z][0-9]@pace\.ac\.in$/;
+  /^[0-9]{2}[a-zA-Z]{2}[0-9][a-zA-Z][0-9]{2}[a-zA-Z][0-9]@pace\.ac\.in$/;
 
 const DOMAIN_REGEX =
-  /^[a-z0-9._-]+@pace\.ac\.in$/;
+  /^[a-zA-Z0-9._-]+@pace\.ac\.in$/;
 
 export default function Register() {
 
@@ -46,11 +46,7 @@ export default function Register() {
 
       let updated = { ...prev };
 
-      if (name === "college_id" || name === "email") {
-        updated[name] = value.toLowerCase(); // force lowercase
-      } else {
-        updated[name] = value;
-      }
+      updated[name] = value;
 
       if (name === "role") {
 
@@ -111,20 +107,20 @@ export default function Register() {
 
     setError("");
 
-    const collegeId = form.college_id.trim().toLowerCase();
-    const email = form.email.trim().toLowerCase();
+    const collegeId = form.college_id.trim();
+    const email = form.email.trim();
 
     /* DOMAIN CHECK */
 
     if (!DOMAIN_REGEX.test(email)) {
-      setError("Use valid college email like 23kq1a54g7@pace.ac.in");
+      setError("Use valid college email like 23KQ1A54G7@pace.ac.in");
       return;
     }
 
     /* STUDENT EMAIL FORMAT */
 
     if (form.role === "student" && !STUDENT_REGEX.test(email)) {
-      setError("Email must be like 23kq1a54g7@pace.ac.in");
+      setError("Email must be like 23KQ1A54G7@pace.ac.in");
       return;
     }
 
@@ -134,7 +130,7 @@ export default function Register() {
 
       const expectedEmail = `${collegeId}@pace.ac.in`;
 
-      if (email !== expectedEmail) {
+      if (email.toLowerCase() !== expectedEmail.toLowerCase()) {
         setError("Email must match your College ID");
         return;
       }
@@ -234,9 +230,9 @@ export default function Register() {
         )}
 
         <input
-          style={{ ...input, textTransform: "lowercase" }}
+          style={input}
           name="college_id"
-          placeholder="College ID (23kq1a54g7)"
+          placeholder="College ID (23KQ1A54G7)"
           value={form.college_id}
           onChange={handleChange}
         />
@@ -250,9 +246,9 @@ export default function Register() {
         />
 
         <input
-          style={{ ...input, textTransform: "lowercase" }}
+          style={input}
           name="email"
-          placeholder="College Email (23kq1a54g7@pace.ac.in)"
+          placeholder="College Email (23KQ1A54G7@pace.ac.in)"
           value={form.email}
           onChange={handleChange}
         />
