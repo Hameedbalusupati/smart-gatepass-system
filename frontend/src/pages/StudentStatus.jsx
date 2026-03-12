@@ -5,11 +5,12 @@ import API_BASE_URL from "../config";
 export default function StudentStatus() {
 
   const [pass, setPass] = useState(null);
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
 
   const token = localStorage.getItem("access_token");
 
-  // ================= LIVE TIMER =================
+
+  // ================= TIMER =================
   useEffect(() => {
 
     const timer = setInterval(() => {
@@ -22,7 +23,7 @@ export default function StudentStatus() {
 
 
 
-  // ================= FETCH CURRENT STATUS =================
+  // ================= FETCH STATUS =================
   useEffect(() => {
 
     if (!token) return;
@@ -31,14 +32,11 @@ export default function StudentStatus() {
 
       try {
 
-        const res = await fetch(
-          `${API_BASE_URL}/student/status`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await fetch(`${API_BASE_URL}/student/status`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await res.json();
 
@@ -50,7 +48,7 @@ export default function StudentStatus() {
 
       } catch (err) {
 
-        console.error("FETCH ERROR:", err);
+        console.error("Fetch error:", err);
         setPass(null);
 
       }
@@ -76,8 +74,8 @@ export default function StudentStatus() {
   };
 
 
-
   return (
+
     <div style={styles.page}>
 
       <div style={styles.container}>
@@ -101,7 +99,19 @@ export default function StudentStatus() {
               </span>
             </p>
 
-            {/* ================= QR DISPLAY ================= */}
+
+            {/* REJECTION MESSAGE */}
+
+            {pass.status === "Rejected" && pass.rejection_reason && (
+
+              <p style={styles.rejection}>
+                <b>Rejection Reason:</b> {pass.rejection_reason}
+              </p>
+
+            )}
+
+
+            {/* QR CODE */}
 
             {pass.status === "Approved" &&
               pass.qr_token &&
@@ -126,7 +136,7 @@ export default function StudentStatus() {
                 ) : (
 
                   <p style={styles.expired}>
-                    ❌ QR expired. Contact HOD.
+                    QR expired. Contact HOD.
                   </p>
 
                 )
@@ -139,6 +149,7 @@ export default function StudentStatus() {
       </div>
 
     </div>
+
   );
 }
 
@@ -199,13 +210,18 @@ const styles = {
     marginTop: "10px",
   },
 
+  rejection: {
+    marginTop: "10px",
+    color: "#f87171",
+    fontWeight: "bold",
+  },
+
   error: {
     textAlign: "center",
     color: "#eab308",
   },
 
 };
-
 
 
 const statusStyle = (status) => ({

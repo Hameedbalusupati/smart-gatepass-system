@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, User, GatePass
 
-student_bp = Blueprint("student_bp", __name__)
+student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 
 
 # =================================================
@@ -41,7 +41,7 @@ def profile():
 
 
 # =================================================
-# STUDENT CURRENT GATEPASS STATUS (LATEST ONLY)
+# STUDENT CURRENT GATEPASS STATUS
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
@@ -63,7 +63,6 @@ def student_status():
             "message": "Access denied"
         }), 403
 
-    # Get latest gatepass
     gp = (
         GatePass.query
         .filter(GatePass.student_id == student.id)
@@ -84,17 +83,9 @@ def student_status():
             "reason": gp.reason,
             "status": gp.status,
             "created_at": gp.created_at.isoformat(),
-            "is_used": gp.is_used if gp.is_used else False,
-
-            # Student can see rejection reason
+            "is_used": gp.is_used or False,
             "rejected_by": gp.rejected_by,
             "rejection_reason": gp.rejection_reason,
-
-            # QR visible only if approved and unused
-            "qr_token": (
-                gp.qr_token
-                if gp.status == "Approved" and not gp.is_used
-                else None
-            )
+            "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
         }
     }), 200

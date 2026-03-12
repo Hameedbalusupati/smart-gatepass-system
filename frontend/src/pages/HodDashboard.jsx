@@ -131,7 +131,7 @@ export default function HodDashboard() {
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-/* ================= PENDING ================= */
+      /* ================= PENDING ================= */
 
       <h3>Pending Gatepasses</h3>
 
