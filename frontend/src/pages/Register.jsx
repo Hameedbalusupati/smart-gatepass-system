@@ -2,10 +2,15 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
+/* ======================================
+   STRICT EMAIL FORMAT
+   23KQ1A54G7@pace.ac.in
+   ====================================== */
 const STUDENT_REGEX =
-  /^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$/;
+  /^[0-9]{2}[A-Z]{2}[0-9][A-Z][0-9]{2}[A-Z0-9]@pace\.ac\.in$/;
 
-const DOMAIN_REGEX = /^[A-Za-z0-9._-]+@pace\.ac\.in$/;
+const DOMAIN_REGEX =
+  /^[A-Z0-9._-]+@pace\.ac\.in$/;
 
 export default function Register() {
   const navigate = useNavigate();
@@ -26,11 +31,20 @@ export default function Register() {
     profile_image: null,
   });
 
+  /* ======================================
+     HANDLE INPUT
+     ====================================== */
   const handleChange = (e) => {
     const { name, value } = e.target;
 
     setForm((prev) => {
-      let updated = { ...prev, [name]: value };
+      let updated = { ...prev };
+
+      if (name === "college_id" || name === "email") {
+        updated[name] = value.toUpperCase(); // 🔥 force uppercase
+      } else {
+        updated[name] = value;
+      }
 
       if (name === "role") {
         if (value === "security") {
@@ -49,6 +63,9 @@ export default function Register() {
     });
   };
 
+  /* ======================================
+     IMAGE VALIDATION
+     ====================================== */
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -67,31 +84,48 @@ export default function Register() {
     setPreview(URL.createObjectURL(file));
   };
 
+  /* ======================================
+     REGISTER
+     ====================================== */
   const handleRegister = async (e) => {
     e.preventDefault();
     if (loading) return;
 
     setError("");
 
-    const email = form.email.trim().toLowerCase();
+    const email = form.email.trim();
+    const collegeId = form.college_id.trim();
 
-    // Email validation
+    /* ===============================
+       EMAIL VALIDATION
+       =============================== */
     if (!DOMAIN_REGEX.test(email)) {
       setError("Use valid college email (@pace.ac.in)");
       return;
     }
 
     if (form.role === "student" && !STUDENT_REGEX.test(email)) {
-      setError("Invalid student email format");
+      setError("Email must be like 23KQ1A54G7@pace.ac.in");
       return;
     }
 
-    if (!form.college_id || !form.name || !form.password) {
+    /* ===============================
+       MATCH COLLEGE ID
+       =============================== */
+    if (form.role === "student") {
+      const expectedEmail = `${collegeId}@pace.ac.in`;
+
+      if (email !== expectedEmail) {
+        setError("Email must match your College ID");
+        return;
+      }
+    }
+
+    if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
 
-    // 🔥 Department required for student, faculty, HOD
     if (
       ["student", "faculty", "hod"].includes(form.role) &&
       !form.department
@@ -118,13 +152,12 @@ export default function Register() {
     try {
       const formData = new FormData();
 
-      formData.append("college_id", form.college_id.trim());
+      formData.append("college_id", collegeId);
       formData.append("name", form.name.trim());
       formData.append("email", email);
       formData.append("password", form.password);
       formData.append("role", form.role);
 
-      // ✅ Department for student / faculty / HOD
       if (["student", "faculty", "hod"].includes(form.role)) {
         formData.append("department", form.department);
       }
@@ -152,6 +185,7 @@ export default function Register() {
 
       alert("Registered Successfully ✅");
       navigate("/login");
+
     } catch (err) {
       console.error(err);
       setError("Cannot reach server");
@@ -169,13 +203,15 @@ export default function Register() {
         <h2 style={title}>Register</h2>
 
         {error && (
-          <p style={{ color: "#ef4444", textAlign: "center" }}>{error}</p>
+          <p style={{ color: "#ef4444", textAlign: "center" }}>
+            {error}
+          </p>
         )}
 
         <input
           style={input}
           name="college_id"
-          placeholder="College ID"
+          placeholder="College ID (23KQ1A54G7)"
           value={form.college_id}
           onChange={handleChange}
         />
@@ -190,9 +226,9 @@ export default function Register() {
 
         <input
           style={input}
-          type="email"
+          type="text"
           name="email"
-          placeholder="College Email"
+          placeholder="College Email (23KQ1A54G7@pace.ac.in)"
           value={form.email}
           onChange={handleChange}
         />
@@ -274,6 +310,7 @@ export default function Register() {
               accept="image/*"
               onChange={handleImageChange}
             />
+
             {preview && (
               <img
                 src={preview}
@@ -291,6 +328,10 @@ export default function Register() {
     </div>
   );
 }
+
+/* ======================================
+   STYLES
+   ====================================== */
 
 const container = {
   minHeight: "100vh",

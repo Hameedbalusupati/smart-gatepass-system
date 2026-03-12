@@ -20,9 +20,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @auth_bp.route("/register", methods=["POST"])
 def register():
     try:
+
         college_id = (request.form.get("college_id") or "").strip().upper()
         name = (request.form.get("name") or "").strip()
-        email = (request.form.get("email") or "").strip().lower()
+        email = (request.form.get("email") or "").strip()
         password = request.form.get("password")
         role = (request.form.get("role") or "").strip().lower()
 
@@ -32,40 +33,52 @@ def register():
 
         image = request.files.get("profile_image")
 
-        # ---------------------------------
+        # ================================
         # BASIC VALIDATION
-        # ---------------------------------
+        # ================================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # ---------------------------------
+        # ================================
         # EMAIL DOMAIN VALIDATION
-        # ---------------------------------
-        domain_pattern = r'^[A-Za-z0-9._-]+@pace\.ac\.in$'
-        if not re.match(domain_pattern, email):
-            return jsonify({"message": "Use valid college email (@pace.ac.in)"}), 400
+        # ================================
+        domain_pattern = r'^[A-Z0-9._-]+@pace\.ac\.in$'
 
-        # ---------------------------------
-        # STUDENT STRICT EMAIL FORMAT
-        # ---------------------------------
+        if not re.match(domain_pattern, email):
+            return jsonify({
+                "message": "Use valid college email like 23KQ1A54G7@pace.ac.in"
+            }), 400
+
+        # ================================
+        # STUDENT EMAIL STRICT FORMAT
+        # ================================
         if role == "student":
-            roll_pattern = r'^[0-9]{2}[A-Za-z]{2}[0-9][A-Za-z][0-9]{2}[A-Za-z0-9]+@pace\.ac\.in$'
+
+            roll_pattern = r'^[0-9]{2}[A-Z]{2}[0-9][A-Z][0-9]{2}[A-Z0-9]@pace\.ac\.in$'
+
             if not re.match(roll_pattern, email):
                 return jsonify({
-                    "message": "Invalid student email format"
+                    "message": "Email must be uppercase like 23KQ1A54G7@pace.ac.in"
                 }), 400
 
-        # ---------------------------------
-        # ROLE BASED VALIDATION
-        # ---------------------------------
+            # Email must match college ID
+            expected_email = f"{college_id}@pace.ac.in"
 
+            if email != expected_email:
+                return jsonify({
+                    "message": "Email must match your College ID"
+                }), 400
+
+        # ================================
+        # ROLE BASED VALIDATION
+        # ================================
         if role in ["student", "faculty", "hod"]:
             if not department:
                 return jsonify({
-                    "message": "Department is required for this role"
+                    "message": "Department is required"
                 }), 400
 
         if role in ["student", "faculty"]:
@@ -73,10 +86,13 @@ def register():
                 return jsonify({
                     "message": "Year and Section are required"
                 }), 400
+
             try:
                 year = int(year)
-            except ValueError:
-                return jsonify({"message": "Invalid year format"}), 400
+            except:
+                return jsonify({
+                    "message": "Invalid year format"
+                }), 400
         else:
             year = None
             section = None
@@ -86,24 +102,27 @@ def register():
             year = None
             section = None
 
-        # ---------------------------------
-        # STUDENT IMAGE REQUIRED
-        # ---------------------------------
+        # ================================
+        # STUDENT IMAGE VALIDATION
+        # ================================
         image_path = None
 
         if role == "student":
+
             if not image:
                 return jsonify({
                     "message": "Student profile image is required"
                 }), 400
 
             filename = secure_filename(college_id + ".jpg")
+
             image_path = os.path.join(UPLOAD_FOLDER, filename)
+
             image.save(image_path)
 
-        # ---------------------------------
+        # ================================
         # CREATE USER
-        # ---------------------------------
+        # ================================
         user = User(
             college_id=college_id,
             name=name,
@@ -119,7 +138,9 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        return jsonify({"message": "Registered successfully"}), 201
+        return jsonify({
+            "message": "Registered successfully"
+        }), 201
 
     except IntegrityError:
         db.session.rollback()
@@ -130,6 +151,7 @@ def register():
     except Exception as e:
         db.session.rollback()
         print("REGISTER ERROR:", e)
+
         return jsonify({
             "message": "Internal server error"
         }), 500
@@ -140,22 +162,30 @@ def register():
 # =================================================
 @auth_bp.route("/login", methods=["POST"])
 def login():
+
     try:
+
         data = request.get_json()
 
         if not data:
-            return jsonify({"message": "Invalid JSON data"}), 400
+            return jsonify({
+                "message": "Invalid JSON data"
+            }), 400
 
-        email = (data.get("email") or "").strip().lower()
+        email = (data.get("email") or "").strip()
         password = data.get("password")
 
         if not email or not password:
-            return jsonify({"message": "Email and password required"}), 400
+            return jsonify({
+                "message": "Email and password required"
+            }), 400
 
         user = User.query.filter_by(email=email).first()
 
         if not user or not check_password_hash(user.password, password):
-            return jsonify({"message": "Invalid credentials"}), 401
+            return jsonify({
+                "message": "Invalid credentials"
+            }), 401
 
         token = create_access_token(identity=str(user.id))
 
@@ -168,7 +198,9 @@ def login():
         }), 200
 
     except Exception as e:
+
         print("LOGIN ERROR:", e)
+
         return jsonify({
             "message": "Internal server error"
         }), 500

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from models import db, User, GatePass
@@ -29,7 +29,7 @@ def pending_gatepasses():
         GatePass.query
         .join(User, GatePass.student_id == User.id)
         .filter(GatePass.status == "PendingFaculty")
-        .filter(User.department.ilike(faculty.department))
+        .filter(User.department == faculty.department)
         .filter(User.year == faculty.year)
         .filter(User.section == faculty.section)
         .order_by(GatePass.created_at.desc())
@@ -77,9 +77,21 @@ def approve_gatepass(gatepass_id):
             "message": "Invalid or already processed gatepass"
         }), 400
 
+    # verify student belongs to this faculty class
+    student = gp.student
+
+    if (
+        student.department != faculty.department
+        or student.year != faculty.year
+        or student.section != faculty.section
+    ):
+        return jsonify({
+            "success": False,
+            "message": "Unauthorized access to this gatepass"
+        }), 403
+
     gp.status = "PendingHOD"
     gp.faculty_id = faculty.id
-    gp.faculty_approved_at = datetime.utcnow()
 
     db.session.commit()
 
@@ -110,15 +122,65 @@ def reject_gatepass(gatepass_id):
             "message": "Invalid or already processed gatepass"
         }), 400
 
+    data = request.get_json() or {}
+    rejection_reason = (data.get("rejection_reason") or "").strip()
+
+    if not rejection_reason:
+        return jsonify({
+            "success": False,
+            "message": "Rejection reason required"
+        }), 400
+
     gp.status = "Rejected"
     gp.rejected_by = "Faculty"
-    gp.rejection_reason = "Rejected by Faculty"
+    gp.rejection_reason = rejection_reason
     gp.faculty_id = faculty.id
-    gp.faculty_approved_at = datetime.utcnow()
 
     db.session.commit()
 
     return jsonify({
         "success": True,
         "message": "Gatepass rejected successfully"
+    }), 200
+
+
+# =====================================================
+# FACULTY GATEPASS HISTORY
+# =====================================================
+@faculty_bp.route("/gatepasses/history", methods=["GET"])
+@jwt_required()
+def faculty_history():
+
+    user_id = int(get_jwt_identity())
+    faculty = db.session.get(User, user_id)
+
+    if not faculty or faculty.role.lower() != "faculty":
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    gatepasses = (
+        GatePass.query
+        .join(User, GatePass.student_id == User.id)
+        .filter(User.department == faculty.department)
+        .order_by(GatePass.created_at.desc())
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "gatepasses": [
+            {
+                "id": gp.id,
+                "student_name": gp.student.name,
+                "college_id": gp.student.college_id,
+                "department": gp.student.department,
+                "year": gp.student.year,
+                "section": gp.student.section,
+                "reason": gp.reason,
+                "status": gp.status,
+                "rejected_by": gp.rejected_by,
+                "rejection_reason": gp.rejection_reason,
+                "created_at": gp.created_at.isoformat()
+            }
+            for gp in gatepasses
+        ]
     }), 200

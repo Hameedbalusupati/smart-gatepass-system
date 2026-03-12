@@ -29,7 +29,10 @@ def apply_gatepass():
     parent_mobile = (data.get("parent_mobile") or "").strip()
 
     if not reason or not parent_mobile:
-        return jsonify({"success": False, "message": "Reason and parent mobile are required"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Reason and parent mobile are required"
+        }), 400
 
     # =================================================
     # CHECK EXISTING GATEPASS
@@ -41,14 +44,12 @@ def apply_gatepass():
 
     for gp in existing_gatepasses:
 
-        # if still pending -> block
         if gp.status in ["PendingFaculty", "PendingHOD"]:
             return jsonify({
                 "success": False,
                 "message": "You already have a pending gatepass"
             }), 400
 
-        # if approved -> check QR expiry
         if gp.status == "Approved" and gp.qr_token:
 
             try:
@@ -64,9 +65,9 @@ def apply_gatepass():
                 }), 400
 
             except jwt.ExpiredSignatureError:
-                # QR expired → mark expired
                 gp.status = "Expired"
-                db.session.commit()
+
+    db.session.commit()
 
     # =================================================
     # CREATE NEW GATEPASS
@@ -83,7 +84,10 @@ def apply_gatepass():
     db.session.add(new_gp)
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Gatepass applied successfully"}), 201
+    return jsonify({
+        "success": True,
+        "message": "Gatepass applied successfully"
+    }), 201
 
 
 # =================================================
@@ -97,16 +101,22 @@ def faculty_action(gatepass_id):
     faculty = db.session.get(User, faculty_id)
 
     if not faculty or faculty.role != "faculty":
-        return jsonify({"success": False, "message": "Only faculty can perform this action"}), 403
+        return jsonify({
+            "success": False,
+            "message": "Only faculty can perform this action"
+        }), 403
 
     data = request.get_json() or {}
     action = data.get("action")
-    rejection_reason = data.get("rejection_reason")
+    rejection_reason = (data.get("rejection_reason") or "").strip()
 
     gatepass = db.session.get(GatePass, gatepass_id)
 
     if not gatepass or gatepass.status != "PendingFaculty":
-        return jsonify({"success": False, "message": "Invalid gatepass"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid gatepass"
+        }), 400
 
     gatepass.faculty_id = faculty.id
 
@@ -114,16 +124,29 @@ def faculty_action(gatepass_id):
         gatepass.status = "PendingHOD"
 
     elif action == "reject":
+
+        if not rejection_reason:
+            return jsonify({
+                "success": False,
+                "message": "Rejection reason is required"
+            }), 400
+
         gatepass.status = "Rejected"
         gatepass.rejected_by = "Faculty"
         gatepass.rejection_reason = rejection_reason
 
     else:
-        return jsonify({"success": False, "message": "Invalid action"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid action"
+        }), 400
 
     db.session.commit()
 
-    return jsonify({"success": True, "message": f"Gatepass {action}d successfully"})
+    return jsonify({
+        "success": True,
+        "message": f"Gatepass {action}d successfully"
+    })
 
 
 # =================================================
@@ -137,7 +160,10 @@ def hod_pending_gatepasses():
     hod = db.session.get(User, hod_id)
 
     if not hod or hod.role != "hod":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+        return jsonify({
+            "success": False,
+            "message": "Access denied"
+        }), 403
 
     gatepasses = GatePass.query.filter(
         GatePass.status == "PendingHOD"
@@ -170,16 +196,22 @@ def hod_action(gatepass_id):
     hod = db.session.get(User, hod_id)
 
     if not hod or hod.role != "hod":
-        return jsonify({"success": False, "message": "Only HOD can perform this action"}), 403
+        return jsonify({
+            "success": False,
+            "message": "Only HOD can perform this action"
+        }), 403
 
     data = request.get_json() or {}
     action = data.get("action")
-    rejection_reason = data.get("rejection_reason")
+    rejection_reason = (data.get("rejection_reason") or "").strip()
 
     gatepass = db.session.get(GatePass, gatepass_id)
 
     if not gatepass or gatepass.status != "PendingHOD":
-        return jsonify({"success": False, "message": "Invalid gatepass"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid gatepass"
+        }), 400
 
     gatepass.hod_id = hod.id
 
@@ -200,16 +232,28 @@ def hod_action(gatepass_id):
 
     elif action == "reject":
 
+        if not rejection_reason:
+            return jsonify({
+                "success": False,
+                "message": "Rejection reason is required"
+            }), 400
+
         gatepass.status = "Rejected"
         gatepass.rejected_by = "HOD"
         gatepass.rejection_reason = rejection_reason
 
     else:
-        return jsonify({"success": False, "message": "Invalid action"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Invalid action"
+        }), 400
 
     db.session.commit()
 
-    return jsonify({"success": True, "message": f"Gatepass {action}d successfully"})
+    return jsonify({
+        "success": True,
+        "message": f"Gatepass {action}d successfully"
+    })
 
 
 # =================================================
@@ -223,7 +267,10 @@ def my_gatepasses():
     student = db.session.get(User, student_id)
 
     if not student or student.role != "student":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+        return jsonify({
+            "success": False,
+            "message": "Access denied"
+        }), 403
 
     gatepasses = GatePass.query.filter(
         GatePass.student_id == student.id
