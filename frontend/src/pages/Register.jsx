@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
-/* ============================
-   EMAIL FORMAT
+/* ===============================
+   VALID EMAIL FORMAT
    23kq1a54g7@pace.ac.in
-============================ */
+================================ */
 
 const STUDENT_REGEX =
-  /^[0-9]{2}[a-z]{2}[0-9][a-z][0-9]{2}[a-z0-9]{2}@pace\.ac\.in$/;
+  /^[0-9]{2}[a-z]{2}[0-9][a-z][0-9]{2}[a-z][0-9]@pace\.ac\.in$/;
 
 const DOMAIN_REGEX =
   /^[a-z0-9._-]+@pace\.ac\.in$/;
@@ -34,15 +34,15 @@ export default function Register() {
   });
 
 
-  /* ============================
+  /* ===============================
      HANDLE INPUT
-  ============================ */
+  ================================ */
 
   const handleChange = (e) => {
 
     const { name, value } = e.target;
 
-    setForm((prev) => {
+    setForm(prev => {
 
       let updated = { ...prev };
 
@@ -74,9 +74,9 @@ export default function Register() {
   };
 
 
-  /* ============================
+  /* ===============================
      IMAGE VALIDATION
-  ============================ */
+  ================================ */
 
   const handleImageChange = (e) => {
 
@@ -93,16 +93,15 @@ export default function Register() {
       return;
     }
 
-    setForm((prev) => ({ ...prev, profile_image: file }));
+    setForm(prev => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
 
   };
 
 
-
-  /* ============================
+  /* ===============================
      REGISTER
-  ============================ */
+  ================================ */
 
   const handleRegister = async (e) => {
 
@@ -112,27 +111,24 @@ export default function Register() {
 
     setError("");
 
-    const email = form.email.trim().toLowerCase();
     const collegeId = form.college_id.trim().toLowerCase();
+    const email = form.email.trim().toLowerCase();
 
-
-    /* ===== DOMAIN VALIDATION ===== */
+    /* DOMAIN CHECK */
 
     if (!DOMAIN_REGEX.test(email)) {
-      setError("Use valid college email (@pace.ac.in)");
+      setError("Use valid college email like 23kq1a54g7@pace.ac.in");
       return;
     }
 
-
-    /* ===== STUDENT FORMAT ===== */
+    /* STUDENT EMAIL FORMAT */
 
     if (form.role === "student" && !STUDENT_REGEX.test(email)) {
       setError("Email must be like 23kq1a54g7@pace.ac.in");
       return;
     }
 
-
-    /* ===== EMAIL MATCH COLLEGE ID ===== */
+    /* EMAIL MUST MATCH COLLEGE ID */
 
     if (form.role === "student") {
 
@@ -145,33 +141,27 @@ export default function Register() {
 
     }
 
-
     if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
-
 
     if (["student", "faculty", "hod"].includes(form.role) && !form.department) {
       setError("Department is required");
       return;
     }
 
-
     if (["student", "faculty"].includes(form.role) && (!form.year || !form.section)) {
       setError("Year and Section are required");
       return;
     }
-
 
     if (form.role === "student" && !form.profile_image) {
       setError("Student image is required");
       return;
     }
 
-
     setLoading(true);
-
 
     try {
 
@@ -195,7 +185,6 @@ export default function Register() {
       if (form.profile_image) {
         formData.append("profile_image", form.profile_image);
       }
-
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
@@ -226,8 +215,8 @@ export default function Register() {
   };
 
 
-
-  const showYearSection = form.role === "student" || form.role === "faculty";
+  const showYearSection =
+    form.role === "student" || form.role === "faculty";
 
 
   return (
@@ -291,7 +280,6 @@ export default function Register() {
 
         </select>
 
-
         {form.role !== "security" && (
 
           <select
@@ -315,7 +303,6 @@ export default function Register() {
 
         )}
 
-
         {showYearSection && (
 
           <>
@@ -335,7 +322,6 @@ export default function Register() {
 
             </select>
 
-
             <select
               style={input}
               name="section"
@@ -353,7 +339,6 @@ export default function Register() {
           </>
 
         )}
-
 
         {form.role === "student" && (
 
@@ -380,7 +365,6 @@ export default function Register() {
 
         )}
 
-
         <button style={btn} disabled={loading}>
           {loading ? "Registering..." : "Register"}
         </button>
@@ -394,9 +378,9 @@ export default function Register() {
 }
 
 
-/* ============================
+/* ===============================
    STYLES
-============================ */
+================================ */
 
 const container = {
   minHeight: "100vh",
