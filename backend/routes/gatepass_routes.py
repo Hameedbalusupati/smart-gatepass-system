@@ -12,7 +12,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =================================================
-# APPLY GATEPASS (STUDENT)
+# APPLY GATEPASS (ONLY ONE PER DAY)
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
@@ -22,7 +22,10 @@ def apply_gatepass():
     student = db.session.get(User, student_id)
 
     if not student or student.role != "student":
-        return jsonify({"success": False, "message": "Only students can apply"}), 403
+        return jsonify({
+            "success": False,
+            "message": "Only students can apply"
+        }), 403
 
     data = request.get_json() or {}
     reason = (data.get("reason") or "").strip()
@@ -34,40 +37,39 @@ def apply_gatepass():
             "message": "Reason and parent mobile are required"
         }), 400
 
+
     # =================================================
-    # CHECK EXISTING GATEPASS
+    # CHECK IF STUDENT ALREADY APPLIED TODAY
     # =================================================
-    existing_gatepasses = GatePass.query.filter(
+    today = datetime.utcnow().date()
+
+    today_gatepass = GatePass.query.filter(
         GatePass.student_id == student.id,
-        GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"])
-    ).all()
+        db.func.date(GatePass.created_at) == today
+    ).first()
 
-    for gp in existing_gatepasses:
+    if today_gatepass:
+        return jsonify({
+            "success": False,
+            "message": "You can apply only one gatepass per day"
+        }), 400
 
-        if gp.status in ["PendingFaculty", "PendingHOD"]:
-            return jsonify({
-                "success": False,
-                "message": "You already have a pending gatepass"
-            }), 400
 
-        if gp.status == "Approved" and gp.qr_token:
+    # =================================================
+    # CHECK IF ACTIVE GATEPASS EXISTS
+    # =================================================
+    active = GatePass.query.filter(
+        GatePass.student_id == student.id,
+        GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"]),
+        GatePass.is_used == False
+    ).first()
 
-            try:
-                jwt.decode(
-                    gp.qr_token,
-                    Config.QR_SECRET_KEY,
-                    algorithms=[QR_ALGORITHM]
-                )
+    if active:
+        return jsonify({
+            "success": False,
+            "message": "You already have an active gatepass"
+        }), 400
 
-                return jsonify({
-                    "success": False,
-                    "message": "You already have an active gatepass"
-                }), 400
-
-            except jwt.ExpiredSignatureError:
-                gp.status = "Expired"
-
-    db.session.commit()
 
     # =================================================
     # CREATE NEW GATEPASS
@@ -128,7 +130,7 @@ def faculty_action(gatepass_id):
         if not rejection_reason:
             return jsonify({
                 "success": False,
-                "message": "Rejection reason is required"
+                "message": "Rejection reason required"
             }), 400
 
         gatepass.status = "Rejected"
@@ -147,42 +149,6 @@ def faculty_action(gatepass_id):
         "success": True,
         "message": f"Gatepass {action}d successfully"
     })
-
-
-# =================================================
-# HOD FETCH PENDING GATEPASSES
-# =================================================
-@gatepass_bp.route("/hod/gatepasses/pending", methods=["GET"])
-@jwt_required()
-def hod_pending_gatepasses():
-
-    hod_id = int(get_jwt_identity())
-    hod = db.session.get(User, hod_id)
-
-    if not hod or hod.role != "hod":
-        return jsonify({
-            "success": False,
-            "message": "Access denied"
-        }), 403
-
-    gatepasses = GatePass.query.filter(
-        GatePass.status == "PendingHOD"
-    ).order_by(GatePass.created_at.desc()).all()
-
-    return jsonify({
-        "success": True,
-        "gatepasses": [
-            {
-                "id": g.id,
-                "student_name": g.student.name,
-                "college_id": g.student.college_id,
-                "year": g.student.year,
-                "section": g.student.section,
-                "reason": g.reason
-            }
-            for g in gatepasses
-        ]
-    }), 200
 
 
 # =================================================
@@ -235,7 +201,7 @@ def hod_action(gatepass_id):
         if not rejection_reason:
             return jsonify({
                 "success": False,
-                "message": "Rejection reason is required"
+                "message": "Rejection reason required"
             }), 400
 
         gatepass.status = "Rejected"
@@ -254,42 +220,3 @@ def hod_action(gatepass_id):
         "success": True,
         "message": f"Gatepass {action}d successfully"
     })
-
-
-# =================================================
-# STUDENT VIEW
-# =================================================
-@gatepass_bp.route("/my_gatepasses", methods=["GET"])
-@jwt_required()
-def my_gatepasses():
-
-    student_id = int(get_jwt_identity())
-    student = db.session.get(User, student_id)
-
-    if not student or student.role != "student":
-        return jsonify({
-            "success": False,
-            "message": "Access denied"
-        }), 403
-
-    gatepasses = GatePass.query.filter(
-        GatePass.student_id == student.id
-    ).order_by(GatePass.created_at.desc()).all()
-
-    return jsonify({
-        "success": True,
-        "gatepasses": [
-            {
-                "id": g.id,
-                "reason": g.reason,
-                "status": g.status,
-                "parent_mobile": g.parent_mobile,
-                "created_at": g.created_at.isoformat(),
-                "is_used": g.is_used,
-                "qr_token": g.qr_token if g.status == "Approved" and not g.is_used else None,
-                "rejected_by": g.rejected_by,
-                "rejection_reason": g.rejection_reason
-            }
-            for g in gatepasses
-        ]
-    }), 200
