@@ -22,7 +22,6 @@ export default function Register() {
     profile_image: null
   });
 
-
   /* ================= HANDLE INPUT ================= */
 
   const handleChange = (e) => {
@@ -93,19 +92,29 @@ export default function Register() {
     const collegeId = form.college_id.trim();
     const email = form.email.trim();
 
-    /* CHECK DOMAIN */
+    /* SPLIT EMAIL */
 
-    if (!email.toLowerCase().endsWith("@pace.ac.in")) {
+    const parts = email.split("@");
+
+    if (parts.length !== 2) {
+      setError("Invalid email format");
+      return;
+    }
+
+    const emailId = parts[0];
+    const domain = parts[1];
+
+    /* DOMAIN CHECK */
+
+    if (domain.toLowerCase() !== "pace.ac.in") {
       setError("Email must end with @pace.ac.in");
       return;
     }
 
-    /* CHECK EMAIL = COLLEGE ID */
+    /* COLLEGE ID MATCH */
 
-    const expectedEmail = `${collegeId}@pace.ac.in`;
-
-    if (email.toLowerCase() !== expectedEmail.toLowerCase()) {
-      setError("Email must match your College ID (Example: 23KQ1A54G7@pace.ac.in)");
+    if (emailId.toLowerCase() !== collegeId.toLowerCase()) {
+      setError("Email must match your College ID");
       return;
     }
 
@@ -183,9 +192,10 @@ export default function Register() {
   };
 
 
+  /* ================= UI ================= */
+
   const showYearSection =
     form.role === "student" || form.role === "faculty";
-
 
   return (
 
@@ -196,7 +206,8 @@ export default function Register() {
         <h2 style={title}>Register</h2>
 
         <p style={{ color: "#ef4444", textAlign: "center" }}>
-          Email must match College ID (example: 23KQ1A54G7@pace.ac.in)
+          Email must match College ID
+          Example: 23KQ1A54G7@pace.ac.in
         </p>
 
         {error && (
@@ -251,7 +262,6 @@ export default function Register() {
           <option value="security">Security</option>
 
         </select>
-
 
         {form.role !== "security" && (
 
