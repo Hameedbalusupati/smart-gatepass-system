@@ -4,15 +4,17 @@ import API_BASE_URL from "../config";
 
 /* ======================================
    STRICT EMAIL FORMAT
-   23KQ1A54G7@pace.ac.in
-   ====================================== */
+   23kq1a54g7@pace.ac.in
+====================================== */
+
 const STUDENT_REGEX =
-  /^[0-9]{2}[A-Z]{2}[0-9][A-Z][0-9]{2}[A-Z0-9]@pace\.ac\.in$/;
+  /^[0-9]{2}[a-z]{2}[0-9][a-z][0-9]{2}[a-z0-9]@pace\.ac\.in$/;
 
 const DOMAIN_REGEX =
-  /^[A-Z0-9._-]+@pace\.ac\.in$/;
+  /^[a-z0-9._-]+@pace\.ac\.in$/;
 
 export default function Register() {
+
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -31,22 +33,25 @@ export default function Register() {
     profile_image: null,
   });
 
-  /* ======================================
-     HANDLE INPUT
-     ====================================== */
+  /* ================= HANDLE INPUT ================= */
+
   const handleChange = (e) => {
+
     const { name, value } = e.target;
 
     setForm((prev) => {
+
       let updated = { ...prev };
 
+      // 🔥 Force lowercase for ID and Email
       if (name === "college_id" || name === "email") {
-        updated[name] = value; // 🔥 force uppercase
+        updated[name] = value.toLowerCase();
       } else {
         updated[name] = value;
       }
 
       if (name === "role") {
+
         if (value === "security") {
           updated.department = "";
           updated.year = "";
@@ -57,16 +62,21 @@ export default function Register() {
           updated.year = "";
           updated.section = "";
         }
+
       }
 
       return updated;
+
     });
+
   };
 
-  /* ======================================
-     IMAGE VALIDATION
-     ====================================== */
+
+
+  /* ================= IMAGE VALIDATION ================= */
+
   const handleImageChange = (e) => {
+
     const file = e.target.files[0];
     if (!file) return;
 
@@ -82,12 +92,15 @@ export default function Register() {
 
     setForm((prev) => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
+
   };
 
-  /* ======================================
-     REGISTER
-     ====================================== */
+
+
+  /* ================= REGISTER ================= */
+
   const handleRegister = async (e) => {
+
     e.preventDefault();
     if (loading) return;
 
@@ -96,35 +109,47 @@ export default function Register() {
     const email = form.email.trim();
     const collegeId = form.college_id.trim();
 
-    /* ===============================
-       EMAIL VALIDATION
-       =============================== */
+
+
+    /* ===== EMAIL DOMAIN CHECK ===== */
+
     if (!DOMAIN_REGEX.test(email)) {
       setError("Use valid college email (@pace.ac.in)");
       return;
     }
 
+
+
+    /* ===== STUDENT EMAIL FORMAT ===== */
+
     if (form.role === "student" && !STUDENT_REGEX.test(email)) {
-      setError("Email must be like 23KQ1A54G7@pace.ac.in");
+      setError("Email must be like 23kq1a54g7@pace.ac.in");
       return;
     }
 
-    /* ===============================
-       MATCH COLLEGE ID
-       =============================== */
+
+
+    /* ===== EMAIL = COLLEGE ID CHECK ===== */
+
     if (form.role === "student") {
+
       const expectedEmail = `${collegeId}@pace.ac.in`;
 
       if (email !== expectedEmail) {
         setError("Email must match your College ID");
         return;
       }
+
     }
+
+
 
     if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
+
+
 
     if (
       ["student", "faculty", "hod"].includes(form.role) &&
@@ -134,6 +159,8 @@ export default function Register() {
       return;
     }
 
+
+
     if (
       ["student", "faculty"].includes(form.role) &&
       (!form.year || !form.section)
@@ -142,14 +169,21 @@ export default function Register() {
       return;
     }
 
+
+
     if (form.role === "student" && !form.profile_image) {
       setError("Student image is required");
       return;
     }
 
+
+
     setLoading(true);
 
+
+
     try {
+
       const formData = new FormData();
 
       formData.append("college_id", collegeId);
@@ -187,19 +221,24 @@ export default function Register() {
       navigate("/login");
 
     } catch (err) {
+
       console.error(err);
       setError("Cannot reach server");
+
     } finally {
+
       setLoading(false);
+
     }
+
   };
 
   const showYearSection =
     form.role === "student" || form.role === "faculty";
-
   return (
     <div style={container}>
       <form onSubmit={handleRegister} style={box}>
+
         <h2 style={title}>Register</h2>
 
         {error && (
@@ -209,9 +248,9 @@ export default function Register() {
         )}
 
         <input
-          style={input}
+          style={{...input, textTransform:"lowercase"}}
           name="college_id"
-          placeholder="College ID (23KQ1A54G7)"
+          placeholder="College ID (23kq1a54g7)"
           value={form.college_id}
           onChange={handleChange}
         />
@@ -225,10 +264,10 @@ export default function Register() {
         />
 
         <input
-          style={input}
+          style={{...input, textTransform:"lowercase"}}
           type="text"
           name="email"
-          placeholder="College Email (23KQ1A54G7@pace.ac.in)"
+          placeholder="College Email (23kq1a54g7@pace.ac.in)"
           value={form.email}
           onChange={handleChange}
         />
@@ -324,14 +363,15 @@ export default function Register() {
         <button style={btn} disabled={loading}>
           {loading ? "Registering..." : "Register"}
         </button>
+
       </form>
     </div>
   );
 }
 
-/* ======================================
-   STYLES
-   ====================================== */
+
+
+/* ================= STYLES ================= */
 
 const container = {
   minHeight: "100vh",
