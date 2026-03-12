@@ -41,7 +41,7 @@ export default function Register() {
       let updated = { ...prev };
 
       if (name === "college_id" || name === "email") {
-        updated[name] = value.toUpperCase(); // 🔥 force uppercase
+        updated[name] = value; // 🔥 force uppercase
       } else {
         updated[name] = value;
       }
@@ -183,7 +183,7 @@ export default function Register() {
         return;
       }
 
-      alert("Registered Successfully ✅");
+      alert("Registered Successfully");
       navigate("/login");
 
     } catch (err) {
