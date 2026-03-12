@@ -155,7 +155,7 @@ export default function HodDashboard() {
         </div>
       ))}
 
-/* ================= HISTORY ================= */
+
 
       <h3 style={{ marginTop: "40px" }}>Gatepass History</h3>
 

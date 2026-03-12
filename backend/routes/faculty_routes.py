@@ -1,13 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime
 from models import db, User, GatePass
 
 faculty_bp = Blueprint("faculty_bp", __name__, url_prefix="/faculty")
 
 
 # =====================================================
-# VIEW PENDING GATEPASSES (FACULTY)
+# VIEW PENDING GATEPASSES
 # =====================================================
 @faculty_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -57,7 +56,7 @@ def pending_gatepasses():
 
 
 # =====================================================
-# APPROVE → FORWARD TO HOD
+# APPROVE → SEND TO HOD
 # =====================================================
 @faculty_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["PUT"])
 @jwt_required()
@@ -77,7 +76,6 @@ def approve_gatepass(gatepass_id):
             "message": "Invalid or already processed gatepass"
         }), 400
 
-    # verify student belongs to this faculty class
     student = gp.student
 
     if (
@@ -157,10 +155,18 @@ def faculty_history():
     if not faculty or faculty.role.lower() != "faculty":
         return jsonify({"success": False, "message": "Access denied"}), 403
 
+    if not faculty.department or not faculty.year or not faculty.section:
+        return jsonify({
+            "success": False,
+            "message": "Faculty class details not assigned"
+        }), 400
+
     gatepasses = (
         GatePass.query
         .join(User, GatePass.student_id == User.id)
         .filter(User.department == faculty.department)
+        .filter(User.year == faculty.year)
+        .filter(User.section == faculty.section)
         .order_by(GatePass.created_at.desc())
         .all()
     )
@@ -177,8 +183,6 @@ def faculty_history():
                 "section": gp.student.section,
                 "reason": gp.reason,
                 "status": gp.status,
-                "rejected_by": gp.rejected_by,
-                "rejection_reason": gp.rejection_reason,
                 "created_at": gp.created_at.isoformat()
             }
             for gp in gatepasses

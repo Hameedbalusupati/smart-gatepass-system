@@ -216,7 +216,7 @@ const statusStyle = (status) => ({
     status === "Approved"
       ? "#22c55e"
       : status === "Rejected"
-      ? "#ef4444"
-      : "#eab308",
+        ? "#ef4444"
+        : "#eab308",
 
 });

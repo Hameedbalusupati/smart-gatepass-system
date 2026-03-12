@@ -12,7 +12,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =====================================================
-# VIEW PENDING GATEPASSES (FOR HOD)
+# VIEW PENDING GATEPASSES
 # =====================================================
 @hod_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -63,7 +63,7 @@ def hod_pending():
 
 
 # =====================================================
-# APPROVE GATEPASS (HOD)
+# APPROVE GATEPASS
 # =====================================================
 @hod_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["PUT"])
 @jwt_required()
@@ -96,17 +96,11 @@ def hod_approve(gatepass_id):
             "message": "Unauthorized department access"
         }), 403
 
-    # =========================
-    # UPDATE STATUS
-    # =========================
     gp.status = "Approved"
     gp.hod_id = hod.id
     gp.is_used = False
     gp.used_at = None
 
-    # =========================
-    # GENERATE QR TOKEN
-    # =========================
     expiry = datetime.utcnow() + timedelta(minutes=10)
 
     payload = {
@@ -138,7 +132,7 @@ def hod_approve(gatepass_id):
 
 
 # =====================================================
-# REJECT GATEPASS (HOD)
+# REJECT GATEPASS
 # =====================================================
 @hod_bp.route("/gatepasses/reject/<int:gatepass_id>", methods=["PUT"])
 @jwt_required()
@@ -185,6 +179,8 @@ def hod_reject(gatepass_id):
         "success": True,
         "message": "Gatepass rejected successfully"
     }), 200
+
+
 # =====================================================
 # HOD GATEPASS HISTORY
 # =====================================================
@@ -228,8 +224,6 @@ def hod_history():
                 "section": gp.student.section,
                 "reason": gp.reason,
                 "status": gp.status,
-                "rejected_by": gp.rejected_by,
-                "rejection_reason": gp.rejection_reason,
                 "created_at": gp.created_at.isoformat()
             }
             for gp in gatepasses

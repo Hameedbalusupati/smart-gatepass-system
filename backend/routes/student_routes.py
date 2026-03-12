@@ -22,7 +22,7 @@ def profile():
 
     student = db.session.get(User, student_id)
 
-    if not student or student.role != "student":
+    if not student or student.role.lower() != "student":
         return jsonify({
             "success": False,
             "message": "Access denied"
@@ -41,7 +41,7 @@ def profile():
 
 
 # =================================================
-# STUDENT CURRENT GATEPASS STATUS (NO HISTORY)
+# STUDENT CURRENT GATEPASS STATUS (LATEST ONLY)
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
@@ -57,13 +57,13 @@ def student_status():
 
     student = db.session.get(User, student_id)
 
-    if not student or student.role != "student":
+    if not student or student.role.lower() != "student":
         return jsonify({
             "success": False,
             "message": "Access denied"
         }), 403
 
-    # Get latest gatepass only
+    # Get latest gatepass
     gp = (
         GatePass.query
         .filter(GatePass.student_id == student.id)
@@ -84,7 +84,11 @@ def student_status():
             "reason": gp.reason,
             "status": gp.status,
             "created_at": gp.created_at.isoformat(),
-            "is_used": gp.is_used,
+            "is_used": gp.is_used if gp.is_used else False,
+
+            # Student can see rejection reason
+            "rejected_by": gp.rejected_by,
+            "rejection_reason": gp.rejection_reason,
 
             # QR visible only if approved and unused
             "qr_token": (
