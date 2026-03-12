@@ -1,250 +1,210 @@
 import { useEffect, useState } from "react";
 import API_BASE_URL from "../config";
-import "./HodDashboard.css";
 
 export default function HodDashboard() {
 
-  const [passes, setPasses] = useState([]);
+  const [pending, setPending] = useState([]);
+  const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
-  const [loadingId, setLoadingId] = useState(null);
-  const [loadingPage, setLoadingPage] = useState(true);
 
   const token = localStorage.getItem("access_token");
 
+  /* ================= FETCH PENDING ================= */
 
-  // =================================================
-  // FETCH PENDING GATEPASSES
-  // =================================================
+  const fetchPending = async () => {
+
+    try {
+
+      const res = await fetch(`${API_BASE_URL}/hod/gatepasses/pending`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setPending(data.gatepasses);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError("Server error");
+    }
+
+  };
+
+  /* ================= FETCH HISTORY ================= */
+
+  const fetchHistory = async () => {
+
+    try {
+
+      const res = await fetch(`${API_BASE_URL}/hod/gatepasses/history`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setHistory(data.gatepasses);
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+
+  };
+
   useEffect(() => {
 
-    let isMounted = true;
+    fetchPending();
+    fetchHistory();
 
-    const loadGatepasses = async () => {
-
-      if (!token) {
-        if (isMounted) {
-          setError("Please login again");
-          setLoadingPage(false);
-        }
-        return;
-      }
-
-      try {
-
-        const res = await fetch(
-          `${API_BASE_URL}/hod/gatepasses/pending`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          if (isMounted) {
-            setError(data.message || "Failed to load gatepasses");
-            setLoadingPage(false);
-          }
-          return;
-        }
-
-        if (isMounted) {
-          setPasses(data.gatepasses || []);
-          setError("");
-          setLoadingPage(false);
-        }
-
-      } catch (err) {
-
-        console.error(err);
-
-        if (isMounted) {
-          setError("Server not reachable");
-          setLoadingPage(false);
-        }
-
-      }
-    };
-
-    loadGatepasses();
-
-    return () => {
-      isMounted = false;
-    };
-
-  }, [token]);
+  }, []);
 
 
+  /* ================= APPROVE ================= */
 
-  // =================================================
-  // APPROVE GATEPASS
-  // =================================================
   const approveGatepass = async (id) => {
 
-    if (!window.confirm("Approve this gatepass?")) return;
-
-    setLoadingId(id);
-
     try {
 
-      const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/approve/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await fetch(`${API_BASE_URL}/hod/gatepasses/approve/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`
         }
-      );
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Approval failed");
-      } else {
-
-        // remove approved item
-        setPasses((prev) => prev.filter((p) => p.id !== id));
-
+      if (res.ok) {
+        fetchPending();
+        fetchHistory();
       }
 
     } catch (err) {
-
       console.error(err);
-      alert("Server error");
-
     }
 
-    setLoadingId(null);
   };
 
+  /* ================= REJECT ================= */
 
-
-  // =================================================
-  // REJECT GATEPASS
-  // =================================================
   const rejectGatepass = async (id) => {
 
-    const reason = prompt("Enter rejection reason:");
+    const reason = prompt("Enter rejection reason");
 
-    if (!reason) {
-      alert("Rejection reason required");
-      return;
-    }
-
-    setLoadingId(id);
+    if (!reason) return;
 
     try {
 
-      const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/reject/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            rejection_reason: reason,
-          }),
-        }
-      );
+      const res = await fetch(`${API_BASE_URL}/hod/gatepasses/reject/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rejection_reason: reason
+        })
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Rejection failed");
-      } else {
-
-        // remove rejected item
-        setPasses((prev) => prev.filter((p) => p.id !== id));
-
+      if (res.ok) {
+        fetchPending();
+        fetchHistory();
       }
 
     } catch (err) {
-
       console.error(err);
-      alert("Server error");
-
     }
 
-    setLoadingId(null);
   };
 
 
-
-  // =================================================
-  // UI
-  // =================================================
   return (
-    <div className="hod-container">
 
-      <h2 className="hod-title">HOD Dashboard</h2>
+    <div style={{ padding: "20px" }}>
 
-      {loadingPage && (
-        <p className="no-data">Loading gatepasses...</p>
-      )}
+      <h2>HOD Dashboard</h2>
 
-      {error && (
-        <p className="error-message">{error}</p>
-      )}
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {!loadingPage && !error && passes.length === 0 && (
-        <p className="no-data">No pending gatepasses</p>
-      )}
+/* ================= PENDING ================= */
 
-      {passes.map((p) => (
+      <h3>Pending Gatepasses</h3>
 
-        <div key={p.id} className="gatepass-card">
+      {pending.length === 0 && <p>No pending requests</p>}
 
-          <div className="student-name">{p.student_name}</div>
+      {pending.map(p => (
+        <div key={p.id} style={card}>
 
-          <div className="gatepass-info">
-            <b>College ID:</b> {p.college_id}
-          </div>
+          <p><b>Student:</b> {p.student_name}</p>
+          <p><b>Roll:</b> {p.college_id}</p>
+          <p><b>Reason:</b> {p.reason}</p>
 
-          <div className="gatepass-info">
-            <b>Department:</b> {p.department}
-          </div>
+          <button onClick={() => approveGatepass(p.id)} style={approveBtn}>
+            Approve
+          </button>
 
-          <div className="gatepass-info">
-            <b>Year:</b> {p.year}
-          </div>
-
-          <div className="gatepass-info">
-            <b>Section:</b> {p.section}
-          </div>
-
-          <div className="gatepass-info">
-            <b>Reason:</b> {p.reason}
-          </div>
-
-          <div className="hod-actions">
-
-            <button
-              className="approve-btn"
-              disabled={loadingId === p.id}
-              onClick={() => approveGatepass(p.id)}
-            >
-              {loadingId === p.id ? "Processing..." : "Approve"}
-            </button>
-
-            <button
-              className="reject-btn"
-              disabled={loadingId === p.id}
-              onClick={() => rejectGatepass(p.id)}
-            >
-              Reject
-            </button>
-
-          </div>
+          <button onClick={() => rejectGatepass(p.id)} style={rejectBtn}>
+            Reject
+          </button>
 
         </div>
+      ))}
 
+/* ================= HISTORY ================= */
+
+      <h3 style={{ marginTop: "40px" }}>Gatepass History</h3>
+
+      {history.length === 0 && <p>No history found</p>}
+
+      {history.map(p => (
+        <div key={p.id} style={card}>
+
+          <p><b>Student:</b> {p.student_name}</p>
+          <p><b>Roll:</b> {p.college_id}</p>
+          <p><b>Reason:</b> {p.reason}</p>
+          <p><b>Status:</b> {p.status}</p>
+
+          {p.rejection_reason && (
+            <p style={{ color: "red" }}>
+              <b>Reason:</b> {p.rejection_reason}
+            </p>
+          )}
+
+        </div>
       ))}
 
     </div>
+
   );
+
 }
+
+/* ================= STYLES ================= */
+
+const card = {
+  border: "1px solid #ccc",
+  padding: "10px",
+  marginBottom: "10px",
+  borderRadius: "6px"
+};
+
+const approveBtn = {
+  background: "#22c55e",
+  border: "none",
+  padding: "6px 12px",
+  marginRight: "10px",
+  cursor: "pointer"
+};
+
+const rejectBtn = {
+  background: "#ef4444",
+  color: "white",
+  border: "none",
+  padding: "6px 12px",
+  cursor: "pointer"
+};
