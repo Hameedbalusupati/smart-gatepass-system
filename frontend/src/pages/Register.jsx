@@ -87,9 +87,31 @@ export default function Register() {
       return;
     }
 
-    if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
-      setError("Email must match your Roll Number");
-      return;
+    /* ================= STUDENT RULE ================= */
+
+    if (form.role === "student") {
+
+      if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
+        setError("Student email must match Roll Number");
+        return;
+      }
+
+    }
+
+    /* ================= FACULTY RULE ================= */
+
+    if (form.role === "faculty") {
+
+      if (!/^[0-9]+$/.test(collegeId)) {
+        setError("Faculty College ID must contain numbers only");
+        return;
+      }
+
+      if (!/^[a-zA-Z]+_[a-zA-Z]$/.test(emailUser)) {
+        setError("Faculty email must be like venkat_p@pace.ac.in");
+        return;
+      }
+
     }
 
     /* ===== REQUIRED FIELDS ===== */
@@ -189,7 +211,7 @@ export default function Register() {
         <input
           style={input}
           name="college_id"
-          placeholder="Roll Number (23kq1a54g7)"
+          placeholder="College ID"
           value={form.college_id}
           onChange={handleChange}
         />
@@ -205,7 +227,7 @@ export default function Register() {
         <input
           style={input}
           name="email"
-          placeholder="College Email (23kq1a54g7@pace.ac.in)"
+          placeholder="College Email"
           value={form.email}
           onChange={handleChange}
         />

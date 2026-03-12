@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 import os
+import re
 
 from models import db, User
 
@@ -18,6 +19,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # =================================================
 @auth_bp.route("/register", methods=["POST"])
 def register():
+
     try:
 
         college_id = (request.form.get("college_id") or "").strip()
@@ -32,11 +34,15 @@ def register():
 
         image = request.files.get("profile_image")
 
+        # ================================
+        # BASIC VALIDATION
+        # ================================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
+
 
         # ================================
         # EMAIL VALIDATION
@@ -52,24 +58,45 @@ def register():
         if domain.lower() != "pace.ac.in":
             return jsonify({"message": "Email must end with @pace.ac.in"}), 400
 
+
         # ================================
-        # STUDENT EMAIL CHECK
+        # STUDENT EMAIL RULE
         # ================================
         if role == "student":
 
+            # Email must match roll number
             if email_user.lower() != college_id.lower():
                 return jsonify({
-                    "message": "Email must match your Roll Number"
+                    "message": "Student email must match Roll Number"
                 }), 400
 
+
         # ================================
-        # ROLE VALIDATION
+        # FACULTY EMAIL RULE
+        # ================================
+        if role == "faculty":
+
+            # faculty college id must be numbers
+            if not college_id.isdigit():
+                return jsonify({
+                    "message": "Faculty college ID must contain numbers only"
+                }), 400
+
+            # email format like venkat_p
+            pattern = r'^[a-zA-Z]+_[a-zA-Z]$'
+
+            if not re.match(pattern, email_user):
+                return jsonify({
+                    "message": "Faculty email must be like venkat_p@pace.ac.in"
+                }), 400
+
+
+        # ================================
+        # ROLE BASED VALIDATION
         # ================================
         if role in ["student", "faculty", "hod"]:
             if not department:
-                return jsonify({
-                    "message": "Department is required"
-                }), 400
+                return jsonify({"message": "Department is required"}), 400
 
         if role in ["student", "faculty"]:
             if not year or not section:
@@ -85,10 +112,12 @@ def register():
             year = None
             section = None
 
+
         if role == "security":
             department = None
             year = None
             section = None
+
 
         # ================================
         # STUDENT IMAGE
@@ -106,6 +135,7 @@ def register():
             image_path = os.path.join(UPLOAD_FOLDER, filename)
 
             image.save(image_path)
+
 
         # ================================
         # CREATE USER
@@ -127,17 +157,22 @@ def register():
 
         return jsonify({"message": "Registered successfully"}), 201
 
+
     except IntegrityError:
         db.session.rollback()
+
         return jsonify({
             "message": "Email or College ID already exists"
         }), 400
 
     except Exception as e:
+
         db.session.rollback()
         print("REGISTER ERROR:", e)
 
-        return jsonify({"message": "Internal server error"}), 500
+        return jsonify({
+            "message": "Internal server error"
+        }), 500
 
 
 # =================================================
@@ -177,4 +212,6 @@ def login():
 
         print("LOGIN ERROR:", e)
 
-        return jsonify({"message": "Internal server error"}), 500
+        return jsonify({
+            "message": "Internal server error"
+        }), 500
