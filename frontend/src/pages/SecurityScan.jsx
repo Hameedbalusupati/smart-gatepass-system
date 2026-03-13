@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { QrReader } from "react-qr-reader";
+import { useEffect, useRef, useState } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import API_BASE_URL from "../config";
 
 export default function SecurityScan() {
+
+  const scannerRef = useRef(null);
 
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState(null);
@@ -10,7 +12,11 @@ export default function SecurityScan() {
 
   const token = localStorage.getItem("access_token");
 
-  const verifyGatepass = async (qrData) => {
+
+  // ================= VERIFY GATEPASS =================
+
+  const verifyGatepass = async (qrToken) => {
+
     try {
 
       const res = await fetch(`${API_BASE_URL}/security/verify`, {
@@ -19,37 +25,83 @@ export default function SecurityScan() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ qr_token: qrData })
+        body: JSON.stringify({ qr_token: qrToken })
       });
 
       const data = await res.json();
 
       if (res.ok && data.success) {
+
         setResult(data);
         setMessage("Gatepass Verified ✅");
+
       } else {
-        setMessage(data.message || "Invalid gatepass");
+
+        setMessage(data.message || "Invalid Gatepass ❌");
+
       }
 
     } catch (error) {
+
       console.error("Verification error:", error);
-      setMessage("Server error");
+      setMessage("Server Error");
+
     }
+
   };
 
 
-  const handleScan = (data) => {
-    if (data && !scanned) {
-      setScanned(true);
-      verifyGatepass(data);
-    }
-  };
+  // ================= QR SCANNER =================
 
+  useEffect(() => {
+
+    const scanner = new Html5Qrcode("reader");
+
+    scannerRef.current = scanner;
+
+    scanner.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: 250
+      },
+      (decodedText) => {
+
+        if (!scanned) {
+
+          setScanned(true);
+
+          verifyGatepass(decodedText);
+
+          scanner.stop();
+
+        }
+
+      },
+      () => { }
+    );
+
+    return () => {
+
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => { });
+      }
+
+    };
+
+  }, [scanned]);
+
+
+  // ================= RESET SCANNER =================
 
   const resetScanner = () => {
+
     setScanned(false);
     setResult(null);
     setMessage("");
+
+    window.location.reload();
+
   };
 
 
@@ -57,23 +109,11 @@ export default function SecurityScan() {
 
     <div style={styles.container}>
 
-      <h2 style={styles.title}>Security QR Scanner</h2>
+      <h2>Security QR Scanner</h2>
 
       {!scanned && (
 
-        <div style={styles.scannerBox}>
-
-          <QrReader
-            constraints={{ facingMode: "environment" }}
-            onResult={(result) => {
-              if (result) {
-                handleScan(result?.text);
-              }
-            }}
-            style={{ width: "100%" }}
-          />
-
-        </div>
+        <div id="reader" style={styles.reader}></div>
 
       )}
 
@@ -84,11 +124,15 @@ export default function SecurityScan() {
           <h3>{message}</h3>
 
           {result && (
+
             <div>
+
               <p><b>Student:</b> {result.student_name}</p>
               <p><b>Reason:</b> {result.reason}</p>
               <p><b>Out Time:</b> {result.out_time}</p>
+
             </div>
+
           )}
 
           <button style={styles.button} onClick={resetScanner}>
@@ -102,26 +146,23 @@ export default function SecurityScan() {
     </div>
 
   );
+
 }
 
 
 const styles = {
 
   container: {
-    padding: "20px",
     textAlign: "center",
+    padding: "20px",
     minHeight: "100vh",
     background: "#0f172a",
     color: "white"
   },
 
-  title: {
-    marginBottom: "20px"
-  },
-
-  scannerBox: {
-    maxWidth: "400px",
-    margin: "0 auto"
+  reader: {
+    width: "320px",
+    margin: "20px auto"
   },
 
   resultBox: {
