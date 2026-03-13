@@ -2,188 +2,221 @@ import { useState } from "react";
 import API_BASE_URL from "../config";
 
 export default function ApplyGatepass() {
-  const [reason, setReason] = useState("");
-  const [parentMobile, setParentMobile] = useState("");
-  const [message, setMessage] = useState("");
-  const [isError, setIsError] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const applyGatepass = async (e) => {
+  const [form, setForm] = useState({
+    reason: "",
+    out_time: "",
+    return_time: "",
+    parent_mobile: ""
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const token = localStorage.getItem("access_token");
+
+
+  const handleChange = (e) => {
+
+    const { name, value } = e.target;
+
+    if (name === "parent_mobile") {
+
+      // allow only digits and max 10 numbers
+      if (!/^\d{0,10}$/.test(value)) return;
+
+    }
+
+    setForm({
+      ...form,
+      [name]: value
+    });
+  };
+
+
+  const validateMobile = (number) => {
+
+    const mobileRegex = /^[6-9]\d{9}$/;
+    return mobileRegex.test(number);
+
+  };
+
+
+  const handleSubmit = async (e) => {
+
     e.preventDefault();
 
-    if (loading) return;
-
     setMessage("");
-    setIsError(false);
 
-    const token = localStorage.getItem("access_token");
-
-    // ✅ Token check
-    if (!token) {
-      setIsError(true);
-      setMessage("Session expired. Please login again.");
+    if (!validateMobile(form.parent_mobile)) {
+      setMessage("Parent mobile number must be a valid 10-digit Indian number");
       return;
     }
-
-    // ✅ Field validation
-    if (!reason.trim()) {
-      setIsError(true);
-      setMessage("Reason is required.");
-      return;
-    }
-
-    if (!parentMobile.trim()) {
-      setIsError(true);
-      setMessage("Parent Mobile is required.");
-      return;
-    }
-
-    setLoading(true);
 
     try {
+
+      setLoading(true);
+
       const res = await fetch(`${API_BASE_URL}/gatepass/apply`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          reason: reason.trim(),
-          parent_mobile: parentMobile.trim(),
-        }),
+        body: JSON.stringify(form)
       });
 
-      // ✅ Try parsing safely
-      let data;
-      try {
-        data = await res.json();
-      } catch {
-        setIsError(true);
-        setMessage("Invalid server response.");
-        setLoading(false);
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+
+        setMessage(data.message || "Failed to apply gatepass");
+
+      } else {
+
+        setMessage("Gatepass applied successfully!");
+
+        setForm({
+          reason: "",
+          out_time: "",
+          return_time: "",
+          parent_mobile: ""
+        });
+
       }
 
-      // ✅ Handle token expired
-      if (res.status === 401) {
-        localStorage.removeItem("access_token");
-        setIsError(true);
-        setMessage("Session expired. Please login again.");
-        setLoading(false);
-        return;
-      }
+    } catch (error) {
 
-      // ✅ Handle backend validation
-      if (!res.ok || data.success === false) {
-        setIsError(true);
-        setMessage(data.message || "Failed to apply gatepass.");
-        setLoading(false);
-        return;
-      }
+      console.error("Gatepass submit error:", error);
+      setMessage("Cannot reach server");
 
-      // ✅ Success
-      setIsError(false);
-      setMessage("✅ Gatepass applied successfully.");
-      setReason("");
-      setParentMobile("");
-    } catch (err) {
-      console.error("Apply Gatepass Error:", err);
-      setIsError(true);
-      setMessage("Backend not responding. Try again in 30 seconds.");
     } finally {
+
       setLoading(false);
+
     }
+
   };
 
+
   return (
+
     <div style={styles.page}>
-      <div style={styles.card}>
+
+      <div style={styles.container}>
+
         <h2 style={styles.title}>Apply Gatepass</h2>
 
-        <form onSubmit={applyGatepass}>
+        <form onSubmit={handleSubmit} style={styles.form}>
+
+          <textarea
+            name="reason"
+            placeholder="Reason for leaving"
+            value={form.reason}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+
           <input
-            type="text"
-            placeholder="Reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            type="datetime-local"
+            name="out_time"
+            value={form.out_time}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+
+          <input
+            type="datetime-local"
+            name="return_time"
+            value={form.return_time}
+            onChange={handleChange}
+            required
             style={styles.input}
           />
 
           <input
             type="tel"
-            placeholder="Parent Mobile"
-            value={parentMobile}
-            onChange={(e) => setParentMobile(e.target.value)}
+            name="parent_mobile"
+            placeholder="Parent Mobile Number"
+            value={form.parent_mobile}
+            onChange={handleChange}
+            required
             style={styles.input}
           />
 
           <button
             type="submit"
             disabled={loading}
-            style={{
-              ...styles.button,
-              opacity: loading ? 0.7 : 1,
-            }}
+            style={styles.button}
           >
-            {loading ? "Applying..." : "Apply Gatepass"}
+            {loading ? "Submitting..." : "Apply Gatepass"}
           </button>
+
         </form>
 
-        {message && (
-          <p
-            style={{
-              marginTop: "15px",
-              color: isError ? "#ef4444" : "#22c55e",
-              textAlign: "center",
-              fontWeight: "bold",
-            }}
-          >
-            {message}
-          </p>
-        )}
+        {message && <p style={styles.message}>{message}</p>}
+
       </div>
+
     </div>
+
   );
 }
 
-/* ================= STYLES ================= */
 
 const styles = {
+
   page: {
     minHeight: "100vh",
     background: "#0f172a",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
-    color: "white",
+    alignItems: "center"
   },
-  card: {
+
+  container: {
     background: "#111827",
-    padding: "30px",
-    borderRadius: "12px",
-    width: "350px",
-    boxShadow: "0 15px 40px rgba(0,0,0,0.6)",
+    padding: "25px",
+    borderRadius: "10px",
+    width: "95%",
+    maxWidth: "400px",
+    color: "white"
   },
+
   title: {
     textAlign: "center",
-    marginBottom: "20px",
+    marginBottom: "20px"
   },
+
+  form: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px"
+  },
+
   input: {
-    width: "100%",
     padding: "10px",
-    marginBottom: "12px",
-    borderRadius: "6px",
+    borderRadius: "5px",
     border: "1px solid #334155",
     background: "#020617",
-    color: "white",
+    color: "white"
   },
+
   button: {
-    width: "100%",
     padding: "10px",
-    borderRadius: "6px",
     border: "none",
-    background: "#22c55e",
-    fontWeight: "bold",
-    cursor: "pointer",
+    borderRadius: "5px",
+    background: "#2563eb",
+    color: "white",
+    cursor: "pointer"
   },
+
+  message: {
+    marginTop: "10px",
+    textAlign: "center",
+    color: "#22c55e"
+  }
+
 };

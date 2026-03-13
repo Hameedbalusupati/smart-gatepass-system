@@ -5,17 +5,20 @@ import API_BASE_URL from "../config";
 export default function StudentStatus() {
 
   const [pass, setPass] = useState(null);
-  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
+  const [now, setNow] = useState(0);
 
   const token = localStorage.getItem("access_token");
-
 
   // ================= TIMER =================
   useEffect(() => {
 
-    const timer = setInterval(() => {
+    const updateTime = () => {
       setNow(Math.floor(Date.now() / 1000));
-    }, 1000);
+    };
+
+    updateTime();
+
+    const timer = setInterval(updateTime, 1000);
 
     return () => clearInterval(timer);
 
