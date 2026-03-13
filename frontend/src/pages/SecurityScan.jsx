@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API_BASE_URL from "../config";
 
@@ -15,7 +15,7 @@ export default function SecurityScan() {
 
   // ================= VERIFY GATEPASS =================
 
-  const verifyGatepass = async (qrToken) => {
+  const verifyGatepass = useCallback(async (qrToken) => {
 
     try {
 
@@ -31,14 +31,10 @@ export default function SecurityScan() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-
         setResult(data);
         setMessage("Gatepass Verified ✅");
-
       } else {
-
         setMessage(data.message || "Invalid Gatepass ❌");
-
       }
 
     } catch (error) {
@@ -48,15 +44,14 @@ export default function SecurityScan() {
 
     }
 
-  };
+  }, [token]);
 
 
-  // ================= QR SCANNER =================
+  // ================= START QR SCANNER =================
 
   useEffect(() => {
 
     const scanner = new Html5Qrcode("reader");
-
     scannerRef.current = scanner;
 
     scanner.start(
@@ -78,18 +73,18 @@ export default function SecurityScan() {
         }
 
       },
-      () => { }
+      () => {}
     );
 
     return () => {
 
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => { });
+        scannerRef.current.stop().catch(() => {});
       }
 
     };
 
-  }, [scanned]);
+  }, [scanned, verifyGatepass]);
 
 
   // ================= RESET SCANNER =================
