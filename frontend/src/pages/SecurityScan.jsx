@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import API from "../api";
 
@@ -7,26 +7,45 @@ export default function SecurityScan() {
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
+  const [exitCount, setExitCount] = useState(0);
 
-  const scannerRef = useRef(null);
   const scannedRef = useRef(false);
 
+
+  // ================================
+  // GET DAILY EXIT COUNT
+  // ================================
+  const fetchExitCount = async () => {
+    try {
+      const res = await API.get("/security/exit-count");
+      setExitCount(res.data.total_exits);
+    } catch (err) {
+      console.error("Exit count error:", err);
+    }
+  };
+
+
+  // ================================
+  // QR SCANNER
+  // ================================
   useEffect(() => {
 
-    scannerRef.current = new Html5QrcodeScanner(
+    const init = async () => {
+      await fetchExitCount();
+    };
+
+    init();
+
+    const scanner = new Html5QrcodeScanner(
       "qr-reader",
-      {
-        fps: 10,
-        qrbox: 250
-      },
+      { fps: 10, qrbox: 250 },
       false
     );
 
-    scannerRef.current.render(
+    scanner.render(
 
       async (decodedText) => {
 
-        // Prevent multiple scans
         if (scannedRef.current) return;
         scannedRef.current = true;
 
@@ -48,9 +67,6 @@ export default function SecurityScan() {
           setGatepass(data.gatepass);
           setMessage("Gatepass Verified");
 
-          // Stop scanner after success
-          scannerRef.current.clear();
-
         } catch (err) {
 
           console.error(err);
@@ -65,19 +81,20 @@ export default function SecurityScan() {
 
       },
 
-      () => { }
+      () => {}
 
     );
 
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => { });
-      }
+      scanner.clear().catch(() => {});
     };
 
   }, []);
 
 
+  // ================================
+  // CONFIRM EXIT
+  // ================================
   const confirmExit = async () => {
 
     try {
@@ -90,9 +107,10 @@ export default function SecurityScan() {
         setStudent(null);
         setGatepass(null);
 
-        // Allow new scan
         scannedRef.current = false;
 
+        // refresh exit count
+        fetchExitCount();
       }
 
     } catch (err) {
@@ -107,23 +125,15 @@ export default function SecurityScan() {
 
   return (
 
-    <div
-      style={{
-        maxWidth: "350px",
-        margin: "auto",
-        textAlign: "center"
-      }}
-    >
+    <div style={{ maxWidth: "350px", margin: "auto", textAlign: "center" }}>
 
       <h2>Security QR Scanner</h2>
 
+      <h4>Today's Exits: {exitCount}</h4>
+
       <div id="qr-reader" style={{ width: "100%" }} />
 
-      {message && (
-        <p style={{ marginTop: "10px" }}>
-          {message}
-        </p>
-      )}
+      {message && <p>{message}</p>}
 
       {student && (
 
@@ -138,25 +148,21 @@ export default function SecurityScan() {
         >
 
           <img
-            src={student.profile_image || "/default-user.png"}
+            src={student.profile_image}
             alt="student"
             style={{
               width: "120px",
               height: "120px",
               borderRadius: "10px",
-              objectFit: "cover",
-              marginBottom: "10px"
+              objectFit: "cover"
             }}
           />
 
           <h3>{student.name}</h3>
 
           <p><b>Roll No:</b> {student.roll_no}</p>
-
           <p><b>Year:</b> {student.year}</p>
-
           <p><b>Section:</b> {student.section}</p>
-
           <p><b>Department:</b> {student.department}</p>
 
           <button
