@@ -18,10 +18,10 @@ class Config:
     # ==============================
     # BASE URL (Used for images)
     # ==============================
-    BASE_URL = os.getenv(
-        "BASE_URL",
-        "https://smart-gatepass-system.onrender.com"
-    )
+    # BASE_URL = os.getenv(
+    #     "BASE_URL",
+    #     "https://smart-gatepass-system.onrender.com"
+    # )
 
     # ==============================
     # DATABASE CONFIGURATION
