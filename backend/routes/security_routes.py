@@ -6,25 +6,19 @@ import os
 from models import db, GatePass
 from config import Config
 
-# =================================================
-# BLUEPRINT
-# =================================================
 security_bp = Blueprint("security_bp", __name__, url_prefix="/security")
 
 QR_ALGORITHM = "HS256"
 
 
 # =================================================
-# SCAN QR CODE (ONE TIME USE)
+# SCAN QR CODE
 # =================================================
 @security_bp.route("/scan/<string:qr_token>", methods=["GET"])
 def scan_qr(qr_token):
 
     try:
 
-        # =========================
-        # DECODE QR TOKEN
-        # =========================
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -36,13 +30,10 @@ def scan_qr(qr_token):
         if not gatepass_id:
             return jsonify({
                 "success": False,
-                "message": "Invalid QR data"
+                "message": "Invalid QR Code"
             }), 400
 
 
-        # =========================
-        # FETCH GATEPASS
-        # =========================
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -52,9 +43,6 @@ def scan_qr(qr_token):
             }), 404
 
 
-        # =========================
-        # CHECK STATUS
-        # =========================
         if gatepass.status != "Approved":
             return jsonify({
                 "success": False,
@@ -62,9 +50,6 @@ def scan_qr(qr_token):
             }), 400
 
 
-        # =========================
-        # CHECK USED
-        # =========================
         if gatepass.is_used:
             return jsonify({
                 "success": False,
@@ -72,40 +57,15 @@ def scan_qr(qr_token):
             }), 400
 
 
-        # =========================
-        # MARK AS USED
-        # =========================
-        now = datetime.utcnow()
-
-        gatepass.is_used = True
-        gatepass.used_at = now
-        gatepass.out_time = now
-        gatepass.status = "Completed"
-
-        db.session.commit()
-
-
-        # =========================
-        # STUDENT DETAILS
-        # =========================
         student = gatepass.student
 
-
-        # =========================
-        # IMAGE URL
-        # =========================
         image_url = None
 
         if student.profile_image:
-
             filename = os.path.basename(student.profile_image)
-
             image_url = f"{Config.BASE_URL}/uploads/student_images/{filename}"
 
 
-        # =========================
-        # SUCCESS RESPONSE
-        # =========================
         return jsonify({
 
             "success": True,
@@ -124,16 +84,12 @@ def scan_qr(qr_token):
             "gatepass": {
                 "id": gatepass.id,
                 "reason": gatepass.reason,
-                "parent_mobile": gatepass.parent_mobile,
-                "out_time": gatepass.out_time.isoformat()
+                "parent_mobile": gatepass.parent_mobile
             }
 
         }), 200
 
 
-    # =========================
-    # QR EXPIRED
-    # =========================
     except jwt.ExpiredSignatureError:
 
         return jsonify({
@@ -142,9 +98,6 @@ def scan_qr(qr_token):
         }), 410
 
 
-    # =========================
-    # INVALID TOKEN
-    # =========================
     except jwt.InvalidTokenError:
 
         return jsonify({
@@ -153,14 +106,50 @@ def scan_qr(qr_token):
         }), 400
 
 
-    # =========================
-    # UNKNOWN ERROR
-    # =========================
     except Exception as e:
 
-        print("QR SCAN ERROR:", e)
+        print("QR ERROR:", e)
 
         return jsonify({
             "success": False,
-            "message": "Internal server error"
+            "message": "Server error"
+        }), 500
+
+
+# =================================================
+# CONFIRM EXIT
+# =================================================
+@security_bp.route("/confirm/<int:gatepass_id>", methods=["POST"])
+def confirm_exit(gatepass_id):
+
+    try:
+
+        gatepass = db.session.get(GatePass, gatepass_id)
+
+        if not gatepass:
+            return jsonify({
+                "success": False,
+                "message": "Gatepass not found"
+            }), 404
+
+
+        gatepass.is_used = True
+        gatepass.status = "Completed"
+        gatepass.out_time = datetime.utcnow()
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "Exit recorded successfully"
+        })
+
+
+    except Exception as e:
+
+        print("CONFIRM ERROR:", e)
+
+        return jsonify({
+            "success": False,
+            "message": "Server error"
         }), 500

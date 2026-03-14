@@ -11,13 +11,15 @@ export default function SecurityScan() {
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("Starting camera...");
 
-  // ================= VERIFY GATEPASS =================
+
+  // ================= VERIFY QR =================
 
   const verifyGatepass = async (qrToken) => {
 
     try {
 
       const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`);
+
       const data = await res.json();
 
       if (res.ok && data.success) {
@@ -28,20 +30,21 @@ export default function SecurityScan() {
 
       } else {
 
-        setMessage(data.message || "Invalid Gatepass ❌");
+        setMessage(data.message);
 
       }
 
     } catch (error) {
 
       console.error(error);
-      setMessage("Server error");
+      setMessage("Server Error");
 
     }
 
   };
 
-  // ================= START CAMERA =================
+
+  // ================= START SCANNER =================
 
   useEffect(() => {
 
@@ -50,16 +53,21 @@ export default function SecurityScan() {
       try {
 
         const scanner = new Html5Qrcode("reader");
+
         scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
+          {
+            fps: 10,
+            qrbox: 250
+          },
           (decodedText) => {
 
             if (!scanned) {
 
               setScanned(true);
+
               verifyGatepass(decodedText);
 
               scanner.stop();
@@ -69,12 +77,13 @@ export default function SecurityScan() {
           }
         );
 
-        setMessage("Scan QR Code");
+        setMessage("Scan Gatepass QR");
 
       } catch (error) {
 
-        console.error("Camera error:", error);
-        setMessage("Camera not supported on this device");
+        console.error(error);
+
+        setMessage("Camera not supported");
 
       }
 
@@ -85,12 +94,43 @@ export default function SecurityScan() {
     return () => {
 
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.stop().catch(() => { });
       }
 
     };
 
   }, [scanned]);
+
+
+  // ================= CONFIRM EXIT =================
+
+  const confirmExit = async () => {
+
+    try {
+
+      const res = await fetch(
+        `${API_BASE_URL}/security/confirm/${gatepass.id}`,
+        { method: "POST" }
+      );
+
+      const data = await res.json();
+
+      if (data.success) {
+
+        alert("Gatepass Completed");
+
+        resetScanner();
+
+      }
+
+    } catch (error) {
+
+      console.error(error);
+
+    }
+
+  };
+
 
   // ================= RESET =================
 
@@ -104,6 +144,7 @@ export default function SecurityScan() {
     window.location.reload();
 
   };
+
 
   return (
 
@@ -124,7 +165,11 @@ export default function SecurityScan() {
           <h3>Student Details</h3>
 
           {student.profile_image && (
-            <img src={student.profile_image} alt="Student" style={styles.image} />
+            <img
+              src={student.profile_image}
+              alt="Student"
+              style={styles.image}
+            />
           )}
 
           <p><b>Name:</b> {student.name}</p>
@@ -133,14 +178,17 @@ export default function SecurityScan() {
           <p><b>Year:</b> {student.year}</p>
           <p><b>Section:</b> {student.section}</p>
 
-          <hr/>
+          <hr />
 
           <p><b>Reason:</b> {gatepass.reason}</p>
           <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
-          <p><b>Out Time:</b> {gatepass.out_time}</p>
 
-          <button style={styles.button} onClick={resetScanner}>
-            Scan Next Gatepass
+          <button style={styles.button} onClick={confirmExit}>
+            Confirm Exit
+          </button>
+
+          <button style={styles.reset} onClick={resetScanner}>
+            Scan Next
           </button>
 
         </div>
@@ -150,7 +198,9 @@ export default function SecurityScan() {
     </div>
 
   );
+
 }
+
 
 const styles = {
 
@@ -187,10 +237,20 @@ const styles = {
   button: {
     marginTop: "15px",
     padding: "10px 20px",
+    background: "#22c55e",
     border: "none",
-    background: "#2563eb",
-    color: "white",
     borderRadius: "6px",
+    color: "white",
+    cursor: "pointer"
+  },
+
+  reset: {
+    marginTop: "10px",
+    padding: "10px 20px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: "6px",
+    color: "white",
     cursor: "pointer"
   }
 
