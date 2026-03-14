@@ -73,7 +73,7 @@ def scan_qr():
 
         if student.profile_image:
             filename = os.path.basename(student.profile_image)
-            image_url = f"{Config.API_BASE_URL}/uploads/student_images/{filename}"
+            image_url = f"{Config.BASE_URL}/uploads/student_images/{filename}"
 
 
         return jsonify({

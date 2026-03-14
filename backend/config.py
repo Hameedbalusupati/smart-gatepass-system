@@ -2,8 +2,9 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# 🔥 Load .env file automatically
+# Load environment variables
 load_dotenv()
+
 
 class Config:
 
@@ -15,18 +16,26 @@ class Config:
     QR_SECRET_KEY = os.getenv("QR_SECRET_KEY", "qr_secret")
 
     # ==============================
+    # BASE URL (Used for images)
+    # ==============================
+    BASE_URL = os.getenv(
+        "BASE_URL",
+        "https://smart-gatepass-system.onrender.com"
+    )
+
+    # ==============================
     # DATABASE CONFIGURATION
     # ==============================
     db_url = os.getenv("DATABASE_URL")
 
     if not db_url:
-        raise ValueError("❌ DATABASE_URL not found. Check your .env file.")
+        raise ValueError("DATABASE_URL not found. Check your .env file.")
 
-    # Fix old 'postgres://' issue (Render compatibility)
+    # Fix postgres:// issue for Render
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
 
-    # Ensure SSL mode is included (Render requires it)
+    # Ensure SSL mode for Render database
     if "sslmode" not in db_url:
         if "?" in db_url:
             db_url += "&sslmode=require"
