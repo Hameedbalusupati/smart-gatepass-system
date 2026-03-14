@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API_BASE_URL from "../config";
 
@@ -6,10 +6,49 @@ export default function SecurityScan() {
 
   const scannerRef = useRef(null);
 
-  const [scanned, setScanned] = useState(false);
+  const [scannerStarted, setScannerStarted] = useState(false);
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
-  const [message, setMessage] = useState("Starting camera...");
+  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState(""); // success or error
+
+
+
+  // ================= START SCANNER =================
+
+  const startScanner = async () => {
+
+    try {
+
+      const scanner = new Html5Qrcode("reader");
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+
+        async (decodedText) => {
+
+          scanner.stop();
+          setScannerStarted(false);
+
+          verifyGatepass(decodedText);
+
+        }
+      );
+
+      setScannerStarted(true);
+      setMessage("Scanning QR Code...");
+
+    } catch (error) {
+
+      console.error(error);
+      setMessage("Camera permission required");
+
+    }
+
+  };
+
 
 
   // ================= VERIFY QR =================
@@ -22,14 +61,17 @@ export default function SecurityScan() {
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (data.success) {
 
         setStudent(data.student);
         setGatepass(data.gatepass);
-        setMessage("Gatepass Verified ✅");
+
+        setStatus("success");
+        setMessage("Gatepass Verified");
 
       } else {
 
+        setStatus("error");
         setMessage(data.message);
 
       }
@@ -37,132 +79,64 @@ export default function SecurityScan() {
     } catch (error) {
 
       console.error(error);
-      setMessage("Server Error");
+
+      setStatus("error");
+      setMessage("Server error");
 
     }
 
   };
 
-
-  // ================= START SCANNER =================
-
-  useEffect(() => {
-
-    const startScanner = async () => {
-
-      try {
-
-        const scanner = new Html5Qrcode("reader");
-
-        scannerRef.current = scanner;
-
-        await scanner.start(
-          { facingMode: "environment" },
-          {
-            fps: 10,
-            qrbox: 250
-          },
-          (decodedText) => {
-
-            if (!scanned) {
-
-              setScanned(true);
-
-              verifyGatepass(decodedText);
-
-              scanner.stop();
-
-            }
-
-          }
-        );
-
-        setMessage("Scan Gatepass QR");
-
-      } catch (error) {
-
-        console.error(error);
-
-        setMessage("Camera not supported");
-
-      }
-
-    };
-
-    startScanner();
-
-    return () => {
-
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => { });
-      }
-
-    };
-
-  }, [scanned]);
-
-
-  // ================= CONFIRM EXIT =================
-
-  const confirmExit = async () => {
-
-    try {
-
-      const res = await fetch(
-        `${API_BASE_URL}/security/confirm/${gatepass.id}`,
-        { method: "POST" }
-      );
-
-      const data = await res.json();
-
-      if (data.success) {
-
-        alert("Gatepass Completed");
-
-        resetScanner();
-
-      }
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
-
-  };
 
 
   // ================= RESET =================
 
   const resetScanner = () => {
 
-    setScanned(false);
     setStudent(null);
     setGatepass(null);
-    setMessage("Restarting scanner...");
-
-    window.location.reload();
+    setStatus("");
+    setMessage("");
 
   };
+
 
 
   return (
 
     <div style={styles.container}>
 
-      <h2 style={styles.title}>Security QR Scanner</h2>
+      <h2>Security QR Scanner</h2>
 
-      {!scanned && (
-        <div id="reader" style={styles.reader}></div>
+
+      {/* START BUTTON */}
+
+      {!scannerStarted && !student && status === "" && (
+
+        <button style={styles.startButton} onClick={startScanner}>
+          Start Scanner
+        </button>
+
       )}
 
-      <p>{message}</p>
 
-      {student && gatepass && (
+      {/* SCANNER */}
 
-        <div style={styles.resultBox}>
+      {scannerStarted && (
 
-          <h3>Student Details</h3>
+        <div id="reader" style={styles.reader}></div>
+
+      )}
+
+
+
+      {/* SUCCESS SCREEN */}
+
+      {status === "success" && student && gatepass && (
+
+        <div style={styles.successBox}>
+
+          <h2 style={{color:"#16a34a"}}>Gatepass Verified ✅</h2>
 
           {student.profile_image && (
             <img
@@ -183,12 +157,28 @@ export default function SecurityScan() {
           <p><b>Reason:</b> {gatepass.reason}</p>
           <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
 
-          <button style={styles.button} onClick={confirmExit}>
-            Confirm Exit
+          <button style={styles.nextButton} onClick={resetScanner}>
+            Scan Next Student
           </button>
 
-          <button style={styles.reset} onClick={resetScanner}>
-            Scan Next
+        </div>
+
+      )}
+
+
+
+      {/* ERROR SCREEN */}
+
+      {status === "error" && (
+
+        <div style={styles.errorBox}>
+
+          <h2>❌ Invalid Gatepass</h2>
+
+          <p>{message}</p>
+
+          <button style={styles.nextButton} onClick={resetScanner}>
+            Try Again
           </button>
 
         </div>
@@ -202,18 +192,15 @@ export default function SecurityScan() {
 }
 
 
+
 const styles = {
 
   container: {
-    padding: "20px",
     textAlign: "center",
-    minHeight: "100vh",
+    padding: "20px",
     background: "#0f172a",
-    color: "white"
-  },
-
-  title: {
-    marginBottom: "20px"
+    color: "white",
+    minHeight: "100vh"
   },
 
   reader: {
@@ -221,11 +208,29 @@ const styles = {
     margin: "20px auto"
   },
 
-  resultBox: {
-    marginTop: "20px",
-    background: "#111827",
-    padding: "20px",
-    borderRadius: "10px"
+  startButton: {
+    padding: "12px 20px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: "6px",
+    color: "white",
+    cursor: "pointer"
+  },
+
+  successBox: {
+    background: "#022c22",
+    border: "2px solid #16a34a",
+    padding: "25px",
+    borderRadius: "10px",
+    marginTop: "20px"
+  },
+
+  errorBox: {
+    background: "#450a0a",
+    border: "2px solid #dc2626",
+    padding: "25px",
+    borderRadius: "10px",
+    marginTop: "20px"
   },
 
   image: {
@@ -234,18 +239,8 @@ const styles = {
     marginBottom: "10px"
   },
 
-  button: {
+  nextButton: {
     marginTop: "15px",
-    padding: "10px 20px",
-    background: "#22c55e",
-    border: "none",
-    borderRadius: "6px",
-    color: "white",
-    cursor: "pointer"
-  },
-
-  reset: {
-    marginTop: "10px",
     padding: "10px 20px",
     background: "#2563eb",
     border: "none",
