@@ -8,7 +8,7 @@ export default function SecurityScan() {
 
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState(null);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Starting camera...");
 
   const token = localStorage.getItem("access_token");
 
@@ -31,51 +31,64 @@ export default function SecurityScan() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-
         setResult(data);
         setMessage("Gatepass Verified ✅");
-
       } else {
-
         setMessage(data.message || "Invalid Gatepass ❌");
-
       }
 
     } catch (error) {
 
-      console.error("Verification error:", error);
-      setMessage("Server Error");
+      console.error(error);
+      setMessage("Server error");
 
     }
 
   }, [token]);
 
 
-  // ================= START QR SCANNER =================
+  // ================= START CAMERA =================
 
   useEffect(() => {
 
-    const scanner = new Html5Qrcode("reader");
-    scannerRef.current = scanner;
+    const startScanner = async () => {
 
-    scanner.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      (decodedText) => {
+      try {
 
-        if (!scanned) {
+        const scanner = new Html5Qrcode("reader");
+        scannerRef.current = scanner;
 
-          setScanned(true);
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: 250 },
+          (decodedText) => {
 
-          verifyGatepass(decodedText);
+            if (!scanned) {
 
-          scanner.stop();
+              setScanned(true);
+              verifyGatepass(decodedText);
+              scanner.stop();
 
-        }
+            }
 
-      },
-      () => {}
-    );
+          },
+          (errorMessage) => {
+            // ignore scanning errors
+          }
+        );
+
+        setMessage("Scan QR Code");
+
+      } catch (err) {
+
+        console.error("Camera error:", err);
+        setMessage("Camera access denied or not supported");
+
+      }
+
+    };
+
+    startScanner();
 
     return () => {
 
@@ -88,14 +101,13 @@ export default function SecurityScan() {
   }, [scanned, verifyGatepass]);
 
 
-  // ================= RESET SCANNER =================
+  // ================= RESET =================
 
   const resetScanner = () => {
 
     setScanned(false);
     setResult(null);
-    setMessage("");
-
+    setMessage("Restarting scanner...");
     window.location.reload();
 
   };
@@ -111,32 +123,25 @@ export default function SecurityScan() {
         <div id="reader" style={styles.reader}></div>
       )}
 
-      {scanned && (
+      <p>{message}</p>
+
+      {result && (
 
         <div style={styles.resultBox}>
 
-          <h3>{message}</h3>
+          <h3>Student Details</h3>
 
-          {result && (
+          <p><b>Name:</b> {result.student.name}</p>
+          <p><b>College ID:</b> {result.student.college_id}</p>
+          <p><b>Department:</b> {result.student.department}</p>
+          <p><b>Year:</b> {result.student.year}</p>
+          <p><b>Section:</b> {result.student.section}</p>
 
-            <div>
-
-              <p><b>Name:</b> {result.student.name}</p>
-              <p><b>College ID:</b> {result.student.college_id}</p>
-              <p><b>Department:</b> {result.student.department}</p>
-              <p><b>Year:</b> {result.student.year}</p>
-              <p><b>Section:</b> {result.student.section}</p>
-
-              <p><b>Reason:</b> {result.gatepass.reason}</p>
-              <p><b>Parent Mobile:</b> {result.gatepass.parent_mobile}</p>
-              <p><b>Out Time:</b> {result.gatepass.out_time}</p>
-
-            </div>
-
-          )}
+          <p><b>Reason:</b> {result.gatepass.reason}</p>
+          <p><b>Parent Mobile:</b> {result.gatepass.parent_mobile}</p>
 
           <button style={styles.button} onClick={resetScanner}>
-            Scan Next Gatepass
+            Scan Next
           </button>
 
         </div>
@@ -161,15 +166,15 @@ const styles = {
   },
 
   reader: {
-    width: "320px",
+    width: "300px",
     margin: "20px auto"
   },
 
   resultBox: {
-    marginTop: "20px",
     background: "#111827",
     padding: "20px",
-    borderRadius: "10px"
+    borderRadius: "10px",
+    marginTop: "20px"
   },
 
   button: {
