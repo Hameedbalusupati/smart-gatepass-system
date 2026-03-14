@@ -5,51 +5,68 @@ import API_BASE_URL from "../config";
 export default function SecurityScan() {
 
   const [scanned, setScanned] = useState(false);
-  const [result, setResult] = useState(null);
+  const [student, setStudent] = useState(null);
+  const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
 
-  const token = localStorage.getItem("access_token");
+
+
+  // ================= VERIFY GATEPASS =================
 
   const verifyGatepass = async (qrData) => {
+
     try {
 
-      const res = await fetch(`${API_BASE_URL}/security/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ qr_token: qrData })
-      });
+      const res = await fetch(`${API_BASE_URL}/security/scan/${qrData}`);
 
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setResult(data);
+
+        setStudent(data.student);
+        setGatepass(data.gatepass);
         setMessage("Gatepass Verified ✅");
+
       } else {
-        setMessage(data.message || "Invalid gatepass");
+
+        setMessage(data.message || "Invalid Gatepass");
+
       }
 
     } catch (error) {
+
       console.error("Verification error:", error);
       setMessage("Server error");
+
     }
+
   };
 
+
+  // ================= HANDLE SCAN =================
 
   const handleScan = (data) => {
+
     if (data && !scanned) {
+
       setScanned(true);
+
       verifyGatepass(data);
+
     }
+
   };
 
 
+  // ================= RESET =================
+
   const resetScanner = () => {
+
     setScanned(false);
-    setResult(null);
+    setStudent(null);
+    setGatepass(null);
     setMessage("");
+
   };
 
 
@@ -58,6 +75,8 @@ export default function SecurityScan() {
     <div style={styles.container}>
 
       <h2 style={styles.title}>Security QR Scanner</h2>
+
+      {/* Scanner */}
 
       {!scanned && (
 
@@ -77,18 +96,43 @@ export default function SecurityScan() {
 
       )}
 
+
+      {/* Result */}
+
       {scanned && (
 
         <div style={styles.resultBox}>
 
           <h3>{message}</h3>
 
-          {result && (
+          {student && gatepass && (
+
             <div>
-              <p><b>Student:</b> {result.student_name}</p>
-              <p><b>Reason:</b> {result.reason}</p>
-              <p><b>Out Time:</b> {result.out_time}</p>
+
+              {student.profile_image && (
+
+                <img
+                  src={student.profile_image}
+                  alt="Student"
+                  style={styles.image}
+                />
+
+              )}
+
+              <p><b>Name:</b> {student.name}</p>
+              <p><b>College ID:</b> {student.college_id}</p>
+              <p><b>Department:</b> {student.department}</p>
+              <p><b>Year:</b> {student.year}</p>
+              <p><b>Section:</b> {student.section}</p>
+
+              <hr />
+
+              <p><b>Reason:</b> {gatepass.reason}</p>
+              <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
+              <p><b>Out Time:</b> {gatepass.out_time}</p>
+
             </div>
+
           )}
 
           <button style={styles.button} onClick={resetScanner}>
@@ -102,7 +146,9 @@ export default function SecurityScan() {
     </div>
 
   );
+
 }
+
 
 
 const styles = {
@@ -129,6 +175,12 @@ const styles = {
     background: "#111827",
     padding: "20px",
     borderRadius: "10px"
+  },
+
+  image: {
+    width: "120px",
+    borderRadius: "10px",
+    marginBottom: "10px"
   },
 
   button: {
