@@ -9,27 +9,25 @@ export default function SecurityScan() {
   const [scannerStarted, setScannerStarted] = useState(false);
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
-  const [message, setMessage] = useState("");
-  const [status, setStatus] = useState(""); // success or error
+  const [message, setMessage] = useState("Click Start Scanner");
 
-
-
-  // ================= START SCANNER =================
 
   const startScanner = async () => {
 
     try {
 
       const scanner = new Html5Qrcode("reader");
+
       scannerRef.current = scanner;
 
       await scanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
 
-        async (decodedText) => {
+        (decodedText) => {
 
           scanner.stop();
+
           setScannerStarted(false);
 
           verifyGatepass(decodedText);
@@ -50,9 +48,6 @@ export default function SecurityScan() {
   };
 
 
-
-  // ================= VERIFY QR =================
-
   const verifyGatepass = async (qrToken) => {
 
     try {
@@ -61,17 +56,16 @@ export default function SecurityScan() {
 
       const data = await res.json();
 
+      console.log("API Response:", data);
+
       if (data.success) {
 
         setStudent(data.student);
         setGatepass(data.gatepass);
-
-        setStatus("success");
         setMessage("Gatepass Verified");
 
       } else {
 
-        setStatus("error");
         setMessage(data.message);
 
       }
@@ -79,27 +73,20 @@ export default function SecurityScan() {
     } catch (error) {
 
       console.error(error);
-
-      setStatus("error");
-      setMessage("Server error");
+      setMessage("Server Error");
 
     }
 
   };
 
 
-
-  // ================= RESET =================
-
   const resetScanner = () => {
 
     setStudent(null);
     setGatepass(null);
-    setStatus("");
-    setMessage("");
+    setMessage("Click Start Scanner");
 
   };
-
 
 
   return (
@@ -108,19 +95,13 @@ export default function SecurityScan() {
 
       <h2>Security QR Scanner</h2>
 
+      {!scannerStarted && !student && (
 
-      {/* START BUTTON */}
-
-      {!scannerStarted && !student && status === "" && (
-
-        <button style={styles.startButton} onClick={startScanner}>
+        <button style={styles.button} onClick={startScanner}>
           Start Scanner
         </button>
 
       )}
-
-
-      {/* SCANNER */}
 
       {scannerStarted && (
 
@@ -128,22 +109,21 @@ export default function SecurityScan() {
 
       )}
 
+      <p>{message}</p>
 
 
-      {/* SUCCESS SCREEN */}
+      {student && gatepass && (
 
-      {status === "success" && student && gatepass && (
-
-        <div style={styles.successBox}>
-
-          <h2 style={{color:"#16a34a"}}>Gatepass Verified ✅</h2>
+        <div style={styles.resultBox}>
 
           {student.profile_image && (
+
             <img
               src={student.profile_image}
               alt="Student"
               style={styles.image}
             />
+
           )}
 
           <p><b>Name:</b> {student.name}</p>
@@ -152,33 +132,13 @@ export default function SecurityScan() {
           <p><b>Year:</b> {student.year}</p>
           <p><b>Section:</b> {student.section}</p>
 
-          <hr />
+          <hr/>
 
           <p><b>Reason:</b> {gatepass.reason}</p>
           <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
 
-          <button style={styles.nextButton} onClick={resetScanner}>
-            Scan Next Student
-          </button>
-
-        </div>
-
-      )}
-
-
-
-      {/* ERROR SCREEN */}
-
-      {status === "error" && (
-
-        <div style={styles.errorBox}>
-
-          <h2>❌ Invalid Gatepass</h2>
-
-          <p>{message}</p>
-
-          <button style={styles.nextButton} onClick={resetScanner}>
-            Try Again
+          <button style={styles.button} onClick={resetScanner}>
+            Scan Next
           </button>
 
         </div>
@@ -190,7 +150,6 @@ export default function SecurityScan() {
   );
 
 }
-
 
 
 const styles = {
@@ -208,27 +167,9 @@ const styles = {
     margin: "20px auto"
   },
 
-  startButton: {
-    padding: "12px 20px",
-    background: "#2563eb",
-    border: "none",
-    borderRadius: "6px",
-    color: "white",
-    cursor: "pointer"
-  },
-
-  successBox: {
-    background: "#022c22",
-    border: "2px solid #16a34a",
-    padding: "25px",
-    borderRadius: "10px",
-    marginTop: "20px"
-  },
-
-  errorBox: {
-    background: "#450a0a",
-    border: "2px solid #dc2626",
-    padding: "25px",
+  resultBox: {
+    background: "#111827",
+    padding: "20px",
     borderRadius: "10px",
     marginTop: "20px"
   },
@@ -239,8 +180,7 @@ const styles = {
     marginBottom: "10px"
   },
 
-  nextButton: {
-    marginTop: "15px",
+  button: {
     padding: "10px 20px",
     background: "#2563eb",
     border: "none",
