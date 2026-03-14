@@ -43,13 +43,6 @@ def scan_qr(qr_token):
             }), 404
 
 
-        if gatepass.status != "Approved":
-            return jsonify({
-                "success": False,
-                "message": "Gatepass not valid"
-            }), 400
-
-
         if gatepass.is_used:
             return jsonify({
                 "success": False,
@@ -57,8 +50,17 @@ def scan_qr(qr_token):
             }), 400
 
 
+        if gatepass.status != "Approved":
+            return jsonify({
+                "success": False,
+                "message": "Gatepass not approved"
+            }), 400
+
+
         student = gatepass.student
 
+
+        # Build student image URL
         image_url = None
 
         if student.profile_image:
@@ -131,6 +133,13 @@ def confirm_exit(gatepass_id):
                 "success": False,
                 "message": "Gatepass not found"
             }), 404
+
+
+        if gatepass.is_used:
+            return jsonify({
+                "success": False,
+                "message": "Already exited"
+            }), 400
 
 
         gatepass.is_used = True
