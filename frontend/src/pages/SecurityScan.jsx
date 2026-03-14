@@ -10,8 +10,7 @@ export default function SecurityScan() {
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState(""); // success or error
-
+  const [status, setStatus] = useState(""); // success | error
 
 
   // ================= START SCANNER =================
@@ -25,11 +24,16 @@ export default function SecurityScan() {
 
       await scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 }
+        },
 
         async (decodedText) => {
 
-          scanner.stop();
+          await scanner.stop();
+          await scanner.clear();
+
           setScannerStarted(false);
 
           verifyGatepass(decodedText);
@@ -43,12 +47,12 @@ export default function SecurityScan() {
     } catch (error) {
 
       console.error(error);
+      setStatus("error");
       setMessage("Camera permission required");
 
     }
 
   };
-
 
 
   // ================= VERIFY QR =================
@@ -58,7 +62,6 @@ export default function SecurityScan() {
     try {
 
       const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`);
-
       const data = await res.json();
 
       if (data.success) {
@@ -72,7 +75,7 @@ export default function SecurityScan() {
       } else {
 
         setStatus("error");
-        setMessage(data.message);
+        setMessage(data.message || "Invalid Gatepass");
 
       }
 
@@ -81,25 +84,33 @@ export default function SecurityScan() {
       console.error(error);
 
       setStatus("error");
-      setMessage("Server error");
+      setMessage("Server Error");
 
     }
 
   };
 
 
-
   // ================= RESET =================
 
-  const resetScanner = () => {
+  const resetScanner = async () => {
 
+    try {
+
+      if (scannerRef.current) {
+        await scannerRef.current.stop().catch(() => {});
+        await scannerRef.current.clear().catch(() => {});
+      }
+
+    } catch (e) {}
+
+    setScannerStarted(false);
     setStudent(null);
     setGatepass(null);
     setStatus("");
     setMessage("");
 
   };
-
 
 
   return (
@@ -120,7 +131,7 @@ export default function SecurityScan() {
       )}
 
 
-      {/* SCANNER */}
+      {/* QR SCANNER */}
 
       {scannerStarted && (
 
@@ -136,14 +147,16 @@ export default function SecurityScan() {
 
         <div style={styles.successBox}>
 
-          <h2 style={{ color: "#16a34a" }}>Gatepass Verified ✅</h2>
+          <h2 style={{ color: "#22c55e" }}>Gatepass Verified ✅</h2>
 
           {student.profile_image && (
+
             <img
               src={student.profile_image}
               alt="Student"
               style={styles.image}
             />
+
           )}
 
           <p><b>Name:</b> {student.name}</p>
@@ -152,10 +165,11 @@ export default function SecurityScan() {
           <p><b>Year:</b> {student.year}</p>
           <p><b>Section:</b> {student.section}</p>
 
-          <hr />
+          <hr/>
 
           <p><b>Reason:</b> {gatepass.reason}</p>
           <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
+          <p><b>Out Time:</b> {gatepass.out_time}</p>
 
           <button style={styles.nextButton} onClick={resetScanner}>
             Scan Next Student
@@ -219,7 +233,7 @@ const styles = {
 
   successBox: {
     background: "#022c22",
-    border: "2px solid #16a34a",
+    border: "2px solid #22c55e",
     padding: "25px",
     borderRadius: "10px",
     marginTop: "20px"
@@ -227,7 +241,7 @@ const styles = {
 
   errorBox: {
     background: "#450a0a",
-    border: "2px solid #dc2626",
+    border: "2px solid #ef4444",
     padding: "25px",
     borderRadius: "10px",
     marginTop: "20px"
