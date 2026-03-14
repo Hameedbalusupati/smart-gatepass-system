@@ -19,22 +19,26 @@ export default function SecurityScan() {
 
     try {
 
-      const res = await fetch(`${API_BASE_URL}/security/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ qr_token: qrToken })
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/security/scan/${qrToken}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
       const data = await res.json();
 
       if (res.ok && data.success) {
+
         setResult(data);
         setMessage("Gatepass Verified ✅");
+
       } else {
+
         setMessage(data.message || "Invalid Gatepass ❌");
+
       }
 
     } catch (error) {
@@ -56,10 +60,7 @@ export default function SecurityScan() {
 
     scanner.start(
       { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: 250
-      },
+      { fps: 10, qrbox: 250 },
       (decodedText) => {
 
         if (!scanned) {
@@ -107,9 +108,7 @@ export default function SecurityScan() {
       <h2>Security QR Scanner</h2>
 
       {!scanned && (
-
         <div id="reader" style={styles.reader}></div>
-
       )}
 
       {scanned && (
@@ -122,9 +121,15 @@ export default function SecurityScan() {
 
             <div>
 
-              <p><b>Student:</b> {result.student_name}</p>
-              <p><b>Reason:</b> {result.reason}</p>
-              <p><b>Out Time:</b> {result.out_time}</p>
+              <p><b>Name:</b> {result.student.name}</p>
+              <p><b>College ID:</b> {result.student.college_id}</p>
+              <p><b>Department:</b> {result.student.department}</p>
+              <p><b>Year:</b> {result.student.year}</p>
+              <p><b>Section:</b> {result.student.section}</p>
+
+              <p><b>Reason:</b> {result.gatepass.reason}</p>
+              <p><b>Parent Mobile:</b> {result.gatepass.parent_mobile}</p>
+              <p><b>Out Time:</b> {result.gatepass.out_time}</p>
 
             </div>
 
