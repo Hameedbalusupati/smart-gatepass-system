@@ -8,39 +8,57 @@ export default function HodDashboard() {
 
   const token = localStorage.getItem("access_token");
 
+  // ================= FETCH DATA =================
+
   useEffect(() => {
 
     const loadData = async () => {
 
       try {
 
-        const pendingRes = await fetch(`${API_BASE_URL}/hod/pending`, {
-          headers: {
-            Authorization: `Bearer ${token}`
+        // ---------- Pending Gatepasses ----------
+
+        const pendingRes = await fetch(
+          `${API_BASE_URL}/hod/gatepasses/pending`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        });
+        );
 
         const pendingData = await pendingRes.json();
 
-        if (pendingRes.ok) {
-          setPending(pendingData);
+        if (pendingRes.ok && pendingData.success) {
+          setPending(pendingData.gatepasses || []);
+        } else {
+          setPending([]);
         }
 
 
-        const historyRes = await fetch(`${API_BASE_URL}/hod/history`, {
-          headers: {
-            Authorization: `Bearer ${token}`
+        // ---------- History ----------
+
+        const historyRes = await fetch(
+          `${API_BASE_URL}/hod/gatepasses/history`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
           }
-        });
+        );
 
         const historyData = await historyRes.json();
 
-        if (historyRes.ok) {
-          setHistory(historyData);
+        if (historyRes.ok && historyData.success) {
+          setHistory(historyData.gatepasses || []);
+        } else {
+          setHistory([]);
         }
 
       } catch (error) {
+
         console.error("Fetch error:", error);
+
       }
 
     };
@@ -50,68 +68,103 @@ export default function HodDashboard() {
   }, [token]);
 
 
+
+  // ================= APPROVE =================
+
   const handleApprove = async (id) => {
 
     try {
 
-      const res = await fetch(`${API_BASE_URL}/hod/approve/${id}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `${API_BASE_URL}/hod/gatepasses/approve/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
-      });
+      );
 
-      if (res.ok) {
+      const data = await res.json();
+
+      if (res.ok && data.success) {
 
         setPending(prev => prev.filter(item => item.id !== id));
 
       }
 
     } catch (error) {
+
       console.error("Approve error:", error);
+
     }
 
   };
 
 
+  // ================= REJECT =================
+
   const handleReject = async (id) => {
+
+    const reason = prompt("Enter rejection reason");
+
+    if (!reason) return;
 
     try {
 
-      const res = await fetch(`${API_BASE_URL}/hod/reject/${id}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`
+      const res = await fetch(
+        `${API_BASE_URL}/hod/gatepasses/reject/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ rejection_reason: reason })
         }
-      });
+      );
 
-      if (res.ok) {
+      const data = await res.json();
+
+      if (res.ok && data.success) {
 
         setPending(prev => prev.filter(item => item.id !== id));
 
       }
 
     } catch (error) {
+
       console.error("Reject error:", error);
+
     }
 
   };
 
 
   return (
+
     <div style={styles.page}>
 
       <h2 style={styles.title}>HOD Dashboard</h2>
 
+
+      {/* ================= PENDING ================= */}
+
       <h3>Pending Requests</h3>
 
-      {pending.length === 0 && <p>No pending requests</p>}
+      {pending.length === 0 && (
+        <p>No pending requests</p>
+      )}
 
       {pending.map(item => (
 
         <div key={item.id} style={styles.card}>
 
           <p><b>Student:</b> {item.student_name}</p>
+          <p><b>College ID:</b> {item.college_id}</p>
+          <p><b>Department:</b> {item.department}</p>
+          <p><b>Year:</b> {item.year}</p>
+          <p><b>Section:</b> {item.section}</p>
           <p><b>Reason:</b> {item.reason}</p>
 
           <div style={styles.actions}>
@@ -137,9 +190,13 @@ export default function HodDashboard() {
       ))}
 
 
+      {/* ================= HISTORY ================= */}
+
       <h3 style={{ marginTop: "30px" }}>History</h3>
 
-      {history.length === 0 && <p>No history</p>}
+      {history.length === 0 && (
+        <p>No history</p>
+      )}
 
       {history.map(item => (
 
@@ -154,9 +211,13 @@ export default function HodDashboard() {
       ))}
 
     </div>
+
   );
 }
 
+
+
+/* ================= STYLES ================= */
 
 const styles = {
 
