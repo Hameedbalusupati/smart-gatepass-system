@@ -8,7 +8,7 @@ export default function SecurityScan() {
 
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState(null);
-  const [message, setMessage] = useState("Initializing scanner...");
+  const [message, setMessage] = useState("Starting camera...");
 
   const token = localStorage.getItem("access_token");
 
@@ -19,15 +19,11 @@ export default function SecurityScan() {
 
     try {
 
-      const res = await fetch(
-        `${API_BASE_URL}/security/scan/${qrToken}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
+      const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
-      );
+      });
 
       const data = await res.json();
 
@@ -42,9 +38,9 @@ export default function SecurityScan() {
 
       }
 
-    } catch (error) {
+    } catch (err) {
 
-      console.error("Verification error:", error);
+      console.error(err);
       setMessage("Server error");
 
     }
@@ -52,19 +48,16 @@ export default function SecurityScan() {
   }, [token]);
 
 
-  // ================= START CAMERA =================
+  // ================= START SCANNER =================
 
   useEffect(() => {
+
+    const scanner = new Html5Qrcode("reader");
+    scannerRef.current = scanner;
 
     const startScanner = async () => {
 
       try {
-
-        // Request camera permission
-        await navigator.mediaDevices.getUserMedia({ video: true });
-
-        const scanner = new Html5Qrcode("reader");
-        scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
@@ -85,7 +78,7 @@ export default function SecurityScan() {
             }
 
           },
-          () => { }
+          () => {}
         );
 
         setMessage("Scan QR Code");
@@ -93,7 +86,10 @@ export default function SecurityScan() {
       } catch (error) {
 
         console.error("Camera error:", error);
-        setMessage("Camera permission denied or not supported");
+
+        setMessage(
+          "Camera not available. Open this page in Chrome browser."
+        );
 
       }
 
@@ -104,7 +100,7 @@ export default function SecurityScan() {
     return () => {
 
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => { });
+        scannerRef.current.stop().catch(() => {});
       }
 
     };
@@ -112,7 +108,7 @@ export default function SecurityScan() {
   }, [scanned, verifyGatepass]);
 
 
-  // ================= RESET SCANNER =================
+  // ================= RESET =================
 
   const resetScanner = () => {
 
@@ -131,11 +127,7 @@ export default function SecurityScan() {
 
       <h2>Security QR Scanner</h2>
 
-      {!scanned && (
-
-        <div id="reader" style={styles.reader}></div>
-
-      )}
+      {!scanned && <div id="reader" style={styles.reader}></div>}
 
       <p style={styles.message}>{message}</p>
 
@@ -145,16 +137,6 @@ export default function SecurityScan() {
         <div style={styles.resultBox}>
 
           <h3>Student Details</h3>
-
-          {result.student.profile_image && (
-
-            <img
-              src={`${API_BASE_URL}${result.student.profile_image}`}
-              alt="Student"
-              style={styles.image}
-            />
-
-          )}
 
           <p><b>Name:</b> {result.student.name}</p>
           <p><b>College ID:</b> {result.student.college_id}</p>
@@ -212,12 +194,6 @@ const styles = {
     background: "#111827",
     padding: "20px",
     borderRadius: "10px"
-  },
-
-  image: {
-    width: "120px",
-    borderRadius: "10px",
-    marginBottom: "10px"
   },
 
   button: {
