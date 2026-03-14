@@ -18,14 +18,7 @@ QR_ALGORITHM = "HS256"
 def scan_qr():
 
     try:
-        data = request.get_json(silent=True)
-
-        if not data:
-            return jsonify({
-                "success": False,
-                "message": "Invalid request"
-            }), 400
-
+        data = request.get_json()
         qr_token = data.get("qr_token")
 
         if not qr_token:
@@ -41,12 +34,6 @@ def scan_qr():
         )
 
         gatepass_id = decoded.get("gatepass_id")
-
-        if not gatepass_id:
-            return jsonify({
-                "success": False,
-                "message": "Invalid QR"
-            }), 400
 
         gatepass = db.session.get(GatePass, gatepass_id)
 
@@ -64,20 +51,11 @@ def scan_qr():
 
         student = gatepass.student
 
-        # ==============================
-        # BUILD STUDENT IMAGE URL
-        # ==============================
+        # Build image URL
         image_url = None
-
         if student.profile_image:
-
             filename = os.path.basename(student.profile_image)
-
-            image_url = (
-                request.host_url.rstrip("/") +
-                "/uploads/student_images/" +
-                filename
-            )
+            image_url = request.host_url + "uploads/student_images/" + filename
 
         return jsonify({
             "success": True,
@@ -98,25 +76,7 @@ def scan_qr():
             }
         })
 
-
-    except jwt.ExpiredSignatureError:
-
-        return jsonify({
-            "success": False,
-            "message": "QR Code expired"
-        }), 410
-
-
-    except jwt.InvalidTokenError:
-
-        return jsonify({
-            "success": False,
-            "message": "Invalid QR Code"
-        }), 400
-
-
     except Exception as e:
-
         print("QR ERROR:", e)
 
         return jsonify({
@@ -158,7 +118,6 @@ def confirm_exit(gatepass_id):
             "message": "Exit recorded successfully"
         })
 
-
     except Exception as e:
 
         print("EXIT ERROR:", e)
@@ -175,33 +134,17 @@ def confirm_exit(gatepass_id):
 @security_bp.route("/exit-history", methods=["GET"])
 def exit_history():
 
-    exits = GatePass.query.filter_by(status="Completed").order_by(
-        GatePass.out_time.desc()
-    ).all()
+    exits = GatePass.query.filter_by(status="Completed").all()
 
     data = []
 
     for g in exits:
 
-        student = g.student
-
-        image_url = None
-
-        if student.profile_image:
-            filename = os.path.basename(student.profile_image)
-
-            image_url = (
-                request.host_url.rstrip("/") +
-                "/uploads/student_images/" +
-                filename
-            )
-
         data.append({
-            "name": student.name,
-            "roll": student.college_id,
-            "department": student.department,
-            "time": g.out_time,
-            "image": image_url
+            "name": g.student.name,
+            "roll": g.student.college_id,
+            "department": g.student.department,
+            "time": g.out_time
         })
 
     return jsonify(data)
@@ -215,10 +158,15 @@ def exit_count():
 
     today = datetime.utcnow().date()
 
-    count = GatePass.query.filter(
-        GatePass.status == "Completed",
-        db.func.date(GatePass.out_time) == today
-    ).count()
+    exits = GatePass.query.filter(
+        GatePass.status == "Completed"
+    ).all()
+
+    count = 0
+
+    for g in exits:
+        if g.out_time and g.out_time.date() == today:
+            count += 1
 
     return jsonify({
         "date": str(today),
