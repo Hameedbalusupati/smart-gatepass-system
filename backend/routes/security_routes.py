@@ -53,17 +53,17 @@ def scan_qr(qr_token):
 
 
         # =========================
-        # CHECK GATEPASS STATUS
+        # CHECK STATUS
         # =========================
         if gatepass.status != "Approved":
             return jsonify({
                 "success": False,
-                "message": "Gatepass is not valid"
+                "message": "Gatepass not valid"
             }), 400
 
 
         # =========================
-        # CHECK IF ALREADY USED
+        # CHECK USED
         # =========================
         if gatepass.is_used:
             return jsonify({
@@ -73,7 +73,7 @@ def scan_qr(qr_token):
 
 
         # =========================
-        # MARK GATEPASS AS USED
+        # MARK AS USED
         # =========================
         now = datetime.utcnow()
 
@@ -92,13 +92,15 @@ def scan_qr(qr_token):
 
 
         # =========================
-        # BUILD IMAGE URL
+        # IMAGE URL
         # =========================
         image_url = None
 
         if student.profile_image:
+
             filename = os.path.basename(student.profile_image)
-            image_url = f"/uploads/student_images/{filename}"
+
+            image_url = f"{Config.BASE_URL}/uploads/student_images/{filename}"
 
 
         # =========================

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API_BASE_URL from "../config";
 
@@ -10,20 +10,15 @@ export default function SecurityScan() {
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState("Starting camera...");
 
-  const token = localStorage.getItem("access_token");
 
 
   // ================= VERIFY GATEPASS =================
 
-  const verifyGatepass = useCallback(async (qrToken) => {
+  const verifyGatepass = async (qrToken) => {
 
     try {
 
-      const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`);
 
       const data = await res.json();
 
@@ -38,14 +33,15 @@ export default function SecurityScan() {
 
       }
 
-    } catch (err) {
+    } catch (error) {
 
-      console.error(err);
+      console.error("Verification error:", error);
       setMessage("Server error");
 
     }
 
-  }, [token]);
+  };
+
 
 
   // ================= START SCANNER =================
@@ -78,18 +74,15 @@ export default function SecurityScan() {
             }
 
           },
-          () => {}
+          () => { }
         );
 
         setMessage("Scan QR Code");
 
       } catch (error) {
 
-        console.error("Camera error:", error);
-
-        setMessage(
-          "Camera not available. Open this page in Chrome browser."
-        );
+        console.error(error);
+        setMessage("Camera not supported in this device");
 
       }
 
@@ -100,15 +93,16 @@ export default function SecurityScan() {
     return () => {
 
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.stop().catch(() => { });
       }
 
     };
 
-  }, [scanned, verifyGatepass]);
+  }, [scanned]);
 
 
-  // ================= RESET =================
+
+  // ================= RESET SCANNER =================
 
   const resetScanner = () => {
 
@@ -121,13 +115,16 @@ export default function SecurityScan() {
   };
 
 
+
   return (
 
     <div style={styles.container}>
 
       <h2>Security QR Scanner</h2>
 
-      {!scanned && <div id="reader" style={styles.reader}></div>}
+      {!scanned && (
+        <div id="reader" style={styles.reader}></div>
+      )}
 
       <p style={styles.message}>{message}</p>
 
@@ -137,6 +134,16 @@ export default function SecurityScan() {
         <div style={styles.resultBox}>
 
           <h3>Student Details</h3>
+
+          {result.student.profile_image && (
+
+            <img
+              src={result.student.profile_image}
+              alt="Student"
+              style={styles.image}
+            />
+
+          )}
 
           <p><b>Name:</b> {result.student.name}</p>
           <p><b>College ID:</b> {result.student.college_id}</p>
@@ -167,6 +174,7 @@ export default function SecurityScan() {
 }
 
 
+
 // ================= STYLES =================
 
 const styles = {
@@ -194,6 +202,12 @@ const styles = {
     background: "#111827",
     padding: "20px",
     borderRadius: "10px"
+  },
+
+  image: {
+    width: "120px",
+    borderRadius: "10px",
+    marginBottom: "10px"
   },
 
   button: {
