@@ -1,192 +1,238 @@
-import { useState, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { useEffect, useState } from "react";
+import { jwtDecode } from "jwt-decode";
 import API_BASE_URL from "../config";
 
-export default function SecurityScan() {
+export default function StudentStatus() {
 
-  const scannerRef = useRef(null);
+  const [pass, setPass] = useState(null);
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
 
-  const [scannerStarted, setScannerStarted] = useState(false);
-  const [student, setStudent] = useState(null);
-  const [gatepass, setGatepass] = useState(null);
-  const [message, setMessage] = useState("Click Start Scanner");
+  const token = localStorage.getItem("access_token");
 
 
-  const startScanner = async () => {
+  // ================= TIMER =================
+  useEffect(() => {
 
-    try {
+    const timer = setInterval(() => {
+      setNow(Math.floor(Date.now() / 1000));
+    }, 1000);
 
-      const scanner = new Html5Qrcode("reader");
+    return () => clearInterval(timer);
 
-      scannerRef.current = scanner;
+  }, []);
 
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
 
-        (decodedText) => {
 
-          scanner.stop();
+  // ================= FETCH STATUS =================
+  useEffect(() => {
 
-          setScannerStarted(false);
+    if (!token) return;
 
-          verifyGatepass(decodedText);
+    const fetchStatus = async () => {
 
+      try {
+
+        const res = await fetch(`${API_BASE_URL}/student/status`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setPass(data.gatepass);
+        } else {
+          setPass(null);
         }
-      );
 
-      setScannerStarted(true);
-      setMessage("Scanning QR Code...");
+      } catch (err) {
 
-    } catch (error) {
-
-      console.error(error);
-      setMessage("Camera permission required");
-
-    }
-
-  };
-
-
-  const verifyGatepass = async (qrToken) => {
-
-    try {
-
-      const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`);
-
-      const data = await res.json();
-
-      console.log("API Response:", data);
-
-      if (data.success) {
-
-        setStudent(data.student);
-        setGatepass(data.gatepass);
-        setMessage("Gatepass Verified");
-
-      } else {
-
-        setMessage(data.message);
+        console.error("Fetch error:", err);
+        setPass(null);
 
       }
 
-    } catch (error) {
+    };
 
-      console.error(error);
-      setMessage("Server Error");
+    fetchStatus();
 
+  }, [token]);
+
+
+
+  // ================= QR VALIDATION =================
+  const isQrValid = (qrToken) => {
+
+    try {
+      const decoded = jwtDecode(qrToken);
+      return decoded.exp > now;
+    } catch {
+      return false;
     }
-
-  };
-
-
-  const resetScanner = () => {
-
-    setStudent(null);
-    setGatepass(null);
-    setMessage("Click Start Scanner");
 
   };
 
 
   return (
 
-    <div style={styles.container}>
+    <div style={styles.page}>
 
-      <h2>Security QR Scanner</h2>
+      <div style={styles.container}>
 
-      {!scannerStarted && !student && (
+        <h2 style={styles.title}>Gatepass Status</h2>
 
-        <button style={styles.button} onClick={startScanner}>
-          Start Scanner
-        </button>
+        {!pass && (
+          <p style={styles.error}>No gatepass applied</p>
+        )}
 
-      )}
+        {pass && (
 
-      {scannerStarted && (
+          <div style={styles.card}>
 
-        <div id="reader" style={styles.reader}></div>
+            <p><b>Reason:</b> {pass.reason}</p>
 
-      )}
+            <p>
+              <b>Status:</b>{" "}
+              <span style={statusStyle(pass.status)}>
+                {pass.status}
+              </span>
+            </p>
 
-      <p>{message}</p>
+
+            {/* REJECTION MESSAGE */}
+
+            {pass.status === "Rejected" && pass.rejection_reason && (
+
+              <p style={styles.rejection}>
+                <b>Rejection Reason:</b> {pass.rejection_reason}
+              </p>
+
+            )}
 
 
-      {student && gatepass && (
+            {/* QR CODE */}
 
-        <div style={styles.resultBox}>
+            {pass.status === "Approved" &&
+              pass.qr_token &&
+              !pass.is_used && (
 
-          {student.profile_image && (
+                isQrValid(pass.qr_token) ? (
 
-            <img
-              src={student.profile_image}
-              alt="Student"
-              style={styles.image}
-            />
+                  <div style={styles.qrBox}>
 
-          )}
+                    <img
+                      style={styles.qrImage}
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(pass.qr_token)}`}
+                      alt="Gatepass QR"
+                    />
 
-          <p><b>Name:</b> {student.name}</p>
-          <p><b>College ID:</b> {student.college_id}</p>
-          <p><b>Department:</b> {student.department}</p>
-          <p><b>Year:</b> {student.year}</p>
-          <p><b>Section:</b> {student.section}</p>
+                    <p style={styles.valid}>
+                      Show this QR at Security Gate
+                    </p>
 
-          <hr/>
+                  </div>
 
-          <p><b>Reason:</b> {gatepass.reason}</p>
-          <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
+                ) : (
 
-          <button style={styles.button} onClick={resetScanner}>
-            Scan Next
-          </button>
+                  <p style={styles.expired}>
+                    QR expired. Contact HOD.
+                  </p>
 
-        </div>
+                )
+              )}
 
-      )}
+          </div>
+
+        )}
+
+      </div>
 
     </div>
 
   );
-
 }
 
 
+
+/* ================= STYLES ================= */
+
 const styles = {
 
-  container: {
-    textAlign: "center",
-    padding: "20px",
+  page: {
+    minHeight: "100vh",
     background: "#0f172a",
-    color: "white",
-    minHeight: "100vh"
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    color: "#f8fafc",
   },
 
-  reader: {
-    width: "320px",
-    margin: "20px auto"
-  },
-
-  resultBox: {
+  container: {
+    width: "95%",
+    maxWidth: "600px",
     background: "#111827",
-    padding: "20px",
-    borderRadius: "10px",
-    marginTop: "20px"
+    padding: "25px",
+    borderRadius: "12px",
   },
 
-  image: {
-    width: "120px",
-    borderRadius: "10px",
-    marginBottom: "10px"
+  title: {
+    textAlign: "center",
+    marginBottom: "20px",
   },
 
-  button: {
-    padding: "10px 20px",
-    background: "#2563eb",
-    border: "none",
-    borderRadius: "6px",
-    color: "white",
-    cursor: "pointer"
-  }
+  card: {
+    background: "#020617",
+    border: "1px solid #334155",
+    borderRadius: "10px",
+    padding: "15px",
+  },
+
+  qrBox: {
+    marginTop: "15px",
+    textAlign: "center",
+  },
+
+  qrImage: {
+    border: "4px solid #22c55e",
+    borderRadius: "8px",
+  },
+
+  valid: {
+    color: "#22c55e",
+    marginTop: "8px",
+    fontWeight: "bold",
+  },
+
+  expired: {
+    color: "#ef4444",
+    fontWeight: "bold",
+    marginTop: "10px",
+  },
+
+  rejection: {
+    marginTop: "10px",
+    color: "#f87171",
+    fontWeight: "bold",
+  },
+
+  error: {
+    textAlign: "center",
+    color: "#eab308",
+  },
 
 };
+
+
+const statusStyle = (status) => ({
+
+  fontWeight: "bold",
+
+  color:
+    status === "Approved"
+      ? "#22c55e"
+      : status === "Rejected"
+        ? "#ef4444"
+        : "#eab308",
+
+}); 
