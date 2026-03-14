@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from datetime import datetime
 import jwt
 import os
@@ -6,18 +6,28 @@ import os
 from models import db, GatePass
 from config import Config
 
-security_bp = Blueprint("security_bp", __name__, url_prefix="/security")
+security_bp = Blueprint("security_bp", __name__, url_prefix="/api/security")
 
 QR_ALGORITHM = "HS256"
 
 
-# =================================================
+# ============================================
 # SCAN QR CODE
-# =================================================
-@security_bp.route("/scan/<string:qr_token>", methods=["GET"])
-def scan_qr(qr_token):
+# ============================================
+@security_bp.route("/scan", methods=["POST"])
+def scan_qr():
 
     try:
+
+        data = request.get_json()
+        qr_token = data.get("qr_token")
+
+        if not qr_token:
+            return jsonify({
+                "success": False,
+                "message": "QR token missing"
+            }), 400
+
 
         decoded = jwt.decode(
             qr_token,
@@ -59,8 +69,6 @@ def scan_qr(qr_token):
 
         student = gatepass.student
 
-
-        # Build student image URL
         image_url = None
 
         if student.profile_image:
@@ -72,6 +80,10 @@ def scan_qr(qr_token):
 
             "success": True,
             "message": "Gatepass Verified",
+
+            "student_name": student.name,
+            "roll_no": student.college_id,
+            "gatepass_id": gatepass.id,
 
             "student": {
                 "id": student.id,
@@ -118,9 +130,9 @@ def scan_qr(qr_token):
         }), 500
 
 
-# =================================================
+# ============================================
 # CONFIRM EXIT
-# =================================================
+# ============================================
 @security_bp.route("/confirm/<int:gatepass_id>", methods=["POST"])
 def confirm_exit(gatepass_id):
 
@@ -152,7 +164,6 @@ def confirm_exit(gatepass_id):
             "success": True,
             "message": "Exit recorded successfully"
         })
-
 
     except Exception as e:
 
