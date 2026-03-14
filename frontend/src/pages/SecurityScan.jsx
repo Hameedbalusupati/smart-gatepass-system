@@ -1,19 +1,63 @@
-import { useState } from "react";
-import { QrReader } from "react-qr-reader";
+import { useState, useRef } from "react";
+import { Html5Qrcode } from "html5-qrcode";
 import API_BASE_URL from "../config";
 
 export default function SecurityScan() {
 
-  const [scanned, setScanned] = useState(false);
+  const scannerRef = useRef(null);
+
+  const [scannerStarted, setScannerStarted] = useState(false);
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
+  const [status, setStatus] = useState(""); // success or error
 
-  const verifyGatepass = async (qrData) => {
+
+
+  // ================= START SCANNER =================
+
+  const startScanner = async () => {
 
     try {
 
-      const res = await fetch(`${API_BASE_URL}/security/scan/${qrData}`);
+      const scanner = new Html5Qrcode("reader");
+      scannerRef.current = scanner;
+
+      await scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+
+        async (decodedText) => {
+
+          scanner.stop();
+          setScannerStarted(false);
+
+          verifyGatepass(decodedText);
+
+        }
+      );
+
+      setScannerStarted(true);
+      setMessage("Scanning QR Code...");
+
+    } catch (error) {
+
+      console.error(error);
+      setMessage("Camera permission required");
+
+    }
+
+  };
+
+
+
+  // ================= VERIFY QR =================
+
+  const verifyGatepass = async (qrToken) => {
+
+    try {
+
+      const res = await fetch(`${API_BASE_URL}/security/scan/${qrToken}`);
 
       const data = await res.json();
 
@@ -21,10 +65,13 @@ export default function SecurityScan() {
 
         setStudent(data.student);
         setGatepass(data.gatepass);
-        setMessage("Gatepass Verified ✅");
+
+        setStatus("success");
+        setMessage("Gatepass Verified");
 
       } else {
 
+        setStatus("error");
         setMessage(data.message);
 
       }
@@ -32,6 +79,8 @@ export default function SecurityScan() {
     } catch (error) {
 
       console.error(error);
+
+      setStatus("error");
       setMessage("Server error");
 
     }
@@ -40,90 +89,96 @@ export default function SecurityScan() {
 
 
 
-  const handleScan = (data) => {
-
-    if (data && !scanned) {
-
-      setScanned(true);
-      verifyGatepass(data);
-
-    }
-
-  };
-
+  // ================= RESET =================
 
   const resetScanner = () => {
 
-    setScanned(false);
     setStudent(null);
     setGatepass(null);
+    setStatus("");
     setMessage("");
 
   };
+
 
 
   return (
 
     <div style={styles.container}>
 
-      <h2 style={styles.title}>Security QR Scanner</h2>
+      <h2>Security QR Scanner</h2>
 
-      {!scanned && (
 
-        <div style={styles.scannerBox}>
+      {/* START BUTTON */}
 
-          <QrReader
-            constraints={{ facingMode: "environment" }}
-            onResult={(result) => {
+      {!scannerStarted && !student && status === "" && (
 
-              if (result) {
-                handleScan(result?.text);
-              }
+        <button style={styles.startButton} onClick={startScanner}>
+          Start Scanner
+        </button>
 
-            }}
-            style={{ width: "100%" }}
-          />
+      )}
+
+
+      {/* SCANNER */}
+
+      {scannerStarted && (
+
+        <div id="reader" style={styles.reader}></div>
+
+      )}
+
+
+
+      {/* SUCCESS SCREEN */}
+
+      {status === "success" && student && gatepass && (
+
+        <div style={styles.successBox}>
+
+          <h2 style={{ color: "#16a34a" }}>Gatepass Verified ✅</h2>
+
+          {student.profile_image && (
+            <img
+              src={student.profile_image}
+              alt="Student"
+              style={styles.image}
+            />
+          )}
+
+          <p><b>Name:</b> {student.name}</p>
+          <p><b>College ID:</b> {student.college_id}</p>
+          <p><b>Department:</b> {student.department}</p>
+          <p><b>Year:</b> {student.year}</p>
+          <p><b>Section:</b> {student.section}</p>
+
+          <hr />
+
+          <p><b>Reason:</b> {gatepass.reason}</p>
+          <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
+
+          <button style={styles.nextButton} onClick={resetScanner}>
+            Scan Next Student
+          </button>
 
         </div>
 
       )}
 
 
-      {scanned && (
 
-        <div style={styles.resultBox}>
+      {/* ERROR SCREEN */}
 
-          <h3>{message}</h3>
+      {status === "error" && (
 
-          {student && gatepass && (
+        <div style={styles.errorBox}>
 
-            <div>
+          <h2>❌ Invalid Gatepass</h2>
 
-              {student.profile_image && (
-                <img
-                  src={student.profile_image}
-                  alt="student"
-                  style={{ width: "120px", borderRadius: "10px" }}
-                />
-              )}
+          <p>{message}</p>
 
-              <p><b>Name:</b> {student.name}</p>
-              <p><b>ID:</b> {student.college_id}</p>
-              <p><b>Department:</b> {student.department}</p>
-              <p><b>Year:</b> {student.year}</p>
-              <p><b>Section:</b> {student.section}</p>
-
-              <hr/>
-
-              <p><b>Reason:</b> {gatepass.reason}</p>
-              <p><b>Parent Mobile:</b> {gatepass.parent_mobile}</p>
-
-            </div>
-
-          )}
-
-          <button style={styles.button} onClick={resetScanner}>
-            Scan Next Gatepass
+          <button style={styles.nextButton} onClick={resetScanner}>
+            Try Again
           </button>
 
         </div>
@@ -137,39 +192,60 @@ export default function SecurityScan() {
 }
 
 
+
 const styles = {
 
   container: {
-    padding: "20px",
     textAlign: "center",
-    minHeight: "100vh",
-    background: "#0f172a",
-    color: "white"
-  },
-
-  title: {
-    marginBottom: "20px"
-  },
-
-  scannerBox: {
-    maxWidth: "400px",
-    margin: "0 auto"
-  },
-
-  resultBox: {
-    marginTop: "20px",
-    background: "#111827",
     padding: "20px",
-    borderRadius: "10px"
+    background: "#0f172a",
+    color: "white",
+    minHeight: "100vh"
   },
 
-  button: {
+  reader: {
+    width: "320px",
+    margin: "20px auto"
+  },
+
+  startButton: {
+    padding: "12px 20px",
+    background: "#2563eb",
+    border: "none",
+    borderRadius: "6px",
+    color: "white",
+    cursor: "pointer"
+  },
+
+  successBox: {
+    background: "#022c22",
+    border: "2px solid #16a34a",
+    padding: "25px",
+    borderRadius: "10px",
+    marginTop: "20px"
+  },
+
+  errorBox: {
+    background: "#450a0a",
+    border: "2px solid #dc2626",
+    padding: "25px",
+    borderRadius: "10px",
+    marginTop: "20px"
+  },
+
+  image: {
+    width: "120px",
+    borderRadius: "10px",
+    marginBottom: "10px"
+  },
+
+  nextButton: {
     marginTop: "15px",
     padding: "10px 20px",
-    border: "none",
     background: "#2563eb",
-    color: "white",
+    border: "none",
     borderRadius: "6px",
+    color: "white",
     cursor: "pointer"
   }
 
