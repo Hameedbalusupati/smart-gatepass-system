@@ -11,14 +11,13 @@ security_bp = Blueprint("security_bp", __name__, url_prefix="/api/security")
 QR_ALGORITHM = "HS256"
 
 
-# ============================================
+# =================================================
 # SCAN QR CODE
-# ============================================
+# =================================================
 @security_bp.route("/scan", methods=["POST"])
 def scan_qr():
 
     try:
-
         data = request.get_json()
         qr_token = data.get("qr_token")
 
@@ -28,7 +27,7 @@ def scan_qr():
                 "message": "QR token missing"
             }), 400
 
-
+        # Decode QR
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -43,7 +42,7 @@ def scan_qr():
                 "message": "Invalid QR Code"
             }), 400
 
-
+        # Get gatepass
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -52,43 +51,29 @@ def scan_qr():
                 "message": "Gatepass not found"
             }), 404
 
-
-        if gatepass.is_used:
-            return jsonify({
-                "success": False,
-                "message": "Gatepass already used"
-            }), 400
-
-
         if gatepass.status != "Approved":
             return jsonify({
                 "success": False,
                 "message": "Gatepass not approved"
             }), 400
 
-
         student = gatepass.student
 
+        # Build image URL dynamically
         image_url = None
-
         if student.profile_image:
             filename = os.path.basename(student.profile_image)
-            image_url = f"{Config.API_BASE_URL}/uploads/student_images/{filename}"
-
+            image_url = request.host_url + "uploads/student_images/" + filename
 
         return jsonify({
 
             "success": True,
             "message": "Gatepass Verified",
 
-            "student_name": student.name,
-            "roll_no": student.college_id,
-            "gatepass_id": gatepass.id,
-
             "student": {
                 "id": student.id,
                 "name": student.name,
-                "college_id": student.college_id,
+                "roll_no": student.college_id,
                 "department": student.department,
                 "year": student.year,
                 "section": student.section,
@@ -105,23 +90,18 @@ def scan_qr():
 
 
     except jwt.ExpiredSignatureError:
-
         return jsonify({
             "success": False,
             "message": "QR Code expired"
         }), 410
 
-
     except jwt.InvalidTokenError:
-
         return jsonify({
             "success": False,
             "message": "Invalid QR Code"
         }), 400
 
-
     except Exception as e:
-
         print("QR ERROR:", e)
 
         return jsonify({
@@ -130,14 +110,13 @@ def scan_qr():
         }), 500
 
 
-# ============================================
+# =================================================
 # CONFIRM EXIT
-# ============================================
+# =================================================
 @security_bp.route("/confirm/<int:gatepass_id>", methods=["POST"])
 def confirm_exit(gatepass_id):
 
     try:
-
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -146,13 +125,11 @@ def confirm_exit(gatepass_id):
                 "message": "Gatepass not found"
             }), 404
 
-
         if gatepass.is_used:
             return jsonify({
                 "success": False,
-                "message": "Already exited"
+                "message": "Student already exited"
             }), 400
-
 
         gatepass.is_used = True
         gatepass.status = "Completed"
@@ -166,7 +143,6 @@ def confirm_exit(gatepass_id):
         })
 
     except Exception as e:
-
         print("CONFIRM ERROR:", e)
 
         return jsonify({

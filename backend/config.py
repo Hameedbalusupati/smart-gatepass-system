@@ -15,13 +15,7 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt_secret")
     QR_SECRET_KEY = os.getenv("QR_SECRET_KEY", "qr_secret")
 
-    # ==============================
-    # BASE URL (Used for images)
-    # ==============================
-    # BASE_URL = os.getenv(
-    #     "BASE_URL",
-    #     "https://smart-gatepass-system.onrender.com"
-    # )
+    
 
     # ==============================
     # DATABASE CONFIGURATION
