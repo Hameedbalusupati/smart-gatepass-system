@@ -8,7 +8,7 @@ export default function SecurityScan() {
 
   const [scanned, setScanned] = useState(false);
   const [result, setResult] = useState(null);
-  const [message, setMessage] = useState("Starting camera...");
+  const [message, setMessage] = useState("Initializing scanner...");
 
   const token = localStorage.getItem("access_token");
 
@@ -22,6 +22,7 @@ export default function SecurityScan() {
       const res = await fetch(
         `${API_BASE_URL}/security/scan/${qrToken}`,
         {
+          method: "GET",
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -31,15 +32,19 @@ export default function SecurityScan() {
       const data = await res.json();
 
       if (res.ok && data.success) {
+
         setResult(data);
         setMessage("Gatepass Verified ✅");
+
       } else {
+
         setMessage(data.message || "Invalid Gatepass ❌");
+
       }
 
     } catch (error) {
 
-      console.error(error);
+      console.error("Verification error:", error);
       setMessage("Server error");
 
     }
@@ -55,34 +60,40 @@ export default function SecurityScan() {
 
       try {
 
+        // Request camera permission
+        await navigator.mediaDevices.getUserMedia({ video: true });
+
         const scanner = new Html5Qrcode("reader");
         scannerRef.current = scanner;
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: 250 },
+          {
+            fps: 10,
+            qrbox: 250
+          },
           (decodedText) => {
 
             if (!scanned) {
 
               setScanned(true);
+
               verifyGatepass(decodedText);
+
               scanner.stop();
 
             }
 
           },
-          (errorMessage) => {
-            // ignore scanning errors
-          }
+          () => { }
         );
 
         setMessage("Scan QR Code");
 
-      } catch (err) {
+      } catch (error) {
 
-        console.error("Camera error:", err);
-        setMessage("Camera access denied or not supported");
+        console.error("Camera error:", error);
+        setMessage("Camera permission denied or not supported");
 
       }
 
@@ -93,7 +104,7 @@ export default function SecurityScan() {
     return () => {
 
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
+        scannerRef.current.stop().catch(() => { });
       }
 
     };
@@ -101,13 +112,14 @@ export default function SecurityScan() {
   }, [scanned, verifyGatepass]);
 
 
-  // ================= RESET =================
+  // ================= RESET SCANNER =================
 
   const resetScanner = () => {
 
     setScanned(false);
     setResult(null);
     setMessage("Restarting scanner...");
+
     window.location.reload();
 
   };
@@ -120,10 +132,13 @@ export default function SecurityScan() {
       <h2>Security QR Scanner</h2>
 
       {!scanned && (
+
         <div id="reader" style={styles.reader}></div>
+
       )}
 
-      <p>{message}</p>
+      <p style={styles.message}>{message}</p>
+
 
       {result && (
 
@@ -131,17 +146,32 @@ export default function SecurityScan() {
 
           <h3>Student Details</h3>
 
+          {result.student.profile_image && (
+
+            <img
+              src={`${API_BASE_URL}${result.student.profile_image}`}
+              alt="Student"
+              style={styles.image}
+            />
+
+          )}
+
           <p><b>Name:</b> {result.student.name}</p>
           <p><b>College ID:</b> {result.student.college_id}</p>
           <p><b>Department:</b> {result.student.department}</p>
           <p><b>Year:</b> {result.student.year}</p>
           <p><b>Section:</b> {result.student.section}</p>
 
+          <hr />
+
+          <h3>Gatepass Details</h3>
+
           <p><b>Reason:</b> {result.gatepass.reason}</p>
           <p><b>Parent Mobile:</b> {result.gatepass.parent_mobile}</p>
+          <p><b>Out Time:</b> {result.gatepass.out_time}</p>
 
           <button style={styles.button} onClick={resetScanner}>
-            Scan Next
+            Scan Next Gatepass
           </button>
 
         </div>
@@ -155,6 +185,8 @@ export default function SecurityScan() {
 }
 
 
+// ================= STYLES =================
+
 const styles = {
 
   container: {
@@ -166,15 +198,26 @@ const styles = {
   },
 
   reader: {
-    width: "300px",
+    width: "320px",
     margin: "20px auto"
   },
 
+  message: {
+    marginTop: "10px",
+    fontSize: "16px"
+  },
+
   resultBox: {
+    marginTop: "20px",
     background: "#111827",
     padding: "20px",
+    borderRadius: "10px"
+  },
+
+  image: {
+    width: "120px",
     borderRadius: "10px",
-    marginTop: "20px"
+    marginBottom: "10px"
   },
 
   button: {
