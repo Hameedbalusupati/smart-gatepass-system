@@ -163,8 +163,8 @@ export default function SecurityScan() {
             src={student.profile_image}
             alt="student"
             style={{
-              width: "120px",
-              height: "120px",
+              width: "250px",
+              height: "250px",
               borderRadius: "10px",
               objectFit: "cover"
             }}
