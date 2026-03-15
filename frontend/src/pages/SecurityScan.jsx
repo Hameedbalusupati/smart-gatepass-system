@@ -9,32 +9,35 @@ export default function SecurityScan() {
   const [message, setMessage] = useState("");
   const [exitCount, setExitCount] = useState(0);
 
+  const scannerRef = useRef(null);
   const scannedRef = useRef(false);
 
 
-  // ================================
-  // GET DAILY EXIT COUNT
-  // ================================
-  const fetchExitCount = async () => {
-    try {
-      const res = await API.get("/security/exit-count");
-      setExitCount(res.data.total_exits);
-    } catch (err) {
-      console.error("Exit count error:", err);
-    }
-  };
-
-
-  // ================================
-  // QR SCANNER
-  // ================================
+  // ====================================
+  // LOAD EXIT COUNT ON PAGE LOAD
+  // ====================================
   useEffect(() => {
 
-    const init = async () => {
-      await fetchExitCount();
+    const loadExitCount = async () => {
+      try {
+        const res = await API.get("/security/exit-count");
+        setExitCount(res.data.total_exits);
+      } catch (err) {
+        console.error("Exit count error:", err);
+      }
     };
 
-    init();
+    loadExitCount();
+
+  }, []);
+
+
+  // ====================================
+  // QR SCANNER
+  // ====================================
+  useEffect(() => {
+
+    if (student) return;
 
     const scanner = new Html5QrcodeScanner(
       "qr-reader",
@@ -42,11 +45,14 @@ export default function SecurityScan() {
       false
     );
 
+    scannerRef.current = scanner;
+
     scanner.render(
 
       async (decodedText) => {
 
         if (scannedRef.current) return;
+
         scannedRef.current = true;
 
         try {
@@ -67,9 +73,9 @@ export default function SecurityScan() {
           setGatepass(data.gatepass);
           setMessage("Gatepass Verified");
 
-        } catch (err) {
+          scanner.clear();
 
-          console.error(err);
+        } catch (err) {
 
           const msg =
             err.response?.data?.message ||
@@ -89,12 +95,12 @@ export default function SecurityScan() {
       scanner.clear().catch(() => {});
     };
 
-  }, []);
+  }, [student]);
 
 
-  // ================================
+  // ====================================
   // CONFIRM EXIT
-  // ================================
+  // ====================================
   const confirmExit = async () => {
 
     try {
@@ -104,13 +110,16 @@ export default function SecurityScan() {
       if (res.data.success) {
 
         setMessage("Exit recorded successfully");
+
         setStudent(null);
         setGatepass(null);
 
         scannedRef.current = false;
 
         // refresh exit count
-        fetchExitCount();
+        const res2 = await API.get("/security/exit-count");
+        setExitCount(res2.data.total_exits);
+
       }
 
     } catch (err) {
@@ -131,7 +140,10 @@ export default function SecurityScan() {
 
       <h4>Today's Exits: {exitCount}</h4>
 
-      <div id="qr-reader" style={{ width: "100%" }} />
+      {/* Hide scanner after student detected */}
+      {!student && (
+        <div id="qr-reader" style={{ width: "100%" }} />
+      )}
 
       {message && <p>{message}</p>}
 
