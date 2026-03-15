@@ -2,7 +2,6 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 import jwt
-import re
 
 from models import db, GatePass, User
 from config import Config
@@ -29,31 +28,13 @@ def apply_gatepass():
         }), 403
 
     data = request.get_json() or {}
-
     reason = (data.get("reason") or "").strip()
     parent_mobile = (data.get("parent_mobile") or "").strip()
 
-
-    # ============================================
-    # VALIDATION
-    # ============================================
-    if not reason:
+    if not reason or not parent_mobile:
         return jsonify({
             "success": False,
-            "message": "Reason is required"
-        }), 400
-
-    if not parent_mobile:
-        return jsonify({
-            "success": False,
-            "message": "Parent mobile number is required"
-        }), 400
-
-    # Must be exactly 10 digits
-    if not re.fullmatch(r"\d{10}", parent_mobile):
-        return jsonify({
-            "success": False,
-            "message": "Parent mobile must be exactly 10 digits"
+            "message": "Reason and parent mobile are required"
         }), 400
 
 
