@@ -1,42 +1,29 @@
-from deepface import DeepFace
-import tempfile
-import os
+import face_recognition
+import numpy as np
 
 
-# ================= SAVE TEMP IMAGE =================
-def save_temp_file(file):
-    temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
-    file.save(temp.name)
-    return temp.name
-
-
-# ================= GET FACE (STORE IMAGE PATH) =================
 def get_face_encoding(image_file):
-    """
-    Instead of encoding, we store the image path
-    (DeepFace compares images directly)
-    """
-    path = save_temp_file(image_file)
-    return path
+    image = face_recognition.load_image_file(image_file)
+    encodings = face_recognition.face_encodings(image)
+
+    if len(encodings) == 0:
+        return None
+
+    return encodings[0].tolist()
 
 
-# ================= COMPARE FACES =================
-def compare_faces(stored_image_path, captured_file):
+def compare_faces(stored_encoding, image_file):
+    image = face_recognition.load_image_file(image_file)
+    encodings = face_recognition.face_encodings(image)
 
-    try:
-        captured_path = save_temp_file(captured_file)
-
-        result = DeepFace.verify(
-            img1_path=stored_image_path,
-            img2_path=captured_path,
-            enforce_detection=False
-        )
-
-        # cleanup temp file
-        os.remove(captured_path)
-
-        return result["verified"]
-
-    except Exception as e:
-        print("FACE ERROR:", e)
+    if len(encodings) == 0:
         return False
+
+    captured_encoding = encodings[0]
+
+    result = face_recognition.compare_faces(
+        [np.array(stored_encoding)],
+        captured_encoding
+    )
+
+    return result[0]
