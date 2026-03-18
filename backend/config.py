@@ -15,8 +15,6 @@ class Config:
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt_secret")
     QR_SECRET_KEY = os.getenv("QR_SECRET_KEY", "qr_secret")
 
-    
-
     # ==============================
     # DATABASE CONFIGURATION
     # ==============================
@@ -25,11 +23,13 @@ class Config:
     if not db_url:
         raise ValueError("DATABASE_URL not found. Check your .env file.")
 
-    # Fix postgres:// issue for Render
+    # 🔥 FIX: use psycopg (v3)
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    # Ensure SSL mode for Render database
+    # Ensure SSL mode for Render
     if "sslmode" not in db_url:
         if "?" in db_url:
             db_url += "&sslmode=require"
