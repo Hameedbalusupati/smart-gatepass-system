@@ -4,7 +4,7 @@ flask-jwt-extended
 flask-sqlalchemy
 psycopg2-binary
 gunicorn
-numpy
+deepface
+tensorflow
 opencv-python-headless
-face_recognition
-dlib
+numpy
