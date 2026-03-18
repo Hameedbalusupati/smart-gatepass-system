@@ -8,6 +8,9 @@ import re
 
 from models import db, User
 
+# ✅ FACE IMPORT
+from utils.face_utils import get_face_encoding
+
 auth_bp = Blueprint("auth_bp", __name__)
 
 UPLOAD_FOLDER = "uploads/student_images"
@@ -32,21 +35,18 @@ def register():
         year = request.form.get("year")
         section = (request.form.get("section") or "").strip().upper()
 
-        image = request.files.get("profile_image")
+        # ✅ FILES
+        image = request.files.get("profile_image")   # student
+        face_file = request.files.get("face_image")  # faculty
 
-        # ================================
-        # BASIC VALIDATION
-        # ================================
+        # ================= BASIC VALIDATION =================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-
-        # ================================
-        # EMAIL VALIDATION
-        # ================================
+        # ================= EMAIL VALIDATION =================
         parts = email.split("@")
 
         if len(parts) != 2:
@@ -58,42 +58,28 @@ def register():
         if domain.lower() != "pace.ac.in":
             return jsonify({"message": "Email must end with @pace.ac.in"}), 400
 
-
-        # ================================
-        # STUDENT EMAIL RULE
-        # ================================
+        # ================= STUDENT RULE =================
         if role == "student":
-
-            # Email must match roll number
             if email_user.lower() != college_id.lower():
                 return jsonify({
                     "message": "Student email must match Roll Number"
                 }), 400
 
-
-        # ================================
-        # FACULTY EMAIL RULE
-        # ================================
+        # ================= FACULTY RULE =================
         if role == "faculty":
 
-            # faculty college id must be numbers
             if not college_id.isdigit():
                 return jsonify({
                     "message": "Faculty college ID must contain numbers only"
                 }), 400
 
-            # email format like venkat_p
             pattern = r'^[a-zA-Z]+_[a-zA-Z]$'
-
             if not re.match(pattern, email_user):
                 return jsonify({
                     "message": "Faculty email must be like venkat_p@pace.ac.in"
                 }), 400
 
-
-        # ================================
-        # ROLE BASED VALIDATION
-        # ================================
+        # ================= ROLE VALIDATION =================
         if role in ["student", "faculty", "hod"]:
             if not department:
                 return jsonify({"message": "Department is required"}), 400
@@ -112,16 +98,12 @@ def register():
             year = None
             section = None
 
-
         if role == "security":
             department = None
             year = None
             section = None
 
-
-        # ================================
-        # STUDENT IMAGE
-        # ================================
+        # ================= STUDENT IMAGE =================
         image_path = None
 
         if role == "student":
@@ -133,13 +115,28 @@ def register():
 
             filename = secure_filename(college_id + ".jpg")
             image_path = os.path.join(UPLOAD_FOLDER, filename)
-
             image.save(image_path)
 
+        # ================= FACULTY FACE =================
+        face_encoding = None
 
-        # ================================
-        # CREATE USER
-        # ================================
+        if role == "faculty":
+
+            if not face_file:
+                return jsonify({
+                    "message": "Faculty face image is required"
+                }), 400
+
+            encoding = get_face_encoding(face_file)
+
+            if encoding is None:
+                return jsonify({
+                    "message": "No face detected in image"
+                }), 400
+
+            face_encoding = encoding.tolist()
+
+        # ================= CREATE USER =================
         user = User(
             college_id=college_id,
             name=name,
@@ -149,7 +146,8 @@ def register():
             department=department,
             year=year,
             section=section,
-            profile_image=image_path
+            profile_image=image_path,
+            face_encoding=face_encoding   # ✅ IMPORTANT
         )
 
         db.session.add(user)
@@ -157,16 +155,13 @@ def register():
 
         return jsonify({"message": "Registered successfully"}), 201
 
-
     except IntegrityError:
         db.session.rollback()
-
         return jsonify({
             "message": "Email or College ID already exists"
         }), 400
 
     except Exception as e:
-
         db.session.rollback()
         print("REGISTER ERROR:", e)
 

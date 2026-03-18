@@ -11,6 +11,36 @@ export default function FacultyDashboard() {
   const token = localStorage.getItem("access_token");
 
 
+  // ================= CAMERA FUNCTION =================
+  const captureImage = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+      const video = document.createElement("video");
+      video.srcObject = stream;
+
+      await video.play();
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 300;
+      canvas.height = 300;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, 300, 300);
+
+      // stop camera
+      stream.getTracks().forEach(track => track.stop());
+
+      return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), "image/jpeg");
+      });
+
+    } catch (err) {
+      alert("Camera access denied or not available");
+      return null;
+    }
+  };
+
 
   // ================= LOAD DATA =================
   useEffect(() => {
@@ -22,12 +52,11 @@ export default function FacultyDashboard() {
         return;
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
       try {
+
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
 
         // ---------- Pending ----------
         const pendingRes = await fetch(
@@ -56,10 +85,8 @@ export default function FacultyDashboard() {
         setError("");
 
       } catch (err) {
-
         console.error(err);
         setError("Server not reachable");
-
       }
 
     };
@@ -69,47 +96,56 @@ export default function FacultyDashboard() {
   }, [token]);
 
 
-
-  // ================= APPROVE =================
+  // ================= APPROVE (WITH FACE) =================
   const approveGatepass = async (id) => {
 
-    if (!window.confirm("Forward gatepass to HOD?")) return;
+    if (!window.confirm("Show your face to approve gatepass")) return;
 
     setLoadingId(id);
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-
     try {
+
+      // 📸 Capture face
+      const imageBlob = await captureImage();
+
+      if (!imageBlob) {
+        setLoadingId(null);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("image", imageBlob);
 
       const res = await fetch(
         `${API_BASE_URL}/faculty/gatepasses/approve/${id}`,
         {
           method: "PUT",
-          headers,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message || "Approval failed");
+        alert(data.message || "Face verification failed");
+        setLoadingId(null);
         return;
       }
 
+      alert("Gatepass forwarded to HOD ✅");
+
       setPending(prev => prev.filter(p => p.id !== id));
 
-    } catch {
-
-      alert("Server not reachable");
-
+    } catch (err) {
+      console.error(err);
+      alert("Camera or server error");
     }
 
     setLoadingId(null);
   };
-
 
 
   // ================= REJECT =================
@@ -124,18 +160,16 @@ export default function FacultyDashboard() {
 
     setLoadingId(id);
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-
     try {
 
       const res = await fetch(
         `${API_BASE_URL}/faculty/gatepasses/reject/${id}`,
         {
           method: "PUT",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             rejection_reason: reason
           })
@@ -146,20 +180,21 @@ export default function FacultyDashboard() {
 
       if (!res.ok) {
         alert(data.message || "Rejection failed");
+        setLoadingId(null);
         return;
       }
 
+      alert("Gatepass rejected ❌");
+
       setPending(prev => prev.filter(p => p.id !== id));
 
-    } catch {
-
+    } catch (err) {
+      console.error(err);
       alert("Server not reachable");
-
     }
 
     setLoadingId(null);
   };
-
 
 
   // ================= UI =================
@@ -215,7 +250,6 @@ export default function FacultyDashboard() {
         ))}
 
 
-
         {/* ================= History ================= */}
         <h3 style={styles.section}>Gatepass History</h3>
 
@@ -246,7 +280,7 @@ export default function FacultyDashboard() {
 }
 
 
-
+// ================= STYLES =================
 const styles = {
 
   page: {

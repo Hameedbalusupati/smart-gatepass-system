@@ -20,7 +20,17 @@ def create_app():
     app.config.from_object(Config)
 
     # =====================================================
-    # ENABLE CORS (Frontend = Netlify, Backend = Render)
+    # FILE UPLOAD CONFIG (IMPORTANT FOR FACE IMAGES)
+    # =====================================================
+    app.config["UPLOAD_FOLDER"] = "uploads"
+    app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB limit
+
+    # Create upload folder if not exists
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(os.path.join("uploads", "student_images"), exist_ok=True)
+
+    # =====================================================
+    # ENABLE CORS (Frontend ↔ Backend)
     # =====================================================
     CORS(
         app,
@@ -32,23 +42,21 @@ def create_app():
     # INIT DATABASE & JWT
     # =====================================================
     db.init_app(app)
-    JWTManager(app)
+    jwt = JWTManager(app)
 
     # =====================================================
-    # CREATE TABLES (SAFE FOR RENDER)
+    # CREATE TABLES (SAFE INIT)
     # =====================================================
     with app.app_context():
         try:
-            # db.drop_all()
             db.create_all()
             print("✅ Database Connected Successfully")
         except Exception as e:
-            print("❌ Database Connection Failed:", e)
+            print("❌ Database Connection Failed:", str(e))
 
     # =====================================================
     # REGISTER BLUEPRINTS
     # =====================================================
-
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
     app.register_blueprint(student_bp, url_prefix="/api/student")
@@ -58,12 +66,27 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
     # =====================================================
-    # STATIC FILE SERVING (Student Images)
+    # STATIC FILE SERVING (STUDENT IMAGES)
     # =====================================================
     @app.route("/uploads/student_images/<filename>")
     def uploaded_file(filename):
-        upload_folder = os.path.join("uploads", "student_images")
-        return send_from_directory(upload_folder, filename)
+        try:
+            return send_from_directory(
+                os.path.join(app.config["UPLOAD_FOLDER"], "student_images"),
+                filename
+            )
+        except Exception:
+            return jsonify({"error": "File not found"}), 404
+
+    # =====================================================
+    # GLOBAL ERROR HANDLER (OPTIONAL BUT GOOD)
+    # =====================================================
+    @app.errorhandler(413)
+    def file_too_large(e):
+        return jsonify({
+            "success": False,
+            "message": "File too large (Max 5MB)"
+        }), 413
 
     # =====================================================
     # HEALTH CHECK ROUTE

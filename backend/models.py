@@ -29,6 +29,10 @@ class User(db.Model):
     # Optional profile image (for students)
     profile_image = db.Column(db.String(255), nullable=True)
 
+    # ✅ NEW FIELD (IMPORTANT)
+    # Stores face encoding for faculty verification
+    face_encoding = db.Column(db.JSON, nullable=True)
+
     # ================= RELATIONSHIPS =================
 
     # Student created gatepasses
@@ -58,7 +62,6 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.id} {self.role}>"
-
 
 
 # =====================================================
