@@ -8,13 +8,16 @@ import re
 
 from models import db, User
 
-# ✅ FACE IMPORT
+# ✅ FACE IMPORT (DeepFace version)
 from utils.face_utils import get_face_encoding
 
 auth_bp = Blueprint("auth_bp", __name__)
 
 UPLOAD_FOLDER = "uploads/student_images"
+FACE_FOLDER = "uploads/faculty_faces"
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(FACE_FOLDER, exist_ok=True)
 
 
 # =================================================
@@ -35,7 +38,7 @@ def register():
         year = request.form.get("year")
         section = (request.form.get("section") or "").strip().upper()
 
-        # ✅ FILES
+        # FILES
         image = request.files.get("profile_image")   # student
         face_file = request.files.get("face_image")  # faculty
 
@@ -118,7 +121,7 @@ def register():
             image.save(image_path)
 
         # ================= FACULTY FACE =================
-        face_encoding = None
+        face_path = None
 
         if role == "faculty":
 
@@ -127,14 +130,19 @@ def register():
                     "message": "Faculty face image is required"
                 }), 400
 
+            filename = secure_filename(college_id + "_face.jpg")
+            face_path = os.path.join(FACE_FOLDER, filename)
+
+            # save face image
+            face_file.save(face_path)
+
+            # optional: validate face using DeepFace
             encoding = get_face_encoding(face_file)
 
             if encoding is None:
                 return jsonify({
                     "message": "No face detected in image"
                 }), 400
-
-            face_encoding = encoding.tolist()
 
         # ================= CREATE USER =================
         user = User(
@@ -147,7 +155,7 @@ def register():
             year=year,
             section=section,
             profile_image=image_path,
-            face_encoding=face_encoding   # ✅ IMPORTANT
+            face_encoding=face_path   # ✅ STORE IMAGE PATH
         )
 
         db.session.add(user)

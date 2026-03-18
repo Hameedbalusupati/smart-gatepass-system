@@ -3,6 +3,8 @@ flask-cors
 flask-jwt-extended
 flask-sqlalchemy
 psycopg2-binary
-python-dotenv
-PyJWT
 gunicorn
+numpy
+opencv-python-headless
+face_recognition
+dlib
