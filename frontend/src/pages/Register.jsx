@@ -19,20 +19,25 @@ export default function Register() {
     department: "",
     year: "",
     section: "",
-    profile_image: null,   // student
-    face_image: null       // faculty
+    profile_image: null
   });
 
+  /* ================= HANDLE INPUT ================= */
 
-  // ================= INPUT =================
   const handleChange = (e) => {
+
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
   };
 
+  /* ================= IMAGE ================= */
 
-  // ================= IMAGE =================
-  const handleImageChange = (e, type) => {
+  const handleImageChange = (e) => {
 
     const file = e.target.files[0];
     if (!file) return;
@@ -47,26 +52,25 @@ export default function Register() {
       return;
     }
 
-    if (type === "student") {
-      setForm(prev => ({ ...prev, profile_image: file }));
-    } else {
-      setForm(prev => ({ ...prev, face_image: file }));
-    }
-
+    setForm(prev => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
+
   };
 
+  /* ================= REGISTER ================= */
 
-  // ================= REGISTER =================
   const handleRegister = async (e) => {
 
     e.preventDefault();
+
     if (loading) return;
 
     setError("");
 
     const collegeId = form.college_id.trim();
     const email = form.email.trim();
+
+    /* ===== EMAIL VALIDATION ===== */
 
     const parts = email.split("@");
 
@@ -83,45 +87,52 @@ export default function Register() {
       return;
     }
 
-    // ===== STUDENT RULE =====
+    /* ================= STUDENT RULE ================= */
+
     if (form.role === "student") {
+
       if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
         setError("Student email must match Roll Number");
         return;
       }
+
     }
 
-    // ===== FACULTY RULE =====
+    /* ================= FACULTY RULE ================= */
+
     if (form.role === "faculty") {
+
       if (!/^[0-9]+$/.test(collegeId)) {
-        setError("Faculty ID must be numeric");
+        setError("Faculty College ID must contain numbers only");
         return;
       }
+
+      if (!/^[a-zA-Z]+_[a-zA-Z]$/.test(emailUser)) {
+        setError("Faculty email must be like venkat_p@pace.ac.in");
+        return;
+      }
+
     }
 
-    // ===== REQUIRED =====
+    /* ===== REQUIRED FIELDS ===== */
+
     if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
 
     if (["student", "faculty", "hod"].includes(form.role) && !form.department) {
-      setError("Department required");
+      setError("Department is required");
       return;
     }
 
     if (["student", "faculty"].includes(form.role) && (!form.year || !form.section)) {
-      setError("Year & Section required");
+      setError("Year and Section are required");
       return;
     }
 
     if (form.role === "student" && !form.profile_image) {
-      setError("Student image required");
-      return;
-    }
-
-    if (form.role === "faculty" && !form.face_image) {
-      setError("Faculty face image required");
+      setError("Student image is required");
       return;
     }
 
@@ -146,14 +157,8 @@ export default function Register() {
         formData.append("section", form.section);
       }
 
-      // ✅ Student image
       if (form.profile_image) {
         formData.append("profile_image", form.profile_image);
-      }
-
-      // ✅ Faculty face image
-      if (form.face_image) {
-        formData.append("face_image", form.face_image);
       }
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -168,72 +173,169 @@ export default function Register() {
         return;
       }
 
-      alert("Registered Successfully ✅");
+      alert("Registered Successfully");
       navigate("/login");
 
     } catch (err) {
+
       console.error(err);
-      setError("Server error");
+      setError("Cannot reach server");
+
     } finally {
+
       setLoading(false);
+
     }
 
   };
 
-
   const showYearSection =
     form.role === "student" || form.role === "faculty";
 
+  /* ================= UI ================= */
 
-  // ================= UI =================
   return (
+
     <div style={container}>
+
       <form onSubmit={handleRegister} style={box}>
 
         <h2 style={title}>Register</h2>
 
-        {error && <p style={{ color: "#ef4444" }}>{error}</p>}
+        {error && (
+          <p style={{ color: "#ef4444", textAlign: "center" }}>
+            {error}
+          </p>
+        )}
 
-        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} />
-        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} />
-        <input style={input} name="email" placeholder="Email" onChange={handleChange} />
-        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} />
+        <input
+          style={input}
+          name="college_id"
+          placeholder="College ID"
+          value={form.college_id}
+          onChange={handleChange}
+        />
 
-        <select style={input} name="role" onChange={handleChange}>
+        <input
+          style={input}
+          name="name"
+          placeholder="Full Name"
+          value={form.name}
+          onChange={handleChange}
+        />
+
+        <input
+          style={input}
+          name="email"
+          placeholder="College Email"
+          value={form.email}
+          onChange={handleChange}
+        />
+
+        <input
+          style={input}
+          type="password"
+          name="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={handleChange}
+        />
+
+        <select
+          style={input}
+          name="role"
+          value={form.role}
+          onChange={handleChange}
+        >
+
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="hod">HOD</option>
           <option value="security">Security</option>
+
         </select>
 
         {form.role !== "security" && (
-          <input style={input} name="department" placeholder="Department" onChange={handleChange} />
+
+          <select
+            style={input}
+            name="department"
+            value={form.department}
+            onChange={handleChange}
+          >
+
+            <option value="">Select Department</option>
+            <option value="CSE">CSE</option>
+            <option value="EEE">EEE</option>
+            <option value="ECE">ECE</option>
+            <option value="ME">ME</option>
+            <option value="CE">CE</option>
+            <option value="AIDS">AIDS</option>
+            <option value="AIML">AIML</option>
+            <option value="IT">IT</option>
+
+          </select>
+
         )}
 
         {showYearSection && (
+
           <>
-            <input style={input} name="year" placeholder="Year" onChange={handleChange} />
-            <input style={input} name="section" placeholder="Section" onChange={handleChange} />
+
+            <select
+              style={input}
+              name="year"
+              value={form.year}
+              onChange={handleChange}
+            >
+
+              <option value="">Select Year</option>
+              <option value="1">1st</option>
+              <option value="2">2nd</option>
+              <option value="3">3rd</option>
+              <option value="4">4th</option>
+
+            </select>
+
+            <select
+              style={input}
+              name="section"
+              value={form.section}
+              onChange={handleChange}
+            >
+
+              <option value="">Select Section</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+
+            </select>
+
           </>
+
         )}
 
-        {/* STUDENT IMAGE */}
         {form.role === "student" && (
-          <>
-            <input type="file" onChange={(e) => handleImageChange(e, "student")} />
-          </>
-        )}
 
-        {/* FACULTY FACE */}
-        {form.role === "faculty" && (
           <>
-            <p style={{ color: "white" }}>Upload Face Image</p>
-            <input type="file" onChange={(e) => handleImageChange(e, "faculty")} />
-          </>
-        )}
 
-        {preview && (
-          <img src={preview} alt="Preview" style={{ width: "120px" }} />
+            <input
+              style={input}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+
+            {preview && (
+              <img
+                src={preview}
+                alt="Preview"
+                style={{ width: "120px", borderRadius: "8px" }}
+              />
+            )}
+
+          </>
+
         )}
 
         <button style={btn} disabled={loading}>
@@ -241,12 +343,15 @@ export default function Register() {
         </button>
 
       </form>
+
     </div>
+
   );
+
 }
 
+/* ================= STYLES ================= */
 
-// ================= STYLES =================
 const container = {
   minHeight: "100vh",
   display: "flex",

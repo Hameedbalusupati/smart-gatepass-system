@@ -2,9 +2,6 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, User, GatePass
 
-# ✅ NEW IMPORT
-from utils.face_utils import compare_faces
-
 faculty_bp = Blueprint("faculty_bp", __name__, url_prefix="/faculty")
 
 
@@ -59,7 +56,7 @@ def pending_gatepasses():
 
 
 # =====================================================
-# APPROVE → SEND TO HOD (WITH FACE VERIFICATION)
+# APPROVE → SEND TO HOD
 # =====================================================
 @faculty_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["PUT"])
 @jwt_required()
@@ -68,36 +65,8 @@ def approve_gatepass(gatepass_id):
     user_id = int(get_jwt_identity())
     faculty = db.session.get(User, user_id)
 
-    # ✅ Role check
     if not faculty or faculty.role.lower() != "faculty":
         return jsonify({"success": False, "message": "Access denied"}), 403
-
-    # ✅ Face registered or not
-    if not faculty.face_encoding:
-        return jsonify({
-            "success": False,
-            "message": "Faculty face not registered"
-        }), 400
-
-    # ✅ Get captured image
-    file = request.files.get("image")
-
-    if not file:
-        return jsonify({
-            "success": False,
-            "message": "Face image required"
-        }), 400
-
-    # ✅ FACE MATCH CHECK
-    is_match = compare_faces(faculty.face_encoding, file)
-
-    if not is_match:
-        return jsonify({
-            "success": False,
-            "message": "Face not matched"
-        }), 401
-
-    # ================= EXISTING LOGIC =================
 
     gp = db.session.get(GatePass, gatepass_id)
 
@@ -119,7 +88,6 @@ def approve_gatepass(gatepass_id):
             "message": "Unauthorized access to this gatepass"
         }), 403
 
-    # ✅ APPROVE
     gp.status = "PendingHOD"
     gp.faculty_id = faculty.id
 
@@ -219,4 +187,4 @@ def faculty_history():
             }
             for gp in gatepasses
         ]
-    }), 200
+    }), 200 

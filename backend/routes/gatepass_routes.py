@@ -7,9 +7,6 @@ import re
 from models import db, GatePass, User
 from config import Config
 
-# ✅ NEW IMPORT
-from utils.face_utils import compare_faces
-
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
 QR_ALGORITHM = "HS256"
@@ -36,15 +33,33 @@ def apply_gatepass():
     reason = (data.get("reason") or "").strip()
     parent_mobile = (data.get("parent_mobile") or "").strip()
 
+
+    # ============================================
+    # VALIDATION
+    # ============================================
     if not reason:
-        return jsonify({"success": False, "message": "Reason is required"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Reason is required"
+        }), 400
 
     if not parent_mobile:
-        return jsonify({"success": False, "message": "Parent mobile number is required"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Parent mobile number is required"
+        }), 400
 
+    # Must be exactly 10 digits
     if not re.fullmatch(r"\d{10}", parent_mobile):
-        return jsonify({"success": False, "message": "Parent mobile must be exactly 10 digits"}), 400
+        return jsonify({
+            "success": False,
+            "message": "Parent mobile must be exactly 10 digits"
+        }), 400
 
+
+    # =================================================
+    # CHECK IF STUDENT ALREADY APPLIED TODAY
+    # =================================================
     today = datetime.utcnow().date()
 
     today_gatepass = GatePass.query.filter(
@@ -58,6 +73,10 @@ def apply_gatepass():
             "message": "You can apply only one gatepass per day"
         }), 400
 
+
+    # =================================================
+    # CHECK IF ACTIVE GATEPASS EXISTS
+    # =================================================
     active = GatePass.query.filter(
         GatePass.student_id == student.id,
         GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"]),
@@ -70,6 +89,10 @@ def apply_gatepass():
             "message": "You already have an active gatepass"
         }), 400
 
+
+    # =================================================
+    # CREATE NEW GATEPASS
+    # =================================================
     new_gp = GatePass(
         student_id=student.id,
         reason=reason,
@@ -89,7 +112,7 @@ def apply_gatepass():
 
 
 # =================================================
-# FACULTY ACTION (WITH FACE VERIFICATION)
+# FACULTY ACTION
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -104,6 +127,10 @@ def faculty_action(gatepass_id):
             "message": "Only faculty can perform this action"
         }), 403
 
+    data = request.get_json() or {}
+    action = data.get("action")
+    rejection_reason = (data.get("rejection_reason") or "").strip()
+
     gatepass = db.session.get(GatePass, gatepass_id)
 
     if not gatepass or gatepass.status != "PendingFaculty":
@@ -112,38 +139,9 @@ def faculty_action(gatepass_id):
             "message": "Invalid gatepass"
         }), 400
 
-    # =================================================
-    # ✅ FACE VERIFICATION (ONLY FOR APPROVE)
-    # =================================================
-    action = request.form.get("action")
-    rejection_reason = (request.form.get("rejection_reason") or "").strip()
+    gatepass.faculty_id = faculty.id
 
     if action == "approve":
-
-        # Check face registered
-        if not faculty.face_encoding:
-            return jsonify({
-                "success": False,
-                "message": "Faculty face not registered"
-            }), 400
-
-        file = request.files.get("image")
-
-        if not file:
-            return jsonify({
-                "success": False,
-                "message": "Face image required"
-            }), 400
-
-        is_match = compare_faces(faculty.face_encoding, file)
-
-        if not is_match:
-            return jsonify({
-                "success": False,
-                "message": "Face not matched"
-            }), 401
-
-        # ✅ APPROVE
         gatepass.status = "PendingHOD"
 
     elif action == "reject":
@@ -163,8 +161,6 @@ def faculty_action(gatepass_id):
             "success": False,
             "message": "Invalid action"
         }), 400
-
-    gatepass.faculty_id = faculty.id
 
     db.session.commit()
 
