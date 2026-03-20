@@ -26,8 +26,13 @@ class User(db.Model):
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(5), nullable=True)
 
-    # Optional profile image (for students)
+    # ================= IMAGES =================
+
+    # Student profile image
     profile_image = db.Column(db.String(255), nullable=True)
+
+    # ✅ NEW: Faculty face image (for face verification)
+    face_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
 
@@ -58,7 +63,6 @@ class User(db.Model):
 
     def __repr__(self):
         return f"<User {self.id} {self.role}>"
-
 
 
 # =====================================================
@@ -98,7 +102,6 @@ class GatePass(db.Model):
     parent_mobile = db.Column(db.String(15), nullable=False)
 
     # Status Flow
-    # PendingFaculty → PendingHOD → Approved / Rejected
     status = db.Column(
         db.String(30),
         default="PendingFaculty",

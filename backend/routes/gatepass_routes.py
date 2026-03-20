@@ -3,9 +3,11 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 import jwt
 import re
+import os
 
 from models import db, GatePass, User
 from config import Config
+from utils.face_utils import compare_faces   # ✅ ADDED
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
@@ -33,33 +35,17 @@ def apply_gatepass():
     reason = (data.get("reason") or "").strip()
     parent_mobile = (data.get("parent_mobile") or "").strip()
 
-
-    # ============================================
     # VALIDATION
-    # ============================================
     if not reason:
-        return jsonify({
-            "success": False,
-            "message": "Reason is required"
-        }), 400
+        return jsonify({"success": False, "message": "Reason is required"}), 400
 
     if not parent_mobile:
-        return jsonify({
-            "success": False,
-            "message": "Parent mobile number is required"
-        }), 400
+        return jsonify({"success": False, "message": "Parent mobile number is required"}), 400
 
-    # Must be exactly 10 digits
     if not re.fullmatch(r"\d{10}", parent_mobile):
-        return jsonify({
-            "success": False,
-            "message": "Parent mobile must be exactly 10 digits"
-        }), 400
+        return jsonify({"success": False, "message": "Parent mobile must be exactly 10 digits"}), 400
 
-
-    # =================================================
-    # CHECK IF STUDENT ALREADY APPLIED TODAY
-    # =================================================
+    # CHECK TODAY LIMIT
     today = datetime.utcnow().date()
 
     today_gatepass = GatePass.query.filter(
@@ -73,10 +59,7 @@ def apply_gatepass():
             "message": "You can apply only one gatepass per day"
         }), 400
 
-
-    # =================================================
-    # CHECK IF ACTIVE GATEPASS EXISTS
-    # =================================================
+    # CHECK ACTIVE
     active = GatePass.query.filter(
         GatePass.student_id == student.id,
         GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"]),
@@ -89,10 +72,7 @@ def apply_gatepass():
             "message": "You already have an active gatepass"
         }), 400
 
-
-    # =================================================
-    # CREATE NEW GATEPASS
-    # =================================================
+    # CREATE
     new_gp = GatePass(
         student_id=student.id,
         reason=reason,
@@ -112,7 +92,7 @@ def apply_gatepass():
 
 
 # =================================================
-# FACULTY ACTION
+# FACULTY ACTION (WITH FACE VERIFICATION)
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -127,9 +107,10 @@ def faculty_action(gatepass_id):
             "message": "Only faculty can perform this action"
         }), 403
 
-    data = request.get_json() or {}
-    action = data.get("action")
-    rejection_reason = (data.get("rejection_reason") or "").strip()
+    # ✅ FIX: use form-data instead of JSON
+    action = request.form.get("action")
+    rejection_reason = (request.form.get("rejection_reason") or "").strip()
+    live_image = request.files.get("live_image")
 
     gatepass = db.session.get(GatePass, gatepass_id)
 
@@ -141,9 +122,47 @@ def faculty_action(gatepass_id):
 
     gatepass.faculty_id = faculty.id
 
+    # =================================================
+    # APPROVE WITH FACE MATCH
+    # =================================================
     if action == "approve":
+
+        # Check image
+        if not live_image:
+            return jsonify({
+                "success": False,
+                "message": "Live face image required"
+            }), 400
+
+        # Save temp image
+        os.makedirs("temp", exist_ok=True)
+        live_path = f"temp/live_{gatepass.id}.jpg"
+        live_image.save(live_path)
+
+        # Check stored faculty face
+        if not faculty.face_image:
+            return jsonify({
+                "success": False,
+                "message": "Faculty face not registered"
+            }), 400
+
+        known_image = faculty.face_image
+
+        # Face match
+        match = compare_faces(known_image, live_path)
+
+        if not match:
+            return jsonify({
+                "success": False,
+                "message": "Face verification failed"
+            }), 403
+
+        # ✅ APPROVE
         gatepass.status = "PendingHOD"
 
+    # =================================================
+    # REJECT
+    # =================================================
     elif action == "reject":
 
         if not rejection_reason:
@@ -171,7 +190,7 @@ def faculty_action(gatepass_id):
 
 
 # =================================================
-# HOD ACTION
+# HOD ACTION (NO CHANGE)
 # =================================================
 @gatepass_bp.route("/hod_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()

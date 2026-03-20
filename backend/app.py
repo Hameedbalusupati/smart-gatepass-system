@@ -20,7 +20,14 @@ def create_app():
     app.config.from_object(Config)
 
     # =====================================================
-    # ENABLE CORS (Frontend = Netlify, Backend = Render)
+    # CREATE REQUIRED FOLDERS
+    # =====================================================
+    os.makedirs("uploads/student_images", exist_ok=True)
+    os.makedirs("uploads/faculty_faces", exist_ok=True)
+    os.makedirs("temp", exist_ok=True)
+
+    # =====================================================
+    # ENABLE CORS
     # =====================================================
     CORS(
         app,
@@ -35,11 +42,10 @@ def create_app():
     JWTManager(app)
 
     # =====================================================
-    # CREATE TABLES (SAFE FOR RENDER)
+    # DATABASE INIT (SAFE)
     # =====================================================
     with app.app_context():
         try:
-            # db.drop_all()
             db.create_all()
             print("✅ Database Connected Successfully")
         except Exception as e:
@@ -48,7 +54,6 @@ def create_app():
     # =====================================================
     # REGISTER BLUEPRINTS
     # =====================================================
-
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
     app.register_blueprint(student_bp, url_prefix="/api/student")
@@ -58,12 +63,18 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
     # =====================================================
-    # STATIC FILE SERVING (Student Images)
+    # STATIC FILE SERVING
     # =====================================================
+
+    # Student images
     @app.route("/uploads/student_images/<filename>")
-    def uploaded_file(filename):
-        upload_folder = os.path.join("uploads", "student_images")
-        return send_from_directory(upload_folder, filename)
+    def student_image(filename):
+        return send_from_directory("uploads/student_images", filename)
+
+    # Faculty face images
+    @app.route("/uploads/faculty_faces/<filename>")
+    def faculty_face(filename):
+        return send_from_directory("uploads/faculty_faces", filename)
 
     # =====================================================
     # HEALTH CHECK ROUTE
@@ -86,7 +97,7 @@ app = create_app()
 
 
 # =====================================================
-# LOCAL DEVELOPMENT ONLY
+# LOCAL DEVELOPMENT
 # =====================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

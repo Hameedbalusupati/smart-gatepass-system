@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import Webcam from "react-webcam";
 import API_BASE_URL from "../config";
 
 export default function FacultyDashboard() {
@@ -7,14 +8,14 @@ export default function FacultyDashboard() {
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
   const [loadingId, setLoadingId] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
 
+  const webcamRef = useRef(null);
   const token = localStorage.getItem("access_token");
-
-
 
   // ================= LOAD DATA =================
   useEffect(() => {
-
     const loadData = async () => {
 
       if (!token) {
@@ -22,94 +23,109 @@ export default function FacultyDashboard() {
         return;
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
-
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
 
-        // ---------- Pending ----------
         const pendingRes = await fetch(
           `${API_BASE_URL}/faculty/gatepasses/pending`,
           { headers }
         );
 
         const pendingData = await pendingRes.json();
+        if (pendingRes.ok) setPending(pendingData.gatepasses || []);
 
-        if (pendingRes.ok) {
-          setPending(pendingData.gatepasses || []);
-        }
-
-        // ---------- History ----------
         const historyRes = await fetch(
           `${API_BASE_URL}/faculty/gatepasses/history`,
           { headers }
         );
 
         const historyData = await historyRes.json();
-
-        if (historyRes.ok) {
-          setHistory(historyData.gatepasses || []);
-        }
+        if (historyRes.ok) setHistory(historyData.gatepasses || []);
 
         setError("");
 
       } catch (err) {
-
         console.error(err);
         setError("Server not reachable");
-
       }
-
     };
 
     loadData();
-
   }, [token]);
 
 
+  // ================= OPEN CAMERA =================
+  const openCamera = (id) => {
+    if (!id) return;
+    setSelectedId(id);
+    setShowCamera(true);
+  };
 
-  // ================= APPROVE =================
-  const approveGatepass = async (id) => {
 
-    if (!window.confirm("Forward gatepass to HOD?")) return;
+  // ================= CAPTURE & APPROVE =================
+  const captureAndApprove = async () => {
 
-    setLoadingId(id);
+    if (!webcamRef.current) {
+      alert("Camera not ready ❌");
+      return;
+    }
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
+    const imageSrc = webcamRef.current.getScreenshot();
+
+    if (!imageSrc) {
+      alert("Failed to capture image ❌");
+      return;
+    }
 
     try {
+      const blob = await (await fetch(imageSrc)).blob();
+
+      const formData = new FormData();
+      formData.append("live_image", blob, "capture.jpg");
+
+      setLoadingId(selectedId);
 
       const res = await fetch(
-        `${API_BASE_URL}/faculty/gatepasses/approve/${id}`,
+        `${API_BASE_URL}/faculty/gatepasses/approve/${selectedId}`,
         {
-          method: "PUT",
-          headers,
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData
         }
       );
 
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message || "Approval failed");
+        alert(data.message || "Approval failed ❌");
         return;
       }
 
-      setPending(prev => prev.filter(p => p.id !== id));
+      // Move to history safely
+      const approvedItem = pending.find(p => p.id === selectedId);
+      if (approvedItem) {
+        setHistory(prev => [
+          { ...approvedItem, status: "PendingHOD" },
+          ...prev
+        ]);
+      }
 
-    } catch {
+      setPending(prev => prev.filter(p => p.id !== selectedId));
 
-      alert("Server not reachable");
+      alert("Approved successfully ✅");
 
+    } catch (err) {
+      console.error(err);
+      alert("Error during approval ❌");
     }
 
     setLoadingId(null);
+    setShowCamera(false);
   };
-
 
 
   // ================= REJECT =================
@@ -124,21 +140,16 @@ export default function FacultyDashboard() {
 
     setLoadingId(id);
 
-    const headers = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    };
-
     try {
-
       const res = await fetch(
         `${API_BASE_URL}/faculty/gatepasses/reject/${id}`,
         {
           method: "PUT",
-          headers,
-          body: JSON.stringify({
-            rejection_reason: reason
-          })
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ rejection_reason: reason })
         }
       );
 
@@ -149,31 +160,58 @@ export default function FacultyDashboard() {
         return;
       }
 
+      const rejectedItem = pending.find(p => p.id === id);
+      if (rejectedItem) {
+        setHistory(prev => [
+          { ...rejectedItem, status: "Rejected" },
+          ...prev
+        ]);
+      }
+
       setPending(prev => prev.filter(p => p.id !== id));
 
-    } catch {
-
+    } catch (err) {
+      console.error(err);
       alert("Server not reachable");
-
     }
 
     setLoadingId(null);
   };
 
 
-
   // ================= UI =================
   return (
     <div style={styles.page}>
-
       <div style={styles.container}>
 
         <h2 style={styles.title}>Faculty Dashboard</h2>
 
         {error && <p style={styles.error}>{error}</p>}
 
+        {/* CAMERA */}
+        {showCamera && (
+          <div style={styles.cameraBox}>
+            <Webcam
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              videoConstraints={{ facingMode: "user" }}
+              onUserMediaError={() => {
+                alert("Camera permission denied ❌");
+                setShowCamera(false);
+              }}
+              style={{ width: "100%" }}
+            />
 
-        {/* ================= Pending ================= */}
+            <button
+              style={styles.approve}
+              onClick={captureAndApprove}
+            >
+              Capture & Approve
+            </button>
+          </div>
+        )}
+
+        {/* ================= PENDING ================= */}
         <h3 style={styles.section}>Pending Gatepasses</h3>
 
         {pending.length === 0 && (
@@ -182,23 +220,20 @@ export default function FacultyDashboard() {
 
         {pending.map(p => (
           <div key={p.id} style={styles.card}>
-
             <p><b>Student:</b> {p.student_name}</p>
             <p><b>College ID:</b> {p.college_id}</p>
             <p><b>Department:</b> {p.department}</p>
             <p><b>Year:</b> {p.year}</p>
             <p><b>Section:</b> {p.section}</p>
             <p><b>Reason:</b> {p.reason}</p>
-            <p><b>Parent Mobile:</b> {p.parent_mobile}</p>
 
             <div style={styles.actions}>
-
               <button
-                onClick={() => approveGatepass(p.id)}
+                onClick={() => openCamera(p.id)}
                 disabled={loadingId === p.id}
                 style={styles.approve}
               >
-                {loadingId === p.id ? "Processing..." : "Approve"}
+                Approve
               </button>
 
               <button
@@ -208,47 +243,32 @@ export default function FacultyDashboard() {
               >
                 Reject
               </button>
-
             </div>
-
           </div>
         ))}
 
-
-
-        {/* ================= History ================= */}
+        {/* ================= HISTORY ================= */}
         <h3 style={styles.section}>Gatepass History</h3>
 
+        {history.length === 0 && (
+          <p style={styles.info}>No history available</p>
+        )}
+
         {history.map(p => (
-
           <div key={p.id} style={styles.card}>
-
             <p><b>Student:</b> {p.student_name}</p>
-            <p><b>College ID:</b> {p.college_id}</p>
             <p><b>Status:</b> {p.status}</p>
             <p><b>Reason:</b> {p.reason}</p>
-
-            {p.rejected_by && (
-              <>
-                <p><b>Rejected By:</b> {p.rejected_by}</p>
-                <p><b>Rejection Reason:</b> {p.rejection_reason}</p>
-              </>
-            )}
-
           </div>
-
         ))}
 
       </div>
-
     </div>
   );
 }
 
 
-
 const styles = {
-
   page: {
     minHeight: "100vh",
     background: "#0f172a",
@@ -257,7 +277,6 @@ const styles = {
     alignItems: "center",
     color: "#f8fafc",
   },
-
   container: {
     width: "95%",
     maxWidth: "900px",
@@ -265,57 +284,49 @@ const styles = {
     padding: "25px",
     borderRadius: "14px",
   },
-
   title: {
     textAlign: "center",
-    marginBottom: "20px",
   },
-
   section: {
     marginTop: "20px",
-    marginBottom: "10px",
   },
-
   error: {
-    color: "#ef4444",
+    color: "red",
     textAlign: "center",
   },
-
   info: {
     textAlign: "center",
   },
-
   card: {
     background: "#020617",
-    border: "1px solid #334155",
-    borderRadius: "10px",
     padding: "15px",
-    marginBottom: "15px",
+    marginTop: "10px",
+    borderRadius: "10px",
   },
-
   actions: {
     marginTop: "10px",
     display: "flex",
     gap: "10px",
   },
-
   approve: {
     background: "#22c55e",
     border: "none",
     padding: "8px 16px",
     borderRadius: "6px",
-    fontWeight: "bold",
     cursor: "pointer",
   },
-
   reject: {
     background: "#ef4444",
     border: "none",
     padding: "8px 16px",
     borderRadius: "6px",
     color: "white",
-    fontWeight: "bold",
     cursor: "pointer",
+  },
+  cameraBox: {
+    marginBottom: "20px",
+    border: "2px solid #334155",
+    padding: "10px",
+    borderRadius: "10px",
   }
-
 };

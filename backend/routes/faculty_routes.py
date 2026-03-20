@@ -1,6 +1,8 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, User, GatePass
+from utils.face_utils import compare_faces
+import os
 
 faculty_bp = Blueprint("faculty_bp", __name__, url_prefix="/faculty")
 
@@ -56,9 +58,9 @@ def pending_gatepasses():
 
 
 # =====================================================
-# APPROVE → SEND TO HOD
+# APPROVE → FACE VERIFICATION + SEND TO HOD
 # =====================================================
-@faculty_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["PUT"])
+@faculty_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
 def approve_gatepass(gatepass_id):
 
@@ -78,6 +80,7 @@ def approve_gatepass(gatepass_id):
 
     student = gp.student
 
+    # Class validation
     if (
         student.department != faculty.department
         or student.year != faculty.year
@@ -88,6 +91,36 @@ def approve_gatepass(gatepass_id):
             "message": "Unauthorized access to this gatepass"
         }), 403
 
+    # ================= FACE VERIFICATION =================
+    live_image = request.files.get("live_image")
+
+    if not live_image:
+        return jsonify({
+            "success": False,
+            "message": "Live face image required"
+        }), 400
+
+    if not faculty.face_image:
+        return jsonify({
+            "success": False,
+            "message": "Faculty face not registered"
+        }), 400
+
+    # Save temp image
+    os.makedirs("temp", exist_ok=True)
+    live_path = f"temp/live_{gp.id}.jpg"
+    live_image.save(live_path)
+
+    # Compare faces
+    match = compare_faces(faculty.face_image, live_path)
+
+    if not match:
+        return jsonify({
+            "success": False,
+            "message": "Face verification failed"
+        }), 403
+
+    # ================= APPROVE =================
     gp.status = "PendingHOD"
     gp.faculty_id = faculty.id
 
@@ -187,4 +220,4 @@ def faculty_history():
             }
             for gp in gatepasses
         ]
-    }), 200 
+    }), 200
