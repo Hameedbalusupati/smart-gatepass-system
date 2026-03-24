@@ -43,7 +43,7 @@ export default function FacultyDashboard() {
   const approveGatepass = async (id) => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`,
+        `${API_BASE_URL}/faculty/gatepass/faculty_action/${id}`, // ✅ FIXED URL
         {
           method: "POST",
           headers: {
@@ -77,7 +77,7 @@ export default function FacultyDashboard() {
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`,
+        `${API_BASE_URL}/faculty/gatepass/faculty_action/${id}`, // ✅ FIXED URL
         {
           method: "POST",
           headers: {
@@ -166,7 +166,7 @@ export default function FacultyDashboard() {
 }
 
 /////////////////////////////////////////////////////////////////
-// 🎨 STYLES (FIXED COLORS)
+// 🎨 STYLES
 /////////////////////////////////////////////////////////////////
 
 const container = {
@@ -182,7 +182,6 @@ const box = {
   background: "#ffffff",
   padding: "20px",
   borderRadius: "12px",
-  boxShadow: "0 0 15px rgba(0,0,0,0.2)",
 };
 
 const title = {
@@ -200,7 +199,6 @@ const card = {
   padding: "10px",
   marginTop: "10px",
   borderRadius: "8px",
-  border: "1px solid #e5e7eb",
 };
 
 const historyCard = {
