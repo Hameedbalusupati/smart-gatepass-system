@@ -1,4 +1,10 @@
 import os
+import sys
+
+# 🔥 IMPORTANT: Fix module imports for Render
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(BASE_DIR)
+
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -6,7 +12,7 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from models import db
 
-# ✅ FIXED IMPORTS (important)
+# ✅ ROUTES
 from routes.auth_routes import auth_bp
 from routes.gatepass_routes import gatepass_bp
 from routes.student_routes import student_bp
@@ -21,19 +27,18 @@ def create_app():
     app.config.from_object(Config)
 
     # ==============================
-    # FOLDERS
+    # FOLDERS (Render Safe)
     # ==============================
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-    STUDENT_FOLDER = os.path.join(BASE_DIR, "uploads/student_images")
-    FACULTY_FOLDER = os.path.join(BASE_DIR, "uploads/faculty_faces")
+    STUDENT_FOLDER = os.path.join(BASE_DIR, "uploads", "student_images")
+    FACULTY_FOLDER = os.path.join(BASE_DIR, "uploads", "faculty_faces")
+    TEMP_FOLDER = os.path.join(BASE_DIR, "temp")
 
     os.makedirs(STUDENT_FOLDER, exist_ok=True)
     os.makedirs(FACULTY_FOLDER, exist_ok=True)
-    os.makedirs(os.path.join(BASE_DIR, "temp"), exist_ok=True)
+    os.makedirs(TEMP_FOLDER, exist_ok=True)
 
     # ==============================
-    # CORS (IMPORTANT FIX)
+    # CORS
     # ==============================
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
@@ -54,7 +59,7 @@ def create_app():
             print("❌ Database Error:", e)
 
     # ==============================
-    # REGISTER ROUTES (IMPORTANT)
+    # REGISTER ROUTES
     # ==============================
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
@@ -65,7 +70,7 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
     # ==============================
-    # STATIC FILES
+    # STATIC FILE ROUTES
     # ==============================
     @app.route("/uploads/student_images/<filename>")
     def student_image(filename):
@@ -76,7 +81,7 @@ def create_app():
         return send_from_directory(FACULTY_FOLDER, filename)
 
     # ==============================
-    # HEALTH CHECK
+    # HEALTH CHECK (VERY IMPORTANT)
     # ==============================
     @app.route("/")
     def health():
@@ -90,10 +95,14 @@ def create_app():
 
 
 # ==============================
-# ENTRY POINT
+# APP INSTANCE (REQUIRED FOR GUNICORN)
 # ==============================
 app = create_app()
 
+
+# ==============================
+# LOCAL RUN (Render uses Gunicorn)
+# ==============================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 10000))  # 🔥 FIXED PORT
+    app.run(host="0.0.0.0", port=port)
