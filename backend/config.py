@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
 
@@ -17,22 +18,19 @@ class Config:
     # ==============================
     # DATABASE CONFIGURATION
     # ==============================
-
     db_url = os.getenv("DATABASE_URL")
 
-    # ✅ FIX: fallback for local testing
     if not db_url:
-        print("⚠️ DATABASE_URL not found → using SQLite (local)")
-        db_url = "sqlite:///smart_gatepass.db"
+        raise ValueError("DATABASE_URL not found. Check your .env file.")
 
-    # ✅ FIX for PostgreSQL
+    # 🔥 FIX: use psycopg (v3)
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
     elif db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    # ✅ SSL fix for Render
-    if "postgresql" in db_url and "sslmode" not in db_url:
+    # Ensure SSL mode for Render
+    if "sslmode" not in db_url:
         if "?" in db_url:
             db_url += "&sslmode=require"
         else:
