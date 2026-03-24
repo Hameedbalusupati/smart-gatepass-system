@@ -1,6 +1,5 @@
 from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 import os
@@ -10,16 +9,8 @@ from models import db, User
 
 auth_bp = Blueprint("auth_bp", __name__)
 
-# ================================
-# BASE PATH FIX (VERY IMPORTANT)
-# ================================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads/student_images")
-FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads/faculty_faces")
-
-os.makedirs(STUDENT_FOLDER, exist_ok=True)
-os.makedirs(FACULTY_FOLDER, exist_ok=True)
+# Detect if running on Vercel
+IS_VERCEL = os.environ.get("VERCEL") == "1"
 
 
 # =================================================
@@ -28,7 +19,6 @@ os.makedirs(FACULTY_FOLDER, exist_ok=True)
 @auth_bp.route("/register", methods=["POST"])
 def register():
     try:
-        # ================= GET DATA =================
         college_id = (request.form.get("college_id") or "").strip()
         name = (request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
@@ -49,91 +39,66 @@ def register():
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # ================= EMAIL VALIDATION =================
+        # ================= EMAIL =================
         parts = email.split("@")
         if len(parts) != 2:
-            return jsonify({"message": "Invalid email format"}), 400
+            return jsonify({"message": "Invalid email"}), 400
 
         email_user, domain = parts
 
         if domain != "pace.ac.in":
-            return jsonify({"message": "Email must end with @pace.ac.in"}), 400
+            return jsonify({"message": "Use college email"}), 400
 
         # ================= STUDENT RULE =================
         if role == "student":
             if email_user != college_id.lower():
-                return jsonify({
-                    "message": "Student email must match Roll Number"
-                }), 400
+                return jsonify({"message": "Email must match roll number"}), 400
 
         # ================= FACULTY RULE =================
         if role == "faculty":
             if not college_id.isdigit():
-                return jsonify({
-                    "message": "Faculty college ID must be numeric"
-                }), 400
+                return jsonify({"message": "Faculty ID must be numeric"}), 400
 
             pattern = r'^[a-zA-Z]+_[a-zA-Z]$'
             if not re.match(pattern, email_user):
-                return jsonify({
-                    "message": "Faculty email must be like venkat_p@pace.ac.in"
-                }), 400
+                return jsonify({"message": "Invalid faculty email"}), 400
 
-        # ================= ROLE VALIDATION =================
-        if role in ["student", "faculty", "hod"] and not department:
-            return jsonify({"message": "Department required"}), 400
+        # ================= ROLE =================
+        if role in ["student", "faculty"] and (not year or not section):
+            return jsonify({"message": "Year & Section required"}), 400
 
-        if role in ["student", "faculty"]:
-            if not year or not section:
-                return jsonify({
-                    "message": "Year and Section required"
-                }), 400
-            try:
-                year = int(year)
-            except:
-                return jsonify({"message": "Invalid year"}), 400
-        else:
-            year = None
-            section = None
+        try:
+            year = int(year) if year else None
+        except:
+            return jsonify({"message": "Invalid year"}), 400
 
-        if role == "security":
-            department = None
-
-        # ================= IMAGE HANDLING =================
+        # ================= IMAGE FIX =================
         profile_path = None
         face_path = None
 
-        # ---- STUDENT IMAGE ----
-        if role == "student":
-            if not image:
-                return jsonify({
-                    "message": "Student image required"
-                }), 400
+        if IS_VERCEL:
+            # 🔥 VERCEL FIX (NO FILE SAVE)
+            profile_path = "vercel_student.jpg" if role == "student" else None
+            face_path = "vercel_faculty.jpg" if role == "faculty" else None
 
-            filename = secure_filename(f"{college_id}.jpg")
-            profile_path = os.path.join(STUDENT_FOLDER, filename)
+        else:
+            # ✅ LOCAL STORAGE
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads/student_images")
+            FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads/faculty_faces")
 
-            try:
-                image.save(profile_path)
-            except Exception as e:
-                print("IMAGE SAVE ERROR:", e)
-                return jsonify({"message": "Image upload failed"}), 500
+            os.makedirs(STUDENT_FOLDER, exist_ok=True)
+            os.makedirs(FACULTY_FOLDER, exist_ok=True)
 
-        # ---- FACULTY FACE IMAGE ----
-        if role == "faculty":
-            if not face_image:
-                return jsonify({
-                    "message": "Faculty face image required"
-                }), 400
+            if role == "student" and image:
+                path = os.path.join(STUDENT_FOLDER, f"{college_id}.jpg")
+                image.save(path)
+                profile_path = path
 
-            filename = secure_filename(f"faculty_{college_id}.jpg")
-            face_path = os.path.join(FACULTY_FOLDER, filename)
-
-            try:
-                face_image.save(face_path)
-            except Exception as e:
-                print("FACE SAVE ERROR:", e)
-                return jsonify({"message": "Face image upload failed"}), 500
+            if role == "faculty" and face_image:
+                path = os.path.join(FACULTY_FOLDER, f"faculty_{college_id}.jpg")
+                face_image.save(path)
+                face_path = path
 
         # ================= CREATE USER =================
         user = User(
@@ -156,16 +121,12 @@ def register():
 
     except IntegrityError:
         db.session.rollback()
-        return jsonify({
-            "message": "Email or College ID already exists"
-        }), 400
+        return jsonify({"message": "User already exists"}), 400
 
     except Exception as e:
         db.session.rollback()
-        print("REGISTER ERROR:", str(e))
-        return jsonify({
-            "message": "Internal server error"
-        }), 500
+        print("REGISTER ERROR:", e)
+        return jsonify({"message": "Internal server error"}), 500
 
 
 # =================================================
@@ -180,9 +141,7 @@ def login():
         password = data.get("password")
 
         if not email or not password:
-            return jsonify({
-                "message": "Email and password required"
-            }), 400
+            return jsonify({"message": "Email & password required"}), 400
 
         user = User.query.filter_by(email=email).first()
 
@@ -200,7 +159,5 @@ def login():
         }), 200
 
     except Exception as e:
-        print("LOGIN ERROR:", str(e))
-        return jsonify({
-            "message": "Internal server error"
-        }), 500
+        print("LOGIN ERROR:", e)
+        return jsonify({"message": "Internal server error"}), 500
