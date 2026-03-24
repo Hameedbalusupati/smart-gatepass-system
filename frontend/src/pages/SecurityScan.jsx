@@ -27,76 +27,84 @@ export default function SecurityScan() {
     loadExitCount();
   }, []);
 
-  // ================= INIT SCANNER ONLY ONCE =================
+  // ================= INIT SCANNER =================
   useEffect(() => {
 
-    if (scannerRef.current) return; // ✅ prevent multiple init
+    if (scannerRef.current) return;
 
     let scanner;
 
-    try {
-      scanner = new Html5QrcodeScanner(
-        "qr-reader",
-        { fps: 10, qrbox: 250 },
-        false
-      );
+    const initScanner = async () => {
+      try {
+        scanner = new Html5QrcodeScanner(
+          "qr-reader",
+          { fps: 10, qrbox: 250 },
+          false
+        );
 
-      scannerRef.current = scanner;
+        scannerRef.current = scanner;
 
-      scanner.render(
-        async (decodedText) => {
+        scanner.render(
+          async (decodedText) => {
 
-          if (scannedRef.current) return;
-          scannedRef.current = true;
+            if (scannedRef.current) return;
+            scannedRef.current = true;
 
-          try {
-            const res = await API.post("/gatepass/verify_qr", {
-              qr_token: decodedText
-            });
+            try {
+              const res = await API.post("/gatepass/verify_qr", {
+                qr_token: decodedText
+              });
 
-            const data = res.data;
+              const data = res.data;
 
-            if (!data?.success) {
-              setMessage("Invalid QR ❌");
+              if (!data?.success) {
+                setMessage("Invalid QR ❌");
+                scannedRef.current = false;
+                return;
+              }
+
+              setStudent({
+                name: data.student_name,
+                roll_no: data.college_id,
+                year: data.year,
+                section: data.section,
+                department: data.department,
+                profile_image: data.profile_image,
+                parent_mobile: data.parent_mobile
+              });
+
+              setGatepass({ id: data.gatepass_id });
+
+              setMessage("Gatepass Verified ✅");
+
+              scanner.clear().catch(() => {});
+
+            } catch (err) {
+              console.error(err);
+              setMessage("Scan failed ❌");
               scannedRef.current = false;
-              return;
             }
+          },
+          () => {}
+        );
 
-            setStudent({
-              name: data.student_name,
-              roll_no: data.college_id,
-              year: data.year,
-              section: data.section,
-              department: data.department,
-              profile_image: data.profile_image,
-              parent_mobile: data.parent_mobile
-            });
+      } catch (err) {
+        console.error("Scanner crash:", err);
 
-            setGatepass({ id: data.gatepass_id });
+        // ✅ FIX WARNING (no direct setState)
+        setTimeout(() => {
+          setMessage("Camera not supported ❌");
+        }, 0);
+      }
+    };
 
-            setMessage("Gatepass Verified ✅");
-
-            scanner.clear().catch(() => {});
-
-          } catch (err) {
-            console.error(err);
-            setMessage("Scan failed ❌");
-            scannedRef.current = false;
-          }
-        },
-        () => {}
-      );
-
-    } catch (err) {
-      console.error("Scanner crash:", err);
-      setMessage("Camera not supported ❌");
-    }
+    initScanner();
 
     return () => {
       scanner?.clear().catch(() => {});
     };
 
-  }, []); // ✅ ONLY ONCE
+  }, []);
 
   // ================= CONFIRM EXIT =================
   const confirmExit = async () => {
@@ -104,7 +112,7 @@ export default function SecurityScan() {
       const res = await API.post(`/gatepass/confirm_exit/${gatepass?.id}`);
 
       if (res.data?.success) {
-        setMessage("Exit recorded ✅");
+        setMessage("Exit recorded successfully ✅");
 
         setStudent(null);
         setGatepass(null);
@@ -113,6 +121,7 @@ export default function SecurityScan() {
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
       }
+
     } catch (err) {
       console.error(err);
       setMessage("Exit failed ❌");
@@ -166,6 +175,10 @@ export default function SecurityScan() {
     </div>
   );
 }
+
+/////////////////////////////////////////////////////
+// 🎨 STYLES
+/////////////////////////////////////////////////////
 
 const container = {
   maxWidth: "350px",
