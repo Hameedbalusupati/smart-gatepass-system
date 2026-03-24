@@ -9,12 +9,9 @@ from models import db, User
 
 auth_bp = Blueprint("auth_bp", __name__)
 
-# Detect if running on Vercel
-IS_VERCEL = os.environ.get("VERCEL") == "1"
-
 
 # =================================================
-# REGISTER
+# REGISTER (FACULTY IMAGE REQUIRED ✅)
 # =================================================
 @auth_bp.route("/register", methods=["POST"])
 def register():
@@ -29,8 +26,7 @@ def register():
         year = request.form.get("year")
         section = (request.form.get("section") or "").strip().upper()
 
-        image = request.files.get("profile_image")
-        face_image = request.files.get("face_image")
+        image = request.files.get("profile_image")  # used for both student & faculty
 
         # ================= VALIDATION =================
         if not college_id or not name or not email or not password or not role:
@@ -59,9 +55,9 @@ def register():
             if not college_id.isdigit():
                 return jsonify({"message": "Faculty ID must be numeric"}), 400
 
-            pattern = r'^[a-zA-Z]+_[a-zA-Z]$'
-            if not re.match(pattern, email_user):
-                return jsonify({"message": "Invalid faculty email"}), 400
+            # 🔥 REQUIRED IMAGE FOR FACULTY
+            if not image:
+                return jsonify({"message": "Faculty image is required"}), 400
 
         # ================= ROLE =================
         if role in ["student", "faculty"] and (not year or not section):
@@ -72,33 +68,25 @@ def register():
         except:
             return jsonify({"message": "Invalid year"}), 400
 
-        # ================= IMAGE FIX =================
+        # ================= IMAGE SAVE =================
         profile_path = None
-        face_path = None
 
-        if IS_VERCEL:
-            # 🔥 VERCEL FIX (NO FILE SAVE)
-            profile_path = "vercel_student.jpg" if role == "student" else None
-            face_path = "vercel_faculty.jpg" if role == "faculty" else None
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads/student_images")
+        FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads/faculty_images")
 
-        else:
-            # ✅ LOCAL STORAGE
-            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-            STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads/student_images")
-            FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads/faculty_faces")
+        os.makedirs(STUDENT_FOLDER, exist_ok=True)
+        os.makedirs(FACULTY_FOLDER, exist_ok=True)
 
-            os.makedirs(STUDENT_FOLDER, exist_ok=True)
-            os.makedirs(FACULTY_FOLDER, exist_ok=True)
+        if role == "student" and image:
+            path = os.path.join(STUDENT_FOLDER, f"{college_id}.jpg")
+            image.save(path)
+            profile_path = path
 
-            if role == "student" and image:
-                path = os.path.join(STUDENT_FOLDER, f"{college_id}.jpg")
-                image.save(path)
-                profile_path = path
-
-            if role == "faculty" and face_image:
-                path = os.path.join(FACULTY_FOLDER, f"faculty_{college_id}.jpg")
-                face_image.save(path)
-                face_path = path
+        if role == "faculty" and image:
+            path = os.path.join(FACULTY_FOLDER, f"faculty_{college_id}.jpg")
+            image.save(path)
+            profile_path = path
 
         # ================= CREATE USER =================
         user = User(
@@ -111,7 +99,7 @@ def register():
             year=year,
             section=section,
             profile_image=profile_path,
-            face_image=face_path
+            face_image=None  # ❌ NOT USED
         )
 
         db.session.add(user)
@@ -126,7 +114,7 @@ def register():
     except Exception as e:
         db.session.rollback()
         print("REGISTER ERROR:", e)
-        return jsonify({"message": "Internal server error"}), 500
+        return jsonify({"message": str(e)}), 500
 
 
 # =================================================
@@ -160,4 +148,4 @@ def login():
 
     except Exception as e:
         print("LOGIN ERROR:", e)
-        return jsonify({"message": "Internal server error"}), 500
+        return jsonify({"message": str(e)}), 500
