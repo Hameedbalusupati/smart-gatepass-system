@@ -4,220 +4,171 @@ from models import db, User, GatePass
 from utils.face_utils import compare_faces
 import os
 
-faculty_bp = Blueprint("faculty_bp", __name__, url_prefix="/faculty")
+faculty_bp = Blueprint("faculty_bp", __name__)
+
+# ================= BASE PATH =================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMP_FOLDER = os.path.join(BASE_DIR, "..", "temp")
+os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 
 # =====================================================
-# VIEW PENDING GATEPASSES
+# PENDING GATEPASSES
 # =====================================================
 @faculty_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
 def pending_gatepasses():
+    try:
+        user_id = int(get_jwt_identity())
+        faculty = db.session.get(User, user_id)
 
-    user_id = int(get_jwt_identity())
-    faculty = db.session.get(User, user_id)
+        if not faculty or faculty.role != "faculty":
+            return jsonify({"message": "Access denied"}), 403
 
-    if not faculty or faculty.role.lower() != "faculty":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+        gatepasses = (
+            GatePass.query
+            .join(User, GatePass.student_id == User.id)
+            .filter(GatePass.status == "PendingFaculty")
+            .filter(User.department == faculty.department)
+            .filter(User.year == faculty.year)
+            .filter(User.section == faculty.section)
+            .all()
+        )
 
-    if not faculty.department or not faculty.year or not faculty.section:
         return jsonify({
-            "success": False,
-            "message": "Faculty class details not assigned"
-        }), 400
+            "gatepasses": [
+                {
+                    "id": gp.id,
+                    "student_name": gp.student.name,
+                    "reason": gp.reason,
+                    "status": gp.status
+                }
+                for gp in gatepasses
+            ]
+        }), 200
 
-    gatepasses = (
-        GatePass.query
-        .join(User, GatePass.student_id == User.id)
-        .filter(GatePass.status == "PendingFaculty")
-        .filter(User.department == faculty.department)
-        .filter(User.year == faculty.year)
-        .filter(User.section == faculty.section)
-        .order_by(GatePass.created_at.desc())
-        .all()
-    )
-
-    return jsonify({
-        "success": True,
-        "gatepasses": [
-            {
-                "id": gp.id,
-                "student_name": gp.student.name,
-                "college_id": gp.student.college_id,
-                "department": gp.student.department,
-                "year": gp.student.year,
-                "section": gp.student.section,
-                "reason": gp.reason,
-                "parent_mobile": gp.parent_mobile,
-                "status": gp.status,
-                "created_at": gp.created_at.isoformat()
-            }
-            for gp in gatepasses
-        ]
-    }), 200
+    except Exception as e:
+        print("PENDING ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 
 # =====================================================
-# APPROVE → FACE VERIFICATION + SEND TO HOD
+# APPROVE / REJECT (MATCHES FRONTEND ✅)
 # =====================================================
-@faculty_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["POST"])
+@faculty_bp.route("/gatepass/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
-def approve_gatepass(gatepass_id):
+def faculty_action(gatepass_id):
+    try:
+        user_id = int(get_jwt_identity())
+        faculty = db.session.get(User, user_id)
 
-    user_id = int(get_jwt_identity())
-    faculty = db.session.get(User, user_id)
+        if not faculty or faculty.role != "faculty":
+            return jsonify({"message": "Access denied"}), 403
 
-    if not faculty or faculty.role.lower() != "faculty":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+        gp = db.session.get(GatePass, gatepass_id)
 
-    gp = db.session.get(GatePass, gatepass_id)
+        if not gp or gp.status != "PendingFaculty":
+            return jsonify({"message": "Invalid gatepass"}), 400
 
-    if not gp or gp.status != "PendingFaculty":
-        return jsonify({
-            "success": False,
-            "message": "Invalid or already processed gatepass"
-        }), 400
+        action = request.form.get("action")
 
-    student = gp.student
+        # ================= APPROVE =================
+        if action == "approve":
+            live_image = request.files.get("live_image")
 
-    # Class validation
-    if (
-        student.department != faculty.department
-        or student.year != faculty.year
-        or student.section != faculty.section
-    ):
-        return jsonify({
-            "success": False,
-            "message": "Unauthorized access to this gatepass"
-        }), 403
+            if not live_image:
+                return jsonify({"message": "Live image required"}), 400
 
-    # ================= FACE VERIFICATION =================
-    live_image = request.files.get("live_image")
+            if not faculty.face_image:
+                return jsonify({"message": "Faculty face not registered"}), 400
 
-    if not live_image:
-        return jsonify({
-            "success": False,
-            "message": "Live face image required"
-        }), 400
+            # Save temp image
+            temp_path = os.path.join(TEMP_FOLDER, f"live_{gatepass_id}.jpg")
 
-    if not faculty.face_image:
-        return jsonify({
-            "success": False,
-            "message": "Faculty face not registered"
-        }), 400
+            try:
+                live_image.save(temp_path)
+            except Exception as e:
+                print("IMAGE SAVE ERROR:", e)
+                return jsonify({"message": "Image upload failed"}), 500
 
-    # Save temp image
-    os.makedirs("temp", exist_ok=True)
-    live_path = f"temp/live_{gp.id}.jpg"
-    live_image.save(live_path)
+            # Face match
+            try:
+                match = compare_faces(faculty.face_image, temp_path)
+            except Exception as e:
+                print("FACE ERROR:", e)
+                return jsonify({"message": "Face comparison failed"}), 500
 
-    # Compare faces
-    match = compare_faces(faculty.face_image, live_path)
+            # Delete temp file
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
-    if not match:
-        return jsonify({
-            "success": False,
-            "message": "Face verification failed"
-        }), 403
+            if not match:
+                return jsonify({"message": "Face verification failed"}), 403
 
-    # ================= APPROVE =================
-    gp.status = "PendingHOD"
-    gp.faculty_id = faculty.id
+            gp.status = "PendingHOD"
+            gp.faculty_id = faculty.id
 
-    db.session.commit()
+            db.session.commit()
 
-    return jsonify({
-        "success": True,
-        "message": "Gatepass forwarded to HOD successfully"
-    }), 200
+            return jsonify({"message": "Approved successfully"}), 200
 
+        # ================= REJECT =================
+        elif action == "reject":
+            reason = request.form.get("rejection_reason")
 
-# =====================================================
-# REJECT BY FACULTY
-# =====================================================
-@faculty_bp.route("/gatepasses/reject/<int:gatepass_id>", methods=["PUT"])
-@jwt_required()
-def reject_gatepass(gatepass_id):
+            if not reason:
+                return jsonify({"message": "Reason required"}), 400
 
-    user_id = int(get_jwt_identity())
-    faculty = db.session.get(User, user_id)
+            gp.status = "Rejected"
+            gp.rejection_reason = reason
+            gp.rejected_by = "Faculty"
+            gp.faculty_id = faculty.id
 
-    if not faculty or faculty.role.lower() != "faculty":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+            db.session.commit()
 
-    gp = db.session.get(GatePass, gatepass_id)
+            return jsonify({"message": "Rejected successfully"}), 200
 
-    if not gp or gp.status != "PendingFaculty":
-        return jsonify({
-            "success": False,
-            "message": "Invalid or already processed gatepass"
-        }), 400
+        else:
+            return jsonify({"message": "Invalid action"}), 400
 
-    data = request.get_json() or {}
-    rejection_reason = (data.get("rejection_reason") or "").strip()
-
-    if not rejection_reason:
-        return jsonify({
-            "success": False,
-            "message": "Rejection reason required"
-        }), 400
-
-    gp.status = "Rejected"
-    gp.rejected_by = "Faculty"
-    gp.rejection_reason = rejection_reason
-    gp.faculty_id = faculty.id
-
-    db.session.commit()
-
-    return jsonify({
-        "success": True,
-        "message": "Gatepass rejected successfully"
-    }), 200
+    except Exception as e:
+        print("FACULTY ACTION ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 
 # =====================================================
-# FACULTY GATEPASS HISTORY
+# HISTORY
 # =====================================================
 @faculty_bp.route("/gatepasses/history", methods=["GET"])
 @jwt_required()
 def faculty_history():
+    try:
+        user_id = int(get_jwt_identity())
+        faculty = db.session.get(User, user_id)
 
-    user_id = int(get_jwt_identity())
-    faculty = db.session.get(User, user_id)
+        if not faculty or faculty.role != "faculty":
+            return jsonify({"message": "Access denied"}), 403
 
-    if not faculty or faculty.role.lower() != "faculty":
-        return jsonify({"success": False, "message": "Access denied"}), 403
+        gatepasses = (
+            GatePass.query
+            .join(User, GatePass.student_id == User.id)
+            .filter(User.department == faculty.department)
+            .filter(User.year == faculty.year)
+            .filter(User.section == faculty.section)
+            .all()
+        )
 
-    if not faculty.department or not faculty.year or not faculty.section:
         return jsonify({
-            "success": False,
-            "message": "Faculty class details not assigned"
-        }), 400
+            "gatepasses": [
+                {
+                    "id": gp.id,
+                    "student_name": gp.student.name,
+                    "status": gp.status
+                }
+                for gp in gatepasses
+            ]
+        }), 200
 
-    gatepasses = (
-        GatePass.query
-        .join(User, GatePass.student_id == User.id)
-        .filter(User.department == faculty.department)
-        .filter(User.year == faculty.year)
-        .filter(User.section == faculty.section)
-        .order_by(GatePass.created_at.desc())
-        .all()
-    )
-
-    return jsonify({
-        "success": True,
-        "gatepasses": [
-            {
-                "id": gp.id,
-                "student_name": gp.student.name,
-                "college_id": gp.student.college_id,
-                "department": gp.student.department,
-                "year": gp.student.year,
-                "section": gp.student.section,
-                "reason": gp.reason,
-                "status": gp.status,
-                "created_at": gp.created_at.isoformat()
-            }
-            for gp in gatepasses
-        ]
-    }), 200
+    except Exception as e:
+        print("HISTORY ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
