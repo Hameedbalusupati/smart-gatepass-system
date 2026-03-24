@@ -26,7 +26,7 @@ def register():
         year = request.form.get("year")
         section = (request.form.get("section") or "").strip().upper()
 
-        image = request.files.get("profile_image")  # used for both student & faculty
+        image = request.files.get("profile_image")
 
         # ================= VALIDATION =================
         if not college_id or not name or not email or not password or not role:
@@ -55,7 +55,6 @@ def register():
             if not college_id.isdigit():
                 return jsonify({"message": "Faculty ID must be numeric"}), 400
 
-            # 🔥 REQUIRED IMAGE FOR FACULTY
             if not image:
                 return jsonify({"message": "Faculty image is required"}), 400
 
@@ -72,8 +71,8 @@ def register():
         profile_path = None
 
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads/student_images")
-        FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads/faculty_images")
+        STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "student_images")
+        FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "faculty_images")
 
         os.makedirs(STUDENT_FOLDER, exist_ok=True)
         os.makedirs(FACULTY_FOLDER, exist_ok=True)
@@ -98,8 +97,7 @@ def register():
             department=department,
             year=year,
             section=section,
-            profile_image=profile_path,
-            face_image=None  # ❌ NOT USED
+            profile_image=profile_path
         )
 
         db.session.add(user)

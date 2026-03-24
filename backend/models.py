@@ -28,7 +28,6 @@ class User(db.Model):
 
     # ================= IMAGES =================
     profile_image = db.Column(db.String(255), nullable=True)
-    face_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
 
