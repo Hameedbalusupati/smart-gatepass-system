@@ -18,8 +18,7 @@ export default function Register() {
     department: "",
     year: "",
     section: "",
-    profile_image: null,
-    face_image: null,
+    profile_image: null, // ✅ only this
   });
 
   // ================= HANDLE INPUT =================
@@ -33,7 +32,7 @@ export default function Register() {
   };
 
   // ================= IMAGE HANDLER =================
-  const handleImageChange = (e, type) => {
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -49,7 +48,7 @@ export default function Register() {
 
     setForm((prev) => ({
       ...prev,
-      [type]: file,
+      profile_image: file,
     }));
 
     setPreview(URL.createObjectURL(file));
@@ -65,7 +64,6 @@ export default function Register() {
     const collegeId = form.college_id.trim();
     const email = form.email.trim().toLowerCase();
 
-    // ================= VALIDATION =================
     if (!collegeId || !form.name || !email || !form.password) {
       setError("All fields are required");
       return;
@@ -76,13 +74,9 @@ export default function Register() {
       return;
     }
 
-    if (form.role === "student" && !form.profile_image) {
-      setError("Student image required");
-      return;
-    }
-
-    if (form.role === "faculty" && !form.face_image) {
-      setError("Faculty face image required");
+    // 🔥 FIXED CONDITION
+    if ((form.role === "student" || form.role === "faculty") && !form.profile_image) {
+      setError("Image is required");
       return;
     }
 
@@ -97,25 +91,13 @@ export default function Register() {
       formData.append("password", form.password);
       formData.append("role", form.role);
 
-      if (form.department) {
-        formData.append("department", form.department);
-      }
+      if (form.department) formData.append("department", form.department);
+      if (form.year) formData.append("year", form.year);
+      if (form.section) formData.append("section", form.section);
 
-      if (form.year) {
-        formData.append("year", form.year);
-      }
-
-      if (form.section) {
-        formData.append("section", form.section);
-      }
-
-      // ================= IMAGE =================
-      if (form.role === "student") {
+      // ✅ ALWAYS SEND THIS
+      if (form.profile_image) {
         formData.append("profile_image", form.profile_image);
-      }
-
-      if (form.role === "faculty") {
-        formData.append("face_image", form.face_image);
       }
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -124,8 +106,6 @@ export default function Register() {
       });
 
       const data = await res.json();
-
-      console.log("REGISTER RESPONSE:", data);
 
       if (!res.ok) {
         setError(data.message || "Registration failed");
@@ -136,7 +116,7 @@ export default function Register() {
       navigate("/login");
 
     } catch (err) {
-      console.error("REGISTER ERROR:", err);
+      console.error(err);
       setError("Server not reachable");
     } finally {
       setLoading(false);
@@ -146,7 +126,6 @@ export default function Register() {
   const showYearSection =
     form.role === "student" || form.role === "faculty";
 
-  // ================= UI =================
   return (
     <div style={container}>
       <form onSubmit={handleRegister} style={box}>
@@ -155,34 +134,10 @@ export default function Register() {
 
         {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
-        <input
-          style={input}
-          name="college_id"
-          placeholder="College ID"
-          onChange={handleChange}
-        />
-
-        <input
-          style={input}
-          name="name"
-          placeholder="Full Name"
-          onChange={handleChange}
-        />
-
-        <input
-          style={input}
-          name="email"
-          placeholder="College Email"
-          onChange={handleChange}
-        />
-
-        <input
-          style={input}
-          type="password"
-          name="password"
-          placeholder="Password"
-          onChange={handleChange}
-        />
+        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} />
+        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} />
+        <input style={input} name="email" placeholder="College Email" onChange={handleChange} />
+        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} />
 
         <select style={input} name="role" onChange={handleChange}>
           <option value="student">Student</option>
@@ -202,6 +157,8 @@ export default function Register() {
             <option value="CSIT">CSIT</option>
             <option value="IOT">IOT</option>
             <option value="IT">IT</option>
+            <option value="EEE">EEE</option>
+            <option value="ECE">ECE</option>
           </select>
         )}
 
@@ -224,30 +181,13 @@ export default function Register() {
           </>
         )}
 
-        {/* STUDENT IMAGE */}
-        {form.role === "student" && (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleImageChange(e, "profile_image")}
-          />
-        )}
-
-        {/* FACULTY IMAGE */}
-        {form.role === "faculty" && (
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => handleImageChange(e, "face_image")}
-          />
+        {/* ✅ SINGLE IMAGE FIELD */}
+        {(form.role === "student" || form.role === "faculty") && (
+          <input type="file" accept="image/*" onChange={handleImageChange} />
         )}
 
         {preview && (
-          <img
-            src={preview}
-            alt="Preview"
-            style={{ width: "100px", marginTop: "10px" }}
-          />
+          <img src={preview} alt="Preview" style={{ width: "100px", marginTop: "10px" }} />
         )}
 
         <button style={btn} disabled={loading}>
@@ -258,6 +198,8 @@ export default function Register() {
     </div>
   );
 }
+
+// styles same as yours...
 
 // ================= STYLES =================
 const container = {
