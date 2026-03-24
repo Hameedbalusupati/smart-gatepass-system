@@ -3,13 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 import jwt
 import re
-import os
 
 from models import db, GatePass, User
 from config import Config
-
-# ✅ FIXED IMPORT (THIS IS THE MAIN FIX)
-from utils.face_utils import compare_faces
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
@@ -75,7 +71,7 @@ def apply_gatepass():
 
 
 # =================================================
-# FACULTY ACTION (FACE MATCH FIXED)
+# FACULTY ACTION (NO FACE SYSTEM)
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -89,7 +85,6 @@ def faculty_action(gatepass_id):
 
     action = request.form.get("action")
     rejection_reason = (request.form.get("rejection_reason") or "").strip()
-    live_image = request.files.get("live_image")
 
     gatepass = db.session.get(GatePass, gatepass_id)
 
@@ -98,40 +93,11 @@ def faculty_action(gatepass_id):
 
     gatepass.faculty_id = faculty.id
 
-    # =========================
-    # APPROVE
-    # =========================
+    # ================= APPROVE =================
     if action == "approve":
-
-        if not live_image:
-            return jsonify({"success": False, "message": "Live image required"}), 400
-
-        if not faculty.face_image:
-            return jsonify({"success": False, "message": "Register face first"}), 400
-
-        os.makedirs("temp", exist_ok=True)
-        live_path = f"temp/live_{gatepass.id}.jpg"
-        live_image.save(live_path)
-
-        try:
-            match = compare_faces(faculty.face_image, live_path)
-
-            if not match:
-                return jsonify({
-                    "success": False,
-                    "message": "Face verification failed"
-                }), 403
-
-        finally:
-            # ✅ CLEANUP
-            if os.path.exists(live_path):
-                os.remove(live_path)
-
         gatepass.status = "PendingHOD"
 
-    # =========================
-    # REJECT
-    # =========================
+    # ================= REJECT =================
     elif action == "reject":
 
         if not rejection_reason:
