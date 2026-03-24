@@ -6,13 +6,14 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from models import db
 
-from routes.auth_routes import auth_bp
-from routes.gatepass_routes import gatepass_bp
-from routes.student_routes import student_bp
-from routes.faculty_routes import faculty_bp
-from routes.hod_routes import hod_bp
-from routes.security_routes import security_bp
-from routes.notification_routes import notifications_bp
+# ✅ IMPORTANT: Use correct import path (for Render)
+from backend.routes.auth_routes import auth_bp
+from backend.routes.gatepass_routes import gatepass_bp
+from backend.routes.student_routes import student_bp
+from backend.routes.faculty_routes import faculty_bp
+from backend.routes.hod_routes import hod_bp
+from backend.routes.security_routes import security_bp
+from backend.routes.notification_routes import notifications_bp
 
 
 def create_app():
@@ -27,13 +28,9 @@ def create_app():
     os.makedirs("temp", exist_ok=True)
 
     # =====================================================
-    # ENABLE CORS
+    # ENABLE CORS (FIXED)
     # =====================================================
-    CORS(
-        app,
-        resources={r"/api/*": {"origins": "*"}},
-        supports_credentials=True
-    )
+    CORS(app, supports_credentials=True)
 
     # =====================================================
     # INIT DATABASE & JWT
@@ -42,7 +39,7 @@ def create_app():
     JWTManager(app)
 
     # =====================================================
-    # DATABASE INIT (SAFE)
+    # DATABASE INIT
     # =====================================================
     with app.app_context():
         try:
@@ -65,19 +62,16 @@ def create_app():
     # =====================================================
     # STATIC FILE SERVING
     # =====================================================
-
-    # Student images
     @app.route("/uploads/student_images/<filename>")
     def student_image(filename):
         return send_from_directory("uploads/student_images", filename)
 
-    # Faculty face images
     @app.route("/uploads/faculty_faces/<filename>")
     def faculty_face(filename):
         return send_from_directory("uploads/faculty_faces", filename)
 
     # =====================================================
-    # HEALTH CHECK ROUTE
+    # HEALTH CHECK
     # =====================================================
     @app.route("/")
     def health():
@@ -91,14 +85,14 @@ def create_app():
 
 
 # =====================================================
-# GUNICORN ENTRY POINT (RENDER)
+# ENTRY POINT (RENDER)
 # =====================================================
 app = create_app()
 
 
 # =====================================================
-# LOCAL DEVELOPMENT
+# LOCAL RUN
 # =====================================================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port)
