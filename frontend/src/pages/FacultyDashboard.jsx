@@ -2,26 +2,30 @@ import { useEffect, useState } from "react";
 import API_BASE_URL from "../config";
 
 export default function FacultyDashboard() {
+
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("access_token");
 
-  // ================= LOAD DATA (FIXED) =================
+  // ================= LOAD DATA =================
   useEffect(() => {
+
     const fetchData = async () => {
       try {
         const headers = {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         };
 
+        // Pending
         const pRes = await fetch(
           `${API_BASE_URL}/faculty/gatepasses/pending`,
           { headers }
         );
         const pData = await pRes.json();
 
+        // History
         const hRes = await fetch(
           `${API_BASE_URL}/faculty/gatepasses/history`,
           { headers }
@@ -37,13 +41,15 @@ export default function FacultyDashboard() {
     };
 
     fetchData();
+
   }, [token]);
+
 
   // ================= REFRESH =================
   const refresh = async () => {
     try {
       const headers = {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${token}`
       };
 
       const pRes = await fetch(
@@ -66,19 +72,20 @@ export default function FacultyDashboard() {
     }
   };
 
-  // ================= APPROVE (FIXED URL) =================
+
+  // ================= APPROVE =================
   const approveGatepass = async (id) => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`, // ✅ CORRECT
+        `${API_BASE_URL}/gatepass/faculty_action/${id}`,   // ✅ correct
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           },
           body: new URLSearchParams({
-            action: "approve",
-          }),
+            action: "approve"
+          })
         }
       );
 
@@ -97,23 +104,25 @@ export default function FacultyDashboard() {
     }
   };
 
-  // ================= REJECT (FIXED URL) =================
+
+  // ================= REJECT =================
   const rejectGatepass = async (id) => {
-    const reason = prompt("Enter rejection reason:");
+
+    const reason = prompt("Enter rejection reason");
     if (!reason) return;
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`, // ✅ CORRECT
+        `${API_BASE_URL}/gatepass/faculty_action/${id}`,   // ✅ correct
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           },
           body: new URLSearchParams({
             action: "reject",
-            rejection_reason: reason,
-          }),
+            rejection_reason: reason
+          })
         }
       );
 
@@ -131,14 +140,18 @@ export default function FacultyDashboard() {
     }
   };
 
+
   // ================= UI =================
   return (
     <div style={container}>
+
       <div style={box}>
+
         <h2 style={title}>Faculty Dashboard</h2>
 
         {error && <p style={{ color: "red" }}>{error}</p>}
 
+        {/* ================= PENDING ================= */}
         <h3 style={section}>Pending Gatepasses</h3>
 
         {pending.length === 0 ? (
@@ -146,8 +159,17 @@ export default function FacultyDashboard() {
         ) : (
           pending.map((p) => (
             <div key={p.id} style={card}>
+
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
+
+              {/* ✅ NEW FIELD */}
+              <p>
+                <b>Parent Mobile:</b>{" "}
+                <a href={`tel:${p.parent_mobile}`} style={{ color: "#2563eb" }}>
+                  {p.parent_mobile}
+                </a>
+              </p>
 
               <div>
                 <button style={approveBtn} onClick={() => approveGatepass(p.id)}>
@@ -158,10 +180,12 @@ export default function FacultyDashboard() {
                   Reject
                 </button>
               </div>
+
             </div>
           ))
         )}
 
+        {/* ================= HISTORY ================= */}
         <h3 style={section}>History</h3>
 
         {history.length === 0 ? (
@@ -169,8 +193,19 @@ export default function FacultyDashboard() {
         ) : (
           history.map((p) => (
             <div key={p.id} style={historyCard}>
+
+              <p><b>{p.student_name}</b></p>
+
+              {/* ✅ NEW FIELD */}
               <p>
-                <b>{p.student_name}</b> -
+                <b>Parent Mobile:</b>{" "}
+                <a href={`tel:${p.parent_mobile}`} style={{ color: "#2563eb" }}>
+                  {p.parent_mobile}
+                </a>
+              </p>
+
+              <p>
+                Status:{" "}
                 <span style={{
                   color:
                     p.status === "Approved"
@@ -179,16 +214,19 @@ export default function FacultyDashboard() {
                       ? "red"
                       : "orange"
                 }}>
-                  {" "}{p.status}
+                  {p.status}
                 </span>
               </p>
+
             </div>
           ))
         )}
+
       </div>
     </div>
   );
 }
+
 
 /////////////////////////////////////////////////////////////////
 // 🎨 STYLES
@@ -199,38 +237,38 @@ const container = {
   background: "#0f172a",
   display: "flex",
   justifyContent: "center",
-  alignItems: "center",
+  alignItems: "center"
 };
 
 const box = {
   width: "500px",
   background: "#ffffff",
   padding: "20px",
-  borderRadius: "12px",
+  borderRadius: "12px"
 };
 
 const title = {
   textAlign: "center",
-  color: "#111827",
+  color: "#111827"
 };
 
 const section = {
   marginTop: "20px",
-  color: "#1f2937",
+  color: "#1f2937"
 };
 
 const card = {
   background: "#f9fafb",
   padding: "10px",
   marginTop: "10px",
-  borderRadius: "8px",
+  borderRadius: "8px"
 };
 
 const historyCard = {
   background: "#eef2ff",
   padding: "10px",
   marginTop: "10px",
-  borderRadius: "8px",
+  borderRadius: "8px"
 };
 
 const approveBtn = {
@@ -239,7 +277,7 @@ const approveBtn = {
   border: "none",
   padding: "6px 12px",
   marginRight: "10px",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const rejectBtn = {
@@ -247,9 +285,9 @@ const rejectBtn = {
   color: "white",
   border: "none",
   padding: "6px 12px",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const info = {
-  color: "#6b7280",
+  color: "#6b7280"
 };

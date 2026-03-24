@@ -13,7 +13,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =================================================
-# APPLY GATEPASS
+# APPLY GATEPASS (STUDENT)
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
@@ -30,6 +30,7 @@ def apply_gatepass():
     reason = (data.get("reason") or "").strip()
     parent_mobile = (data.get("parent_mobile") or "").strip()
 
+    # Validation
     if not reason:
         return jsonify({"success": False, "message": "Reason is required"}), 400
 
@@ -38,14 +39,16 @@ def apply_gatepass():
 
     today = datetime.utcnow().date()
 
-    today_gatepass = GatePass.query.filter(
+    # One gatepass per day
+    today_gp = GatePass.query.filter(
         GatePass.student_id == student.id,
         db.func.date(GatePass.created_at) == today
     ).first()
 
-    if today_gatepass:
+    if today_gp:
         return jsonify({"success": False, "message": "Only one gatepass per day"}), 400
 
+    # Active gatepass check
     active = GatePass.query.filter(
         GatePass.student_id == student.id,
         GatePass.status.in_(["PendingFaculty", "PendingHOD", "Approved"]),
@@ -55,7 +58,8 @@ def apply_gatepass():
     if active:
         return jsonify({"success": False, "message": "Active gatepass exists"}), 400
 
-    new_gp = GatePass(
+    # Create gatepass
+    gp = GatePass(
         student_id=student.id,
         reason=reason,
         parent_mobile=parent_mobile,
@@ -64,14 +68,14 @@ def apply_gatepass():
         is_used=False
     )
 
-    db.session.add(new_gp)
+    db.session.add(gp)
     db.session.commit()
 
     return jsonify({"success": True, "message": "Applied successfully"}), 201
 
 
 # =================================================
-# FACULTY ACTION (NO FACE SYSTEM)
+# FACULTY ACTION
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -93,13 +97,12 @@ def faculty_action(gatepass_id):
 
     gatepass.faculty_id = faculty.id
 
-    # ================= APPROVE =================
+    # APPROVE
     if action == "approve":
         gatepass.status = "PendingHOD"
 
-    # ================= REJECT =================
+    # REJECT
     elif action == "reject":
-
         if not rejection_reason:
             return jsonify({"success": False, "message": "Reason required"}), 400
 
@@ -142,8 +145,8 @@ def hod_action(gatepass_id):
 
     gatepass.hod_id = hod.id
 
+    # APPROVE
     if action == "approve":
-
         gatepass.status = "Approved"
 
         qr_payload = {
@@ -157,8 +160,8 @@ def hod_action(gatepass_id):
             algorithm=QR_ALGORITHM
         )
 
+    # REJECT
     elif action == "reject":
-
         if not rejection_reason:
             return jsonify({"success": False, "message": "Reason required"}), 400
 
@@ -175,3 +178,114 @@ def hod_action(gatepass_id):
         "success": True,
         "message": f"Gatepass {action}d successfully"
     })
+
+
+# =================================================
+# FACULTY GET PENDING
+# =================================================
+@gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
+@jwt_required()
+def faculty_pending():
+
+    faculty_id = int(get_jwt_identity())
+    faculty = db.session.get(User, faculty_id)
+
+    if not faculty or faculty.role != "faculty":
+        return jsonify({"success": False}), 403
+
+    gatepasses = GatePass.query.filter_by(status="PendingFaculty").all()
+
+    data = []
+    for gp in gatepasses:
+        student = db.session.get(User, gp.student_id)
+
+        data.append({
+            "id": gp.id,
+            "student_name": student.name,
+            "reason": gp.reason,
+            "parent_mobile": gp.parent_mobile   # ✅ INCLUDED
+        })
+
+    return jsonify({"success": True, "gatepasses": data})
+
+
+# =================================================
+# FACULTY HISTORY
+# =================================================
+@gatepass_bp.route("/faculty/gatepasses/history", methods=["GET"])
+@jwt_required()
+def faculty_history():
+
+    faculty_id = int(get_jwt_identity())
+    faculty = db.session.get(User, faculty_id)
+
+    if not faculty or faculty.role != "faculty":
+        return jsonify({"success": False}), 403
+
+    gatepasses = GatePass.query.filter_by(faculty_id=faculty.id).all()
+
+    data = []
+    for gp in gatepasses:
+        student = db.session.get(User, gp.student_id)
+
+        data.append({
+            "id": gp.id,
+            "student_name": student.name,
+            "status": gp.status,
+            "parent_mobile": gp.parent_mobile   # ✅ INCLUDED
+        })
+
+    return jsonify({"success": True, "gatepasses": data})
+
+
+# =================================================
+# HOD PENDING
+# =================================================
+@gatepass_bp.route("/hod/gatepasses/pending", methods=["GET"])
+@jwt_required()
+def hod_pending():
+
+    gatepasses = GatePass.query.filter_by(status="PendingHOD").all()
+
+    data = []
+    for gp in gatepasses:
+        student = db.session.get(User, gp.student_id)
+
+        data.append({
+            "id": gp.id,
+            "student_name": student.name,
+            "college_id": student.college_id,
+            "department": student.department,
+            "year": student.year,
+            "section": student.section,
+            "reason": gp.reason,
+            "parent_mobile": gp.parent_mobile   # ✅ INCLUDED
+        })
+
+    return jsonify({"success": True, "gatepasses": data})
+
+
+# =================================================
+# HOD HISTORY
+# =================================================
+@gatepass_bp.route("/hod/gatepasses/history", methods=["GET"])
+@jwt_required()
+def hod_history():
+
+    gatepasses = GatePass.query.filter(
+        GatePass.status.in_(["Approved", "Rejected"])
+    ).all()
+
+    data = []
+    for gp in gatepasses:
+        student = db.session.get(User, gp.student_id)
+
+        data.append({
+            "id": gp.id,
+            "student_name": student.name,
+            "reason": gp.reason,
+            "status": gp.status,
+            "parent_mobile": gp.parent_mobile   # ✅ INCLUDED
+        })
+
+    return jsonify({"success": True, "gatepasses": data})

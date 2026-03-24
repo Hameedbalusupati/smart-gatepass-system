@@ -5,139 +5,118 @@ export default function HodDashboard() {
 
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
+  const [error, setError] = useState("");
 
   const token = localStorage.getItem("access_token");
 
-  // ================= FETCH DATA =================
-
+  // ================= LOAD DATA =================
   useEffect(() => {
 
-    const loadData = async () => {
-
+    const fetchData = async () => {
       try {
+        const headers = {
+          Authorization: `Bearer ${token}`
+        };
 
-        // ---------- Pending Gatepasses ----------
-
-        const pendingRes = await fetch(
+        const pRes = await fetch(
           `${API_BASE_URL}/hod/gatepasses/pending`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { headers }
         );
+        const pData = await pRes.json();
 
-        const pendingData = await pendingRes.json();
-
-        if (pendingRes.ok && pendingData.success) {
-          setPending(pendingData.gatepasses || []);
-        } else {
-          setPending([]);
-        }
-
-
-        // ---------- History ----------
-
-        const historyRes = await fetch(
+        const hRes = await fetch(
           `${API_BASE_URL}/hod/gatepasses/history`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
+          { headers }
         );
+        const hData = await hRes.json();
 
-        const historyData = await historyRes.json();
-
-        if (historyRes.ok && historyData.success) {
-          setHistory(historyData.gatepasses || []);
-        } else {
-          setHistory([]);
+        if (pRes.ok && pData.success) {
+          setPending(pData.gatepasses || []);
         }
 
-      } catch (error) {
+        if (hRes.ok && hData.success) {
+          setHistory(hData.gatepasses || []);
+        }
 
-        console.error("Fetch error:", error);
-
+      } catch {
+        setError("Server not reachable");
       }
-
     };
 
-    loadData();
+    fetchData();
 
   }, [token]);
 
 
 
   // ================= APPROVE =================
-
   const handleApprove = async (id) => {
 
     try {
-
       const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/approve/${id}`,
+        `${API_BASE_URL}/gatepass/hod_action/${id}`,   // ✅ FIXED
         {
-          method: "PUT",
+          method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ action: "approve" })
         }
       );
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-
-        setPending(prev => prev.filter(item => item.id !== id));
-
+      if (!res.ok) {
+        alert(data.message || "Approval failed ❌");
+        return;
       }
 
-    } catch (error) {
+      alert("Approved ✅");
 
-      console.error("Approve error:", error);
+      // refresh UI
+      setPending(prev => prev.filter(item => item.id !== id));
 
+    } catch {
+      alert("Server error");
     }
-
   };
 
 
   // ================= REJECT =================
-
   const handleReject = async (id) => {
 
     const reason = prompt("Enter rejection reason");
-
     if (!reason) return;
 
     try {
-
       const res = await fetch(
-        `${API_BASE_URL}/hod/gatepasses/reject/${id}`,
+        `${API_BASE_URL}/gatepass/hod_action/${id}`,   // ✅ FIXED
         {
-          method: "PUT",
+          method: "POST",
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
           },
-          body: JSON.stringify({ rejection_reason: reason })
+          body: JSON.stringify({
+            action: "reject",
+            rejection_reason: reason
+          })
         }
       );
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-
-        setPending(prev => prev.filter(item => item.id !== id));
-
+      if (!res.ok) {
+        alert(data.message || "Reject failed ❌");
+        return;
       }
 
-    } catch (error) {
+      setPending(prev => prev.filter(item => item.id !== id));
 
-      console.error("Reject error:", error);
-
+    } catch {
+      alert("Server error");
     }
-
   };
 
 
@@ -147,6 +126,7 @@ export default function HodDashboard() {
 
       <h2 style={styles.title}>HOD Dashboard</h2>
 
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       {/* ================= PENDING ================= */}
 
@@ -166,6 +146,14 @@ export default function HodDashboard() {
           <p><b>Year:</b> {item.year}</p>
           <p><b>Section:</b> {item.section}</p>
           <p><b>Reason:</b> {item.reason}</p>
+
+          {/* ✅ NEW FIELD */}
+          <p>
+            <b>Parent Mobile:</b>{" "}
+            <a href={`tel:${item.parent_mobile}`} style={{ color: "#60a5fa" }}>
+              {item.parent_mobile}
+            </a>
+          </p>
 
           <div style={styles.actions}>
 
@@ -204,6 +192,15 @@ export default function HodDashboard() {
 
           <p><b>Student:</b> {item.student_name}</p>
           <p><b>Reason:</b> {item.reason}</p>
+
+          {/* ✅ NEW FIELD */}
+          <p>
+            <b>Parent Mobile:</b>{" "}
+            <a href={`tel:${item.parent_mobile}`} style={{ color: "#60a5fa" }}>
+              {item.parent_mobile}
+            </a>
+          </p>
+
           <p><b>Status:</b> {item.status}</p>
 
         </div>
@@ -211,10 +208,8 @@ export default function HodDashboard() {
       ))}
 
     </div>
-
   );
 }
-
 
 
 /* ================= STYLES ================= */
