@@ -5,40 +5,30 @@ import "../index.css";
 
 export default function Login() {
   const navigate = useNavigate();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  // =========================
-  // LOGIN FUNCTION
-  // =========================
   const loginUser = async (e) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
     try {
       const res = await API.post("/auth/login", {
         email: email.toLowerCase(),
-        password: password,
+        password,
       });
 
       const data = res.data;
-
-      // Save token & role
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("role", data.role);
 
-      // Redirect based on role
       navigate(`/${data.role}`);
 
     } catch (err) {
-      console.error(err);
-      setError(err.response?.data?.message || "Login failed");
-    } finally {
-      setLoading(false);
+      setError(
+        err.response?.data?.message || "Cannot reach server"
+      );
     }
   };
 
@@ -53,7 +43,6 @@ export default function Login() {
           <input
             type="email"
             placeholder="Email"
-            value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
@@ -61,14 +50,11 @@ export default function Login() {
           <input
             type="password"
             placeholder="Password"
-            value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Login"}
-          </button>
+          <button type="submit">Login</button>
         </form>
       </div>
     </div>
