@@ -11,7 +11,7 @@ import StudentStatus from "./pages/StudentStatus";
 
 import FacultyDashboard from "./pages/FacultyDashboard";
 import HodDashboard from "./pages/HodDashboard";
-import SecurityScan from "./pages/SecurityScan";
+import SecurityDashboard from "./pages/SecurityDashboard";
 import NotificationsPage from "./pages/NotificationsPage";
 
 /* ================= PROTECTED ROUTE ================= */
@@ -20,6 +20,7 @@ function ProtectedRoute({ children, role }) {
   const token = localStorage.getItem("access_token");
   const userRole = localStorage.getItem("role");
 
+  // 🚀 FIX: wait-safe fallback
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -36,7 +37,8 @@ function ProtectedRoute({ children, role }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Navbar />
+      {/* ✅ FIX: Navbar safe render */}
+      {localStorage.getItem("access_token") && <Navbar />}
 
       <Routes>
         {/* ---------- PUBLIC ---------- */}
@@ -92,17 +94,17 @@ export default function App() {
           }
         />
 
-        {/* ---------- SECURITY ---------- */}
+        {/* ---------- SECURITY (FIXED) ---------- */}
         <Route
           path="/security"
           element={
             <ProtectedRoute role="security">
-              <SecurityScan />
+              <SecurityDashboard />
             </ProtectedRoute>
           }
         />
 
-        {/* ---------- NOTIFICATIONS (Protected) ---------- */}
+        {/* ---------- NOTIFICATIONS ---------- */}
         <Route
           path="/notifications"
           element={
