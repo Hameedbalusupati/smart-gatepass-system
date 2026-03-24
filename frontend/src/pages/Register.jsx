@@ -20,7 +20,7 @@ export default function Register() {
     year: "",
     section: "",
     profile_image: null,
-    face_image: null   // ✅ NEW
+    face_image: null
   });
 
   // ================= HANDLE INPUT =================
@@ -62,67 +62,26 @@ export default function Register() {
     setError("");
 
     const collegeId = form.college_id.trim();
-    const email = form.email.trim();
+    const email = form.email.trim().toLowerCase();
 
-    const parts = email.split("@");
-
-    if (parts.length !== 2) {
-      setError("Invalid email format");
-      return;
-    }
-
-    const emailUser = parts[0];
-    const domain = parts[1];
-
-    if (domain.toLowerCase() !== "pace.ac.in") {
-      setError("Email must end with @pace.ac.in");
-      return;
-    }
-
-    // STUDENT RULE
-    if (form.role === "student") {
-      if (emailUser.toLowerCase() !== collegeId.toLowerCase()) {
-        setError("Student email must match Roll Number");
-        return;
-      }
-    }
-
-    // FACULTY RULE
-    if (form.role === "faculty") {
-      if (!/^[0-9]+$/.test(collegeId)) {
-        setError("Faculty College ID must contain numbers only");
-        return;
-      }
-
-      if (!/^[a-zA-Z]+_[a-zA-Z]$/.test(emailUser)) {
-        setError("Faculty email must be like venkat_p@pace.ac.in");
-        return;
-      }
-    }
-
-    // REQUIRED
+    // ================= VALIDATION =================
     if (!collegeId || !form.name || !form.password) {
       setError("All required fields must be filled");
       return;
     }
 
-    if (["student", "faculty", "hod"].includes(form.role) && !form.department) {
-      setError("Department is required");
-      return;
-    }
-
-    if (["student", "faculty"].includes(form.role) && (!form.year || !form.section)) {
-      setError("Year and Section are required");
+    if (!email.includes("@pace.ac.in")) {
+      setError("Email must be @pace.ac.in");
       return;
     }
 
     if (form.role === "student" && !form.profile_image) {
-      setError("Student image is required");
+      setError("Student image required");
       return;
     }
 
     if (form.role === "faculty" && !form.face_image) {
-      setError("Faculty face image is required");
+      setError("Faculty face image required");
       return;
     }
 
@@ -138,21 +97,25 @@ export default function Register() {
       formData.append("password", form.password);
       formData.append("role", form.role);
 
-      if (["student", "faculty", "hod"].includes(form.role)) {
+      if (form.department) {
         formData.append("department", form.department);
       }
 
-      if (["student", "faculty"].includes(form.role)) {
+      if (form.year) {
         formData.append("year", form.year);
+      }
+
+      if (form.section) {
         formData.append("section", form.section);
       }
 
-      if (form.profile_image) {
+      // ✅ IMAGE FIX (IMPORTANT)
+      if (form.role === "student" && form.profile_image) {
         formData.append("profile_image", form.profile_image);
       }
 
-      if (form.face_image) {
-        formData.append("face_image", form.face_image);   // ✅ IMPORTANT
+      if (form.role === "faculty" && form.face_image) {
+        formData.append("face_image", form.face_image);
       }
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
@@ -162,6 +125,9 @@ export default function Register() {
 
       const data = await res.json();
 
+      // ✅ DEBUG (VERY IMPORTANT)
+      console.log("RESPONSE:", data);
+
       if (!res.ok) {
         setError(data.message || "Registration failed");
         return;
@@ -170,8 +136,9 @@ export default function Register() {
       alert("Registered Successfully ✅");
       navigate("/login");
 
-    } catch {
-      setError("Cannot reach server");
+    } catch (err) {
+      console.error("REGISTER ERROR:", err);
+      setError("Server not reachable");
     } finally {
       setLoading(false);
     }
@@ -205,15 +172,7 @@ export default function Register() {
           <select style={input} name="department" onChange={handleChange}>
             <option value="">Select Department</option>
             <option value="CSE">CSE</option>
-            <option value="EEE">EEE</option>
-            <option value="ECE">ECE</option>
             <option value="AIDS">AIDS</option>
-            <option value="AIML">AIML</option>
-            <option value="CE">CE</option>
-            <option value="ME">ME</option>
-            <option value="IOT">IOT</option>
-            <option value="IT">IT</option>
-            <option value="CSIT">CSIT</option>
           </select>
         )}
 
@@ -238,16 +197,12 @@ export default function Register() {
 
         {/* STUDENT IMAGE */}
         {form.role === "student" && (
-          <>
-            <input type="file" onChange={(e) => handleImageChange(e, "profile_image")} />
-          </>
+          <input type="file" onChange={(e) => handleImageChange(e, "profile_image")} />
         )}
 
-        {/* FACULTY FACE IMAGE */}
+        {/* FACULTY IMAGE */}
         {form.role === "faculty" && (
-          <>
-            <input type="file" onChange={(e) => handleImageChange(e, "face_image")} />
-          </>
+          <input type="file" onChange={(e) => handleImageChange(e, "face_image")} />
         )}
 
         {preview && (
@@ -263,7 +218,7 @@ export default function Register() {
   );
 }
 
-// STYLES
+// ================= STYLES =================
 const container = {
   minHeight: "100vh",
   display: "flex",
