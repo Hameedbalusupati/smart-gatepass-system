@@ -8,31 +8,20 @@ export default function StudentDashboard() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ================= APPLY GATEPASS =================
   const applyGatePass = async () => {
     if (loading) return;
 
     setMessage("");
     setSuccess(false);
 
-    const trimmedReason = reason.trim();
-    const trimmedMobile = parentMobile.trim();
-
-    // Validation
-    if (!trimmedReason || !trimmedMobile) {
-      setMessage("Reason and parent mobile are required ❌");
-      return;
-    }
-
-    if (!/^\d{10}$/.test(trimmedMobile)) {
-      setMessage("Enter valid 10-digit mobile number ❌");
+    if (!reason.trim() || !parentMobile.trim()) {
+      setMessage("Reason and parent mobile are required");
       return;
     }
 
     const token = localStorage.getItem("access_token");
-
     if (!token) {
-      setMessage("Session expired. Please login again ❌");
+      setMessage("Session expired. Please login again.");
       return;
     }
 
@@ -40,10 +29,10 @@ export default function StudentDashboard() {
       setLoading(true);
 
       const res = await API.post(
-        "/gatepass/apply",
+        "/gatepass/apply", // ✅ API baseURL already includes /api
         {
-          reason: trimmedReason,
-          parent_mobile: trimmedMobile,
+          reason: reason.trim(),
+          parent_mobile: parentMobile.trim(),
         },
         {
           headers: {
@@ -56,15 +45,13 @@ export default function StudentDashboard() {
 
       setMessage(data.message || "Gatepass applied successfully ✅");
       setSuccess(true);
-
-      // Reset form
       setReason("");
       setParentMobile("");
 
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later ❌"
+        err.response?.data?.message || "Server error. Try again later."
       );
     } finally {
       setLoading(false);
@@ -72,16 +59,34 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div style={container}>
-      <div style={card}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#0f172a",
+        color: "white",
+      }}
+    >
+      <div
+        style={{
+          width: "420px",
+          background: "#111827",
+          padding: "25px",
+          borderRadius: "10px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+        }}
+      >
+        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
+          Student Dashboard
+        </h2>
 
-        <h2 style={title}>Student Dashboard</h2>
-
-        <h3 style={subTitle}>Apply Gatepass</h3>
+        <h3 style={{ marginBottom: "10px" }}>Apply Gatepass</h3>
 
         <input
           type="text"
-          placeholder="Enter reason"
+          placeholder="Reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           style={inputStyle}
@@ -89,7 +94,7 @@ export default function StudentDashboard() {
 
         <input
           type="tel"
-          placeholder="Enter parent mobile number"
+          placeholder="Parent Mobile Number"
           value={parentMobile}
           onChange={(e) => setParentMobile(e.target.value)}
           style={inputStyle}
@@ -98,51 +103,39 @@ export default function StudentDashboard() {
         <button
           onClick={applyGatePass}
           disabled={loading}
-          style={loading ? disabledBtn : btn}
+          style={{
+            width: "100%",
+            padding: "12px",
+            backgroundColor: loading ? "#64748b" : "#22c55e",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            fontWeight: "600",
+            cursor: loading ? "not-allowed" : "pointer",
+            marginTop: "10px",
+          }}
         >
           {loading ? "Applying..." : "Apply Gatepass"}
         </button>
 
         {message && (
-          <p style={success ? successMsg : errorMsg}>
+          <p
+            style={{
+              marginTop: "15px",
+              textAlign: "center",
+              color: success ? "#22c55e" : "#ef4444",
+              fontWeight: "500",
+            }}
+          >
             {message}
           </p>
         )}
-
       </div>
     </div>
   );
 }
 
-
-/* ================= STYLES ================= */
-
-const container = {
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "#0f172a",
-};
-
-const card = {
-  width: "400px",
-  background: "#111827",
-  padding: "25px",
-  borderRadius: "10px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
-  color: "white",
-};
-
-const title = {
-  textAlign: "center",
-  marginBottom: "15px",
-};
-
-const subTitle = {
-  marginBottom: "10px",
-};
-
+/* ===== INPUT STYLE ===== */
 const inputStyle = {
   width: "100%",
   padding: "10px",
@@ -152,35 +145,4 @@ const inputStyle = {
   backgroundColor: "#020617",
   color: "white",
   outline: "none",
-};
-
-const btn = {
-  width: "100%",
-  padding: "12px",
-  backgroundColor: "#22c55e",
-  color: "white",
-  border: "none",
-  borderRadius: "6px",
-  fontWeight: "600",
-  cursor: "pointer",
-};
-
-const disabledBtn = {
-  ...btn,
-  backgroundColor: "#64748b",
-  cursor: "not-allowed",
-};
-
-const successMsg = {
-  marginTop: "15px",
-  textAlign: "center",
-  color: "#22c55e",
-  fontWeight: "500",
-};
-
-const errorMsg = {
-  marginTop: "15px",
-  textAlign: "center",
-  color: "#ef4444",
-  fontWeight: "500",
 };
