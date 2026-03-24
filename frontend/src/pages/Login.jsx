@@ -16,20 +16,26 @@ export default function Login() {
   const canvasRef = useRef(null);
 
   // =========================
-  // START CAMERA (FIXED)
+  // START CAMERA (FINAL FIX)
   // =========================
   const startCamera = async () => {
     setError("");
 
     try {
-      // ✅ Stop old stream
-      if (videoRef.current && videoRef.current.srcObject) {
+      // ❌ Detect unsupported environments (DevTools mobile)
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError("Camera not supported in this environment.");
+        return;
+      }
+
+      // Stop old stream if exists
+      if (videoRef.current?.srcObject) {
         videoRef.current.srcObject.getTracks().forEach(track => track.stop());
         videoRef.current.srcObject = null;
       }
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" }
+        video: true,
       });
 
       videoRef.current.srcObject = mediaStream;
@@ -49,7 +55,7 @@ export default function Login() {
       } else if (err.name === "NotReadableError") {
         setError("Camera is already in use.");
       } else {
-        setError("Unable to access camera.");
+        setError("Camera not accessible. Use normal browser (disable DevTools mobile mode).");
       }
     }
   };
@@ -125,25 +131,22 @@ export default function Login() {
 
         {error && <div className="error">{error}</div>}
 
-        {/* CAMERA SECTION */}
+        {/* CAMERA */}
         {!cameraOn ? (
-          <button onClick={startCamera}>
-            Enable Camera
-          </button>
+          <button onClick={startCamera}>Enable Camera</button>
         ) : (
           <>
             <video
               ref={videoRef}
               autoPlay
               playsInline
-              muted   // ✅ IMPORTANT FIX
+              muted
               style={{
                 width: "100%",
                 borderRadius: "10px",
                 marginBottom: "10px",
               }}
             />
-
             <button onClick={stopCamera}>Close Camera</button>
           </>
         )}
