@@ -1,148 +1,122 @@
-// import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-// import Navbar from "./components/Navbar";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Navbar from "./components/Navbar";
 
-// import Login from "./pages/Login";
-// import Register from "./pages/Register";
-// import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Home from "./pages/Home";
 
-// import StudentDashboard from "./pages/StudentDashboard";
-// import ApplyGatepass from "./pages/ApplyGatepass";
-// import StudentStatus from "./pages/StudentStatus";
+import StudentDashboard from "./pages/StudentDashboard";
+import ApplyGatepass from "./pages/ApplyGatepass";
+import StudentStatus from "./pages/StudentStatus";
 
-// import FacultyDashboard from "./pages/FacultyDashboard";
-// import HodDashboard from "./pages/HodDashboard";
-// import SecurityDashboard from "./pages/SecurityDashboard";
-// import NotificationsPage from "./pages/NotificationsPage";
+import FacultyDashboard from "./pages/FacultyDashboard";
+import HodDashboard from "./pages/HodDashboard";
+import SecurityDashboard from "./pages/SecurityDashboard";
+import NotificationsPage from "./pages/NotificationsPage";
 
-// /* ================= PROTECTED ROUTE ================= */
+/* ================= PROTECTED ROUTE ================= */
 
-// function ProtectedRoute({ children, role }) {
-//   const token = localStorage.getItem("access_token");
-//   const userRole = localStorage.getItem("role");
+function ProtectedRoute({ children, role }) {
+  const token = localStorage.getItem("access_token");
+  const userRole = localStorage.getItem("role");
 
-//   // 🚀 FIX: wait-safe fallback
-//   if (!token) {
-//     return <Navigate to="/login" replace />;
-//   }
+  // 🚀 FIX: wait-safe fallback
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
-//   if (role && userRole !== role) {
-//     return <Navigate to="/" replace />;
-//   }
+  if (role && userRole !== role) {
+    return <Navigate to="/" replace />;
+  }
 
-//   return children;
-// }
+  return children;
+}
 
-// /* ================= APP ================= */
-
-// export default function App() {
-//   return (
-//     <BrowserRouter>
-//       {/* ✅ FIX: Navbar safe render */}
-//       {localStorage.getItem("access_token") && <Navbar />}
-
-//       <Routes>
-//         {/* ---------- PUBLIC ---------- */}
-//         <Route path="/" element={<Home />} />
-//         <Route path="/login" element={<Login />} />
-//         <Route path="/register" element={<Register />} />
-
-//         {/* ---------- STUDENT ---------- */}
-//         <Route
-//           path="/student"
-//           element={
-//             <ProtectedRoute role="student">
-//               <StudentDashboard />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         <Route
-//           path="/apply-gatepass"
-//           element={
-//             <ProtectedRoute role="student">
-//               <ApplyGatepass />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         <Route
-//           path="/status"
-//           element={
-//             <ProtectedRoute role="student">
-//               <StudentStatus />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         {/* ---------- FACULTY ---------- */}
-//         <Route
-//           path="/faculty"
-//           element={
-//             <ProtectedRoute role="faculty">
-//               <FacultyDashboard />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         {/* ---------- HOD ---------- */}
-//         <Route
-//           path="/hod"
-//           element={
-//             <ProtectedRoute role="hod">
-//               <HodDashboard />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         {/* ---------- SECURITY (FIXED) ---------- */}
-//         <Route
-//           path="/security"
-//           element={
-//             <ProtectedRoute role="security">
-//               <SecurityDashboard />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         {/* ---------- NOTIFICATIONS ---------- */}
-//         <Route
-//           path="/notifications"
-//           element={
-//             <ProtectedRoute>
-//               <NotificationsPage />
-//             </ProtectedRoute>
-//           }
-//         />
-
-//         {/* ---------- FALLBACK ---------- */}
-//         <Route path="*" element={<Navigate to="/" replace />} />
-//       </Routes>
-//     </BrowserRouter>
-//   );
-// }
-
-
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+/* ================= APP ================= */
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div
-        style={{
-          minHeight: "100vh",
-          background: "#0f172a",
-          color: "white",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          fontSize: "24px"
-        }}
-      >
-        <Routes>
-          <Route path="/" element={<h1>Home Working ✅</h1>} />
-          <Route path="/test" element={<h1>Route Working ✅</h1>} />
-        </Routes>
-      </div>
+      {/* ✅ FIX: Navbar safe render */}
+      {localStorage.getItem("access_token") && <Navbar />}
+
+      <Routes>
+        {/* ---------- PUBLIC ---------- */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* ---------- STUDENT ---------- */}
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute role="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/apply-gatepass"
+          element={
+            <ProtectedRoute role="student">
+              <ApplyGatepass />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/status"
+          element={
+            <ProtectedRoute role="student">
+              <StudentStatus />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- FACULTY ---------- */}
+        <Route
+          path="/faculty"
+          element={
+            <ProtectedRoute role="faculty">
+              <FacultyDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- HOD ---------- */}
+        <Route
+          path="/hod"
+          element={
+            <ProtectedRoute role="hod">
+              <HodDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- SECURITY (FIXED) ---------- */}
+        <Route
+          path="/security"
+          element={
+            <ProtectedRoute role="security">
+              <SecurityDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- NOTIFICATIONS ---------- */}
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ---------- FALLBACK ---------- */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </BrowserRouter>
   );
 }
