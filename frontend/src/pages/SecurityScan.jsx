@@ -13,111 +13,98 @@ export default function SecurityScan() {
   const scannerRef = useRef(null);
   const scannedRef = useRef(false);
 
-  // ====================================
-  // LOAD EXIT COUNT
-  // ====================================
+  // ================= LOAD EXIT COUNT =================
   useEffect(() => {
     const loadExitCount = async () => {
       try {
         const res = await API.get("/security/exit-count");
         setExitCount(res.data?.total_exits || 0);
       } catch (err) {
-        console.error("Exit count error:", err);
+        console.error(err);
       }
     };
 
     loadExitCount();
   }, []);
 
-  // ====================================
-  // QR SCANNER
-  // ====================================
+  // ================= INIT SCANNER ONLY ONCE =================
   useEffect(() => {
 
-    if (student) return;
+    if (scannerRef.current) return; // ✅ prevent multiple init
 
-    const scanner = new Html5QrcodeScanner(
-      "qr-reader",
-      { fps: 10, qrbox: 250 },
-      false
-    );
-
-    scannerRef.current = scanner;
-
-    scanner.render(
-
-      async (decodedText) => {
-
-        if (scannedRef.current) return;
-        scannedRef.current = true;
-
-        try {
-
-          // ✅ FIXED API
-          const res = await API.post("/gatepass/verify_qr", {
-            qr_token: decodedText
-          });
-
-          const data = res.data;
-
-          if (!data?.success) {
-            setMessage(data?.message || "Invalid QR ❌");
-            scannedRef.current = false;
-            return;
-          }
-
-          // ✅ FIXED DATA STRUCTURE
-          setStudent({
-            name: data.student_name,
-            roll_no: data.college_id,
-            year: data.year,
-            section: data.section,
-            department: data.department,
-            profile_image: data.profile_image,
-            parent_mobile: data.parent_mobile
-          });
-
-          setGatepass({ id: data.gatepass_id });
-
-          setMessage("Gatepass Verified ✅");
-
-          scanner.clear();
-
-        } catch (err) {
-
-          console.error(err);
-
-          setMessage(
-            err.response?.data?.message || "Scan failed ❌"
-          );
-
-          scannedRef.current = false;
-        }
-
-      },
-
-      () => { }
-
-    );
-
-    return () => {
-      scanner.clear().catch(() => { });
-    };
-
-  }, [student]);
-
-  // ====================================
-  // CONFIRM EXIT
-  // ====================================
-  const confirmExit = async () => {
+    let scanner;
 
     try {
+      scanner = new Html5QrcodeScanner(
+        "qr-reader",
+        { fps: 10, qrbox: 250 },
+        false
+      );
 
+      scannerRef.current = scanner;
+
+      scanner.render(
+        async (decodedText) => {
+
+          if (scannedRef.current) return;
+          scannedRef.current = true;
+
+          try {
+            const res = await API.post("/gatepass/verify_qr", {
+              qr_token: decodedText
+            });
+
+            const data = res.data;
+
+            if (!data?.success) {
+              setMessage("Invalid QR ❌");
+              scannedRef.current = false;
+              return;
+            }
+
+            setStudent({
+              name: data.student_name,
+              roll_no: data.college_id,
+              year: data.year,
+              section: data.section,
+              department: data.department,
+              profile_image: data.profile_image,
+              parent_mobile: data.parent_mobile
+            });
+
+            setGatepass({ id: data.gatepass_id });
+
+            setMessage("Gatepass Verified ✅");
+
+            scanner.clear().catch(() => {});
+
+          } catch (err) {
+            console.error(err);
+            setMessage("Scan failed ❌");
+            scannedRef.current = false;
+          }
+        },
+        () => {}
+      );
+
+    } catch (err) {
+      console.error("Scanner crash:", err);
+      setMessage("Camera not supported ❌");
+    }
+
+    return () => {
+      scanner?.clear().catch(() => {});
+    };
+
+  }, []); // ✅ ONLY ONCE
+
+  // ================= CONFIRM EXIT =================
+  const confirmExit = async () => {
+    try {
       const res = await API.post(`/gatepass/confirm_exit/${gatepass?.id}`);
 
       if (res.data?.success) {
-
-        setMessage("Exit recorded successfully ✅");
+        setMessage("Exit recorded ✅");
 
         setStudent(null);
         setGatepass(null);
@@ -125,32 +112,26 @@ export default function SecurityScan() {
 
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
-
       }
-
     } catch (err) {
       console.error(err);
-      setMessage("Error confirming exit ❌");
+      setMessage("Exit failed ❌");
     }
   };
 
   return (
-
     <div style={container}>
 
       <h2>Security QR Scanner</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {!student && (
-        <div id="qr-reader" style={{ width: "100%" }} />
-      )}
+      {!student && <div id="qr-reader" style={{ width: "100%" }} />}
 
       {message && <p>{message}</p>}
 
       {student && (
         <div style={card}>
 
-          {/* ✅ SAFE IMAGE FIX */}
           {student?.profile_image && (
             <img
               src={`${API_BASE_URL}/uploads/student_images/${student.profile_image}`}
@@ -166,7 +147,6 @@ export default function SecurityScan() {
           <p><b>Section:</b> {student?.section || "N/A"}</p>
           <p><b>Department:</b> {student?.department || "N/A"}</p>
 
-          {/* ✅ PARENT MOBILE */}
           <p>
             <b>Parent Mobile:</b>{" "}
             {student?.parent_mobile ? (
@@ -186,10 +166,6 @@ export default function SecurityScan() {
     </div>
   );
 }
-
-/////////////////////////////////////////////////////
-// 🎨 STYLES
-/////////////////////////////////////////////////////
 
 const container = {
   maxWidth: "350px",
