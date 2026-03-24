@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import jwt
 import re
 
@@ -13,16 +13,20 @@ QR_ALGORITHM = "HS256"
 
 
 # =================================================
-# APPLY GATEPASS (STUDENT)
+# APPLY GATEPASS (🔥 FIXED + DAILY LIMIT)
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
 def apply_gatepass():
 
-    student_id = int(get_jwt_identity())
+    try:
+        student_id = int(get_jwt_identity())
+    except:
+        return jsonify({"success": False, "message": "Invalid token"}), 401
+
     student = db.session.get(User, student_id)
 
-    if not student or student.role != "student":
+    if not student or student.role.lower() != "student":
         return jsonify({"success": False, "message": "Only students allowed"}), 403
 
     data = request.get_json() or {}
@@ -36,6 +40,25 @@ def apply_gatepass():
     if not re.fullmatch(r"\d{10}", parent_mobile):
         return jsonify({"success": False, "message": "Invalid mobile number"}), 400
 
+    # =================================================
+    # 🚫 ONE GATEPASS PER DAY CHECK
+    # =================================================
+    today = date.today()
+
+    existing = GatePass.query.filter(
+        GatePass.student_id == student.id,
+        db.func.date(GatePass.created_at) == today
+    ).first()
+
+    if existing:
+        return jsonify({
+            "success": False,
+            "message": "You already applied for a gatepass today"
+        }), 400
+
+    # =================================================
+    # CREATE GATEPASS
+    # =================================================
     gp = GatePass(
         student_id=student.id,
         reason=reason,
@@ -48,11 +71,11 @@ def apply_gatepass():
     db.session.add(gp)
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Gatepass applied"})
+    return jsonify({"success": True, "message": "Gatepass applied"}), 201
 
 
 # =================================================
-# FACULTY ACTION
+# FACULTY ACTION (🔥 FIXED JSON)
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:id>", methods=["POST"])
 @jwt_required()
@@ -60,7 +83,7 @@ def faculty_action(id):
 
     faculty = db.session.get(User, int(get_jwt_identity()))
 
-    if not faculty or faculty.role != "faculty":
+    if not faculty or faculty.role.lower() != "faculty":
         return jsonify({"success": False, "message": "Only faculty allowed"}), 403
 
     gp = db.session.get(GatePass, id)
@@ -68,8 +91,9 @@ def faculty_action(id):
     if not gp or gp.status != "PendingFaculty":
         return jsonify({"success": False, "message": "Invalid gatepass"}), 400
 
-    action = request.form.get("action")
-    rejection_reason = request.form.get("rejection_reason")
+    data = request.get_json() or {}
+    action = data.get("action")
+    rejection_reason = data.get("rejection_reason")
 
     gp.faculty_id = faculty.id
 
@@ -89,7 +113,7 @@ def faculty_action(id):
 
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Updated"})
+    return jsonify({"success": True, "message": "Updated"}), 200
 
 
 # =================================================
@@ -101,7 +125,7 @@ def hod_action(id):
 
     hod = db.session.get(User, int(get_jwt_identity()))
 
-    if not hod or hod.role != "hod":
+    if not hod or hod.role.lower() != "hod":
         return jsonify({"success": False, "message": "Only HOD allowed"}), 403
 
     gp = db.session.get(GatePass, id)
@@ -142,22 +166,27 @@ def hod_action(id):
 
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Updated"})
+    return jsonify({"success": True, "message": "Updated"}), 200
 
 
 # =================================================
-# SECURITY: VERIFY QR (WITH IMAGE + MOBILE)
+# VERIFY QR (🔥 SAFE VERSION)
 # =================================================
 @gatepass_bp.route("/verify_qr", methods=["POST"])
 @jwt_required()
 def verify_qr():
 
-    data = request.get_json()
+    data = request.get_json() or {}
     token = data.get("qr_token")
+
+    if not token:
+        return jsonify({"success": False, "message": "QR token required"}), 400
 
     try:
         payload = jwt.decode(token, Config.QR_SECRET_KEY, algorithms=["HS256"])
-    except:
+    except jwt.ExpiredSignatureError:
+        return jsonify({"success": False, "message": "QR expired"}), 400
+    except jwt.InvalidTokenError:
         return jsonify({"success": False, "message": "Invalid QR"}), 400
 
     gp = db.session.get(GatePass, payload["gatepass_id"])
@@ -175,13 +204,13 @@ def verify_qr():
         "department": student.department,
         "year": student.year,
         "section": student.section,
-        "parent_mobile": gp.parent_mobile,   # ✅ ADDED
+        "parent_mobile": gp.parent_mobile,
         "profile_image": student.profile_image
     })
 
 
 # =================================================
-# SECURITY: CONFIRM EXIT
+# CONFIRM EXIT
 # =================================================
 @gatepass_bp.route("/confirm_exit/<int:id>", methods=["POST"])
 @jwt_required()
@@ -197,101 +226,4 @@ def confirm_exit(id):
 
     db.session.commit()
 
-    return jsonify({"success": True, "message": "Exit confirmed"})
-
-
-# =================================================
-# FACULTY PENDING
-# =================================================
-@gatepass_bp.route("/faculty/gatepasses/pending")
-@jwt_required()
-def faculty_pending():
-
-    gps = GatePass.query.filter_by(status="PendingFaculty").all()
-
-    data = []
-    for gp in gps:
-        student = db.session.get(User, gp.student_id)
-
-        data.append({
-            "id": gp.id,
-            "student_name": student.name,
-            "reason": gp.reason,
-            "parent_mobile": gp.parent_mobile
-        })
-
-    return jsonify({"success": True, "gatepasses": data})
-
-
-# =================================================
-# FACULTY HISTORY
-# =================================================
-@gatepass_bp.route("/faculty/gatepasses/history")
-@jwt_required()
-def faculty_history():
-
-    gps = GatePass.query.all()
-
-    data = []
-    for gp in gps:
-        student = db.session.get(User, gp.student_id)
-
-        data.append({
-            "id": gp.id,
-            "student_name": student.name,
-            "status": gp.status,
-            "parent_mobile": gp.parent_mobile
-        })
-
-    return jsonify({"success": True, "gatepasses": data})
-
-
-# =================================================
-# HOD PENDING
-# =================================================
-@gatepass_bp.route("/hod/gatepasses/pending")
-@jwt_required()
-def hod_pending():
-
-    gps = GatePass.query.filter_by(status="PendingHOD").all()
-
-    data = []
-    for gp in gps:
-        student = db.session.get(User, gp.student_id)
-
-        data.append({
-            "id": gp.id,
-            "student_name": student.name,
-            "college_id": student.college_id,
-            "department": student.department,
-            "year": student.year,
-            "section": student.section,
-            "reason": gp.reason,
-            "parent_mobile": gp.parent_mobile
-        })
-
-    return jsonify({"success": True, "gatepasses": data})
-
-
-# =================================================
-# HOD HISTORY
-# =================================================
-@gatepass_bp.route("/hod/gatepasses/history")
-@jwt_required()
-def hod_history():
-
-    gps = GatePass.query.all()
-
-    data = []
-    for gp in gps:
-        student = db.session.get(User, gp.student_id)
-
-        data.append({
-            "id": gp.id,
-            "student_name": student.name,
-            "reason": gp.reason,
-            "status": gp.status,
-            "parent_mobile": gp.parent_mobile
-        })
-
-    return jsonify({"success": True, "gatepasses": data})
+    return jsonify({"success": True, "message": "Exit confirmed"}), 200

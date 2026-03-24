@@ -1,8 +1,32 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime, date
 from models import db, User, GatePass
 
 student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
+
+
+# =================================================
+# HELPER FUNCTION (CHECK STUDENT)
+# =================================================
+def get_student():
+    try:
+        student_id = int(get_jwt_identity())
+    except:
+        return None, jsonify({
+            "success": False,
+            "message": "Invalid token"
+        }), 401
+
+    student = db.session.get(User, student_id)
+
+    if not student or student.role.lower() != "student":
+        return None, jsonify({
+            "success": False,
+            "message": "Access denied"
+        }), 403
+
+    return student, None, None
 
 
 # =================================================
@@ -12,21 +36,9 @@ student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 @jwt_required()
 def profile():
 
-    try:
-        student_id = int(get_jwt_identity())
-    except:
-        return jsonify({
-            "success": False,
-            "message": "Invalid token"
-        }), 401
-
-    student = db.session.get(User, student_id)
-
-    if not student or student.role.lower() != "student":
-        return jsonify({
-            "success": False,
-            "message": "Access denied"
-        }), 403
+    student, error, code = get_student()
+    if error:
+        return error, code
 
     return jsonify({
         "success": True,
@@ -41,27 +53,75 @@ def profile():
 
 
 # =================================================
+# APPLY GATEPASS (🔥 MAIN FIX HERE)
+# =================================================
+@student_bp.route("/apply_gatepass", methods=["POST"])
+@jwt_required()
+def apply_gatepass():
+
+    student, error, code = get_student()
+    if error:
+        return error, code
+
+    data = request.get_json()
+
+    reason = data.get("reason")
+    out_time = data.get("out_time")
+    in_time = data.get("in_time")
+
+    if not reason or not out_time or not in_time:
+        return jsonify({
+            "success": False,
+            "message": "All fields are required"
+        }), 400
+
+    # ==============================
+    # 🚫 CHECK: ONE GATEPASS PER DAY
+    # ==============================
+    today = date.today()
+
+    existing_gatepass = GatePass.query.filter(
+        GatePass.student_id == student.id,
+        db.func.date(GatePass.created_at) == today
+    ).first()
+
+    if existing_gatepass:
+        return jsonify({
+            "success": False,
+            "message": "You have already applied for a gatepass today"
+        }), 400
+
+    # ==============================
+    # CREATE NEW GATEPASS
+    # ==============================
+    new_gatepass = GatePass(
+        student_id=student.id,
+        reason=reason,
+        out_time=out_time,
+        in_time=in_time,
+        status="Pending",
+        created_at=datetime.utcnow()
+    )
+
+    db.session.add(new_gatepass)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Gatepass applied successfully"
+    }), 201
+
+
+# =================================================
 # STUDENT CURRENT GATEPASS STATUS
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
 def student_status():
 
-    try:
-        student_id = int(get_jwt_identity())
-    except:
-        return jsonify({
-            "success": False,
-            "message": "Invalid token"
-        }), 401
-
-    student = db.session.get(User, student_id)
-
-    if not student or student.role.lower() != "student":
-        return jsonify({
-            "success": False,
-            "message": "Access denied"
-        }), 403
+    student, error, code = get_student()
+    if error:
+        return error, code
 
     gp = (
         GatePass.query
