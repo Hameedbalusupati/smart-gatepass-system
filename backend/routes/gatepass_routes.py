@@ -8,8 +8,8 @@ import os
 from models import db, GatePass, User
 from config import Config
 
-# ✅ FIXED IMPORT (important for Render)
-from backend.utils.face_utils import compare_faces
+# ✅ FIXED IMPORT (THIS IS THE MAIN FIX)
+from utils.face_utils import compare_faces
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
@@ -75,7 +75,7 @@ def apply_gatepass():
 
 
 # =================================================
-# FACULTY ACTION (FIXED FACE MATCH)
+# FACULTY ACTION (FACE MATCH FIXED)
 # =================================================
 @gatepass_bp.route("/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -109,13 +109,11 @@ def faculty_action(gatepass_id):
         if not faculty.face_image:
             return jsonify({"success": False, "message": "Register face first"}), 400
 
-        # Save temp image
         os.makedirs("temp", exist_ok=True)
         live_path = f"temp/live_{gatepass.id}.jpg"
         live_image.save(live_path)
 
         try:
-            # ✅ FIX: both must be same type
             match = compare_faces(faculty.face_image, live_path)
 
             if not match:
@@ -125,7 +123,7 @@ def faculty_action(gatepass_id):
                 }), 403
 
         finally:
-            # ✅ DELETE TEMP FILE
+            # ✅ CLEANUP
             if os.path.exists(live_path):
                 os.remove(live_path)
 
