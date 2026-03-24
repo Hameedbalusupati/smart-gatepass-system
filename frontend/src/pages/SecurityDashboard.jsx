@@ -1,18 +1,25 @@
+import { useState } from "react";
 import API from "../api";
+import API_BASE_URL from "../config";
 
 export default function SecurityDashboard() {
+
+  const [data, setData] = useState(null);
+  const [message, setMessage] = useState("");
+
+  // ================= VERIFY QR =================
   const verifyQR = async (qrCode) => {
     try {
       const token = localStorage.getItem("access_token");
 
       if (!token) {
-        alert("Session expired. Please login again.");
+        setMessage("Session expired ❌");
         return;
       }
 
       const res = await API.post(
-        "/security/verify",
-        { qr: qrCode },
+        "/gatepass/verify_qr",   // ✅ CORRECT API
+        { qr_token: qrCode },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -20,20 +27,166 @@ export default function SecurityDashboard() {
         }
       );
 
-      alert(res.data.status || "QR verified");
+      if (!res.data.success) {
+        setMessage("Invalid QR ❌");
+        setData(null);
+        return;
+      }
+
+      setData(res.data);
+      setMessage("QR Verified ✅");
 
     } catch (err) {
-      alert(err.response?.data?.message || "QR verification failed");
+      setMessage(err.response?.data?.message || "Verification failed ❌");
+      setData(null);
     }
   };
 
-  return (
-    <div>
-      <h2>Security Dashboard</h2>
 
-      <button onClick={() => verifyQR("sample-qr")}>
-        Verify QR
-      </button>
+  // ================= CONFIRM EXIT =================
+  const confirmExit = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+
+      const res = await API.post(
+        `/gatepass/confirm_exit/${data.gatepass_id}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (res.data.success) {
+        setMessage("Exit Confirmed ✅");
+        setData(null);
+      }
+
+    } catch {
+      setMessage("Exit failed ❌");
+    }
+  };
+
+
+  return (
+    <div style={container}>
+
+      <div style={card}>
+
+        <h2 style={title}>Security Dashboard</h2>
+
+        {/* ================= BUTTON ================= */}
+        <button style={btn} onClick={() => verifyQR("sample-qr")}>
+          Scan QR
+        </button>
+
+        {message && <p style={msg}>{message}</p>}
+
+        {/* ================= RESULT ================= */}
+        {data && (
+          <div style={resultBox}>
+
+            <h3>Student Details</h3>
+
+            {/* ✅ IMAGE FIX */}
+            <img
+              src={`${API_BASE_URL}/uploads/student_images/${data.profile_image}`}
+              alt="student"
+              style={image}
+            />
+
+            <p><b>Name:</b> {data.student_name}</p>
+            <p><b>College ID:</b> {data.college_id}</p>
+            <p><b>Department:</b> {data.department}</p>
+            <p><b>Year:</b> {data.year}</p>
+            <p><b>Section:</b> {data.section}</p>
+
+            {/* ✅ PARENT MOBILE */}
+            <p>
+              <b>Parent Mobile:</b>{" "}
+              <a href={`tel:${data.parent_mobile}`} style={link}>
+                {data.parent_mobile}
+              </a>
+            </p>
+
+            <button style={exitBtn} onClick={confirmExit}>
+              Confirm Exit
+            </button>
+
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
+
+
+/////////////////////////////////////////////////////////////////
+// 🎨 STYLES
+/////////////////////////////////////////////////////////////////
+
+const container = {
+  minHeight: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "#0f172a",
+};
+
+const card = {
+  background: "#111827",
+  padding: "25px",
+  borderRadius: "10px",
+  color: "white",
+  width: "400px",
+  textAlign: "center",
+};
+
+const title = {
+  marginBottom: "15px",
+};
+
+const btn = {
+  padding: "10px",
+  background: "#22c55e",
+  border: "none",
+  borderRadius: "6px",
+  color: "white",
+  cursor: "pointer",
+  marginBottom: "10px",
+};
+
+const msg = {
+  marginTop: "10px",
+};
+
+const resultBox = {
+  marginTop: "15px",
+  padding: "15px",
+  background: "#020617",
+  borderRadius: "8px",
+};
+
+const image = {
+  width: "120px",
+  height: "120px",
+  borderRadius: "10px",
+  objectFit: "cover",
+  marginBottom: "10px",
+};
+
+const exitBtn = {
+  marginTop: "10px",
+  padding: "10px",
+  background: "#ef4444",
+  border: "none",
+  borderRadius: "6px",
+  color: "white",
+  cursor: "pointer",
+};
+
+const link = {
+  color: "#3b82f6",
+};
