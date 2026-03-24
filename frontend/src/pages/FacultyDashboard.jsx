@@ -1,28 +1,16 @@
-import { useEffect, useState, useRef } from "react";
-import "../index.css";
+import { useEffect, useState } from "react";
 import API_BASE_URL from "../config";
 
 export default function FacultyDashboard() {
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
-  const [showCamera, setShowCamera] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
-
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const streamRef = useRef(null);
 
   const token = localStorage.getItem("access_token");
 
   // ================= LOAD DATA =================
   const loadData = async () => {
     try {
-      if (!token) {
-        setError("Login required");
-        return;
-      }
-
       const headers = {
         Authorization: `Bearer ${token}`,
       };
@@ -41,6 +29,7 @@ export default function FacultyDashboard() {
 
       if (pRes.ok) setPending(pData.gatepasses || []);
       if (hRes.ok) setHistory(hData.gatepasses || []);
+
     } catch {
       setError("Server not reachable");
     }
@@ -48,79 +37,21 @@ export default function FacultyDashboard() {
 
   useEffect(() => {
     loadData();
-
-    // cleanup camera on unmount
-    return () => stopCamera();
   }, []);
 
-  // ================= STOP CAMERA =================
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-  };
-
-  // ================= OPEN CAMERA =================
-  const openCamera = async (id) => {
-    setSelectedId(id);
-    setShowCamera(true);
-
+  // ================= APPROVE =================
+  const approveGatepass = async (id) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-      });
-
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current.play();
-      };
-    } catch {
-      alert("Camera not supported. Use HTTPS or real device.");
-      setShowCamera(false);
-    }
-  };
-
-  // ================= CAPTURE & APPROVE =================
-  const captureAndApprove = async () => {
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-
-      if (!video || !canvas) {
-        alert("Camera error ❌");
-        return;
-      }
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0);
-
-      const blob = await new Promise((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg")
-      );
-
-      if (!blob) {
-        alert("Image capture failed ❌");
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("action", "approve");
-      formData.append("live_image", blob, "capture.jpg");
-
       const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${selectedId}`,
+        `${API_BASE_URL}/gatepass/faculty_action/${id}`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
           },
-          body: formData,
+          body: new URLSearchParams({
+            action: "approve",
+          }),
         }
       );
 
@@ -131,17 +62,11 @@ export default function FacultyDashboard() {
         return;
       }
 
-      alert("Approved successfully ✅");
+      alert("Approved ✅");
+      loadData();
 
-      // refresh data
-      await loadData();
-
-    } catch (err) {
-      console.error(err);
-      alert("Error ❌");
-    } finally {
-      stopCamera();
-      setShowCamera(false);
+    } catch {
+      alert("Server error");
     }
   };
 
@@ -172,7 +97,7 @@ export default function FacultyDashboard() {
         return;
       }
 
-      await loadData();
+      loadData();
 
     } catch {
       alert("Server error");
@@ -181,78 +106,127 @@ export default function FacultyDashboard() {
 
   // ================= UI =================
   return (
-    <div className="page">
-      <div className="container">
-        <h2 className="title">Faculty Dashboard</h2>
+    <div style={container}>
+      <div style={box}>
+        <h2 style={title}>Faculty Dashboard</h2>
 
-        {error && <p className="error">{error}</p>}
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {/* CAMERA */}
-        {showCamera && (
-          <div className="cameraBox">
-            <video ref={videoRef} autoPlay playsInline muted />
+        {/* ================= PENDING ================= */}
+        <h3 style={section}>Pending Gatepasses</h3>
 
-            <button className="approve" onClick={captureAndApprove}>
-              Capture & Approve
-            </button>
+        {pending.length === 0 ? (
+          <p style={info}>No pending requests</p>
+        ) : (
+          pending.map((p) => (
+            <div key={p.id} style={card}>
+              <p><b>Student:</b> {p.student_name}</p>
+              <p><b>Reason:</b> {p.reason}</p>
 
-            <button
-              className="reject"
-              onClick={() => {
-                stopCamera();
-                setShowCamera(false);
-              }}
-            >
-              Cancel
-            </button>
+              <div>
+                <button style={approveBtn} onClick={() => approveGatepass(p.id)}>
+                  Approve
+                </button>
 
-            <canvas ref={canvasRef} style={{ display: "none" }} />
-          </div>
-        )}
-
-        {/* PENDING */}
-        <h3 className="section">Pending Gatepasses</h3>
-
-        {pending.length === 0 && (
-          <p className="info">No pending requests</p>
-        )}
-
-        {pending.map((p) => (
-          <div key={p.id} className="card">
-            <p><b>Student:</b> {p.student_name}</p>
-            <p><b>Reason:</b> {p.reason}</p>
-
-            <div className="actions">
-              <button
-                className="approve"
-                onClick={() => openCamera(p.id)}
-              >
-                Approve
-              </button>
-
-              <button
-                className="reject"
-                onClick={() => rejectGatepass(p.id)}
-              >
-                Reject
-              </button>
+                <button style={rejectBtn} onClick={() => rejectGatepass(p.id)}>
+                  Reject
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
-
-        {/* HISTORY */}
-        <h3 className="section">History</h3>
-
-        {history.length === 0 && (
-          <p className="info">No history available</p>
+          ))
         )}
 
-        {history.map((p) => (
-          <div key={p.id} className="card">
-            <p>{p.student_name} - {p.status}</p>
-          </div>
-        ))}
+        {/* ================= HISTORY ================= */}
+        <h3 style={section}>History</h3>
+
+        {history.length === 0 ? (
+          <p style={info}>No history available</p>
+        ) : (
+          history.map((p) => (
+            <div key={p.id} style={historyCard}>
+              <p>
+                <b>{p.student_name}</b> -
+                <span style={{
+                  color:
+                    p.status === "Approved"
+                      ? "green"
+                      : p.status === "Rejected"
+                        ? "red"
+                        : "orange"
+                }}>
+                  {" "}{p.status}
+                </span>
+              </p>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
 }
+
+/////////////////////////////////////////////////////////////////
+// 🎨 STYLES (FIXED COLORS)
+/////////////////////////////////////////////////////////////////
+
+const container = {
+  minHeight: "100vh",
+  background: "#0f172a",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+const box = {
+  width: "500px",
+  background: "#ffffff",
+  padding: "20px",
+  borderRadius: "12px",
+  boxShadow: "0 0 15px rgba(0,0,0,0.2)",
+};
+
+const title = {
+  textAlign: "center",
+  color: "#111827",
+};
+
+const section = {
+  marginTop: "20px",
+  color: "#1f2937",
+};
+
+const card = {
+  background: "#f9fafb",
+  padding: "10px",
+  marginTop: "10px",
+  borderRadius: "8px",
+  border: "1px solid #e5e7eb",
+};
+
+const historyCard = {
+  background: "#eef2ff",
+  padding: "10px",
+  marginTop: "10px",
+  borderRadius: "8px",
+};
+
+const approveBtn = {
+  background: "#16a34a",
+  color: "white",
+  border: "none",
+  padding: "6px 12px",
+  marginRight: "10px",
+  cursor: "pointer",
+};
+
+const rejectBtn = {
+  background: "#dc2626",
+  color: "white",
+  border: "none",
+  padding: "6px 12px",
+  cursor: "pointer",
+};
+
+const info = {
+  color: "#6b7280",
+};
