@@ -16,34 +16,50 @@ export default function FacultyDashboard() {
   const token = localStorage.getItem("access_token");
 
   // ================= LOAD DATA =================
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const headers = {
-          Authorization: `Bearer ${token}`,
-        };
-
-        const pRes = await fetch(
-          `${API_BASE_URL}/faculty/gatepasses/pending`,
-          { headers }
-        );
-        const pData = await pRes.json();
-
-        const hRes = await fetch(
-          `${API_BASE_URL}/faculty/gatepasses/history`,
-          { headers }
-        );
-        const hData = await hRes.json();
-
-        if (pRes.ok) setPending(pData.gatepasses || []);
-        if (hRes.ok) setHistory(hData.gatepasses || []);
-      } catch {
-        setError("Server not reachable");
+  const loadData = async () => {
+    try {
+      if (!token) {
+        setError("Login required");
+        return;
       }
-    };
 
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const pRes = await fetch(
+        `${API_BASE_URL}/faculty/gatepasses/pending`,
+        { headers }
+      );
+      const pData = await pRes.json();
+
+      const hRes = await fetch(
+        `${API_BASE_URL}/faculty/gatepasses/history`,
+        { headers }
+      );
+      const hData = await hRes.json();
+
+      if (pRes.ok) setPending(pData.gatepasses || []);
+      if (hRes.ok) setHistory(hData.gatepasses || []);
+    } catch {
+      setError("Server not reachable");
+    }
+  };
+
+  useEffect(() => {
     loadData();
-  }, [token]);
+
+    // cleanup camera on unmount
+    return () => stopCamera();
+  }, []);
+
+  // ================= STOP CAMERA =================
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+  };
 
   // ================= OPEN CAMERA =================
   const openCamera = async (id) => {
@@ -62,31 +78,41 @@ export default function FacultyDashboard() {
         videoRef.current.play();
       };
     } catch {
-      alert("Camera not supported here. Use real device.");
+      alert("Camera not supported. Use HTTPS or real device.");
       setShowCamera(false);
     }
   };
 
   // ================= CAPTURE & APPROVE =================
   const captureAndApprove = async () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg")
-    );
-
-    const formData = new FormData();
-    formData.append("action", "approve");
-    formData.append("live_image", blob);
-
     try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (!video || !canvas) {
+        alert("Camera error ❌");
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+
+      const blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg")
+      );
+
+      if (!blob) {
+        alert("Image capture failed ❌");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("action", "approve");
+      formData.append("live_image", blob, "capture.jpg");
+
       const res = await fetch(
         `${API_BASE_URL}/gatepass/faculty_action/${selectedId}`,
         {
@@ -105,28 +131,18 @@ export default function FacultyDashboard() {
         return;
       }
 
-      const approved = pending.find((p) => p.id === selectedId);
-
-      if (approved) {
-        setHistory((prev) => [
-          { ...approved, status: "PendingHOD" },
-          ...prev,
-        ]);
-      }
-
-      setPending((prev) => prev.filter((p) => p.id !== selectedId));
-
       alert("Approved successfully ✅");
-    } catch {
+
+      // refresh data
+      await loadData();
+
+    } catch (err) {
+      console.error(err);
       alert("Error ❌");
+    } finally {
+      stopCamera();
+      setShowCamera(false);
     }
-
-    // stop camera
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-    }
-
-    setShowCamera(false);
   };
 
   // ================= REJECT =================
@@ -152,20 +168,12 @@ export default function FacultyDashboard() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.message);
+        alert(data.message || "Reject failed ❌");
         return;
       }
 
-      const rejected = pending.find((p) => p.id === id);
+      await loadData();
 
-      if (rejected) {
-        setHistory((prev) => [
-          { ...rejected, status: "Rejected" },
-          ...prev,
-        ]);
-      }
-
-      setPending((prev) => prev.filter((p) => p.id !== id));
     } catch {
       alert("Server error");
     }
@@ -188,6 +196,16 @@ export default function FacultyDashboard() {
               Capture & Approve
             </button>
 
+            <button
+              className="reject"
+              onClick={() => {
+                stopCamera();
+                setShowCamera(false);
+              }}
+            >
+              Cancel
+            </button>
+
             <canvas ref={canvasRef} style={{ display: "none" }} />
           </div>
         )}
@@ -201,12 +219,8 @@ export default function FacultyDashboard() {
 
         {pending.map((p) => (
           <div key={p.id} className="card">
-            <p>
-              <b>Student:</b> {p.student_name}
-            </p>
-            <p>
-              <b>Reason:</b> {p.reason}
-            </p>
+            <p><b>Student:</b> {p.student_name}</p>
+            <p><b>Reason:</b> {p.reason}</p>
 
             <div className="actions">
               <button
@@ -235,9 +249,7 @@ export default function FacultyDashboard() {
 
         {history.map((p) => (
           <div key={p.id} className="card">
-            <p>
-              {p.student_name} - {p.status}
-            </p>
+            <p>{p.student_name} - {p.status}</p>
           </div>
         ))}
       </div>

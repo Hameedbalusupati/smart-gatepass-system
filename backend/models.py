@@ -32,27 +32,24 @@ class User(db.Model):
 
     # ================= RELATIONSHIPS =================
 
-    # Student created gatepasses
     student_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="[GatePass.student_id]",   # ✅ FIXED (important)
+        foreign_keys="GatePass.student_id",
         backref="student",
         lazy=True,
         cascade="all, delete-orphan"
     )
 
-    # Faculty approved gatepasses
     faculty_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="[GatePass.faculty_id]",   # ✅ FIXED
+        foreign_keys="GatePass.faculty_id",
         backref="faculty",
         lazy=True
     )
 
-    # HOD approved gatepasses
     hod_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="[GatePass.hod_id]",       # ✅ FIXED
+        foreign_keys="GatePass.hod_id",
         backref="hod",
         lazy=True
     )
@@ -68,7 +65,6 @@ class User(db.Model):
         return f"<User {self.id} - {self.role}>"
 
 
-
 # =====================================================
 # GATEPASS MODEL
 # =====================================================
@@ -78,26 +74,9 @@ class GatePass(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # ================= FOREIGN KEYS =================
-    student_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=False,
-        index=True
-    )
-
-    faculty_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=True,
-        index=True
-    )
-
-    hod_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=True,
-        index=True
-    )
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    faculty_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    hod_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
 
     # ================= CORE DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
@@ -121,7 +100,6 @@ class GatePass(db.Model):
     # ================= QR =================
     qr_token = db.Column(db.Text, nullable=True)
 
-    # Prevent reuse
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 

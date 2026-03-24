@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import API_BASE_URL from "../config";
 
 export default function Register() {
-
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
@@ -20,18 +19,21 @@ export default function Register() {
     year: "",
     section: "",
     profile_image: null,
-    face_image: null
+    face_image: null,
   });
 
   // ================= HANDLE INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // ================= IMAGE HANDLER =================
   const handleImageChange = (e, type) => {
-
     const file = e.target.files[0];
     if (!file) return;
 
@@ -45,9 +47,9 @@ export default function Register() {
       return;
     }
 
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
-      [type]: file
+      [type]: file,
     }));
 
     setPreview(URL.createObjectURL(file));
@@ -55,7 +57,6 @@ export default function Register() {
 
   // ================= REGISTER =================
   const handleRegister = async (e) => {
-
     e.preventDefault();
     if (loading) return;
 
@@ -65,12 +66,12 @@ export default function Register() {
     const email = form.email.trim().toLowerCase();
 
     // ================= VALIDATION =================
-    if (!collegeId || !form.name || !form.password) {
-      setError("All required fields must be filled");
+    if (!collegeId || !form.name || !email || !form.password) {
+      setError("All fields are required");
       return;
     }
 
-    if (!email.includes("@pace.ac.in")) {
+    if (!email.endsWith("@pace.ac.in")) {
       setError("Email must be @pace.ac.in");
       return;
     }
@@ -88,7 +89,6 @@ export default function Register() {
     setLoading(true);
 
     try {
-
       const formData = new FormData();
 
       formData.append("college_id", collegeId);
@@ -109,24 +109,23 @@ export default function Register() {
         formData.append("section", form.section);
       }
 
-      // ✅ IMAGE FIX (IMPORTANT)
-      if (form.role === "student" && form.profile_image) {
+      // ================= IMAGE =================
+      if (form.role === "student") {
         formData.append("profile_image", form.profile_image);
       }
 
-      if (form.role === "faculty" && form.face_image) {
+      if (form.role === "faculty") {
         formData.append("face_image", form.face_image);
       }
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       const data = await res.json();
 
-      // ✅ DEBUG (VERY IMPORTANT)
-      console.log("RESPONSE:", data);
+      console.log("REGISTER RESPONSE:", data);
 
       if (!res.ok) {
         setError(data.message || "Registration failed");
@@ -156,10 +155,34 @@ export default function Register() {
 
         {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
-        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} />
-        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} />
-        <input style={input} name="email" placeholder="College Email" onChange={handleChange} />
-        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} />
+        <input
+          style={input}
+          name="college_id"
+          placeholder="College ID"
+          onChange={handleChange}
+        />
+
+        <input
+          style={input}
+          name="name"
+          placeholder="Full Name"
+          onChange={handleChange}
+        />
+
+        <input
+          style={input}
+          name="email"
+          placeholder="College Email"
+          onChange={handleChange}
+        />
+
+        <input
+          style={input}
+          type="password"
+          name="password"
+          placeholder="Password"
+          onChange={handleChange}
+        />
 
         <select style={input} name="role" onChange={handleChange}>
           <option value="student">Student</option>
@@ -173,6 +196,12 @@ export default function Register() {
             <option value="">Select Department</option>
             <option value="CSE">CSE</option>
             <option value="AIDS">AIDS</option>
+            <option value="AIML">AIML</option>
+            <option value="CE">CE</option>
+            <option value="ME">ME</option>
+            <option value="CSIT">CSIT</option>
+            <option value="IOT">IOT</option>
+            <option value="IT">IT</option>
           </select>
         )}
 
@@ -197,16 +226,28 @@ export default function Register() {
 
         {/* STUDENT IMAGE */}
         {form.role === "student" && (
-          <input type="file" onChange={(e) => handleImageChange(e, "profile_image")} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleImageChange(e, "profile_image")}
+          />
         )}
 
         {/* FACULTY IMAGE */}
         {form.role === "faculty" && (
-          <input type="file" onChange={(e) => handleImageChange(e, "face_image")} />
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => handleImageChange(e, "face_image")}
+          />
         )}
 
         {preview && (
-          <img src={preview} alt="Preview" style={{ width: "100px" }} />
+          <img
+            src={preview}
+            alt="Preview"
+            style={{ width: "100px", marginTop: "10px" }}
+          />
         )}
 
         <button style={btn} disabled={loading}>
@@ -224,25 +265,25 @@ const container = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  background: "#0f172a"
+  background: "#0f172a",
 };
 
 const box = {
   width: "400px",
   background: "#020617",
   padding: "20px",
-  borderRadius: "10px"
+  borderRadius: "10px",
 };
 
 const title = {
   color: "white",
-  textAlign: "center"
+  textAlign: "center",
 };
 
 const input = {
   width: "100%",
   padding: "10px",
-  marginBottom: "10px"
+  marginBottom: "10px",
 };
 
 const btn = {
@@ -250,5 +291,6 @@ const btn = {
   padding: "10px",
   background: "#2563eb",
   color: "white",
-  border: "none"
+  border: "none",
+  cursor: "pointer",
 };
