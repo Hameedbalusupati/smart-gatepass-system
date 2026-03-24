@@ -15,11 +15,9 @@ auth_bp = Blueprint("auth_bp", __name__)
 # ================================
 STUDENT_FOLDER = "uploads/student_images"
 FACULTY_FOLDER = "uploads/faculty_faces"
-LOGIN_FOLDER = "uploads/login_faces"   # 👈 NEW
 
 os.makedirs(STUDENT_FOLDER, exist_ok=True)
 os.makedirs(FACULTY_FOLDER, exist_ok=True)
-os.makedirs(LOGIN_FOLDER, exist_ok=True)  # 👈 NEW
 
 
 # =================================================
@@ -155,7 +153,7 @@ def register():
             year=year,
             section=section,
             profile_image=profile_path,
-            face_image=face_path
+            face_image=face_path   # ✅ IMPORTANT
         )
 
         db.session.add(user)
@@ -178,18 +176,16 @@ def register():
 
 
 # =================================================
-# LOGIN (UPDATED)
+# LOGIN
 # =================================================
 @auth_bp.route("/login", methods=["POST"])
 def login():
 
     try:
-        # =========================
-        # ACCEPT FORM DATA (IMPORTANT)
-        # =========================
-        email = (request.form.get("email") or "").strip()
-        password = request.form.get("password")
-        login_image = request.files.get("image")  # 👈 NEW
+        data = request.get_json()
+
+        email = (data.get("email") or "").strip()
+        password = data.get("password")
 
         if not email or not password:
             return jsonify({
@@ -201,19 +197,6 @@ def login():
         if not user or not check_password_hash(user.password, password):
             return jsonify({"message": "Invalid credentials"}), 401
 
-        # =========================
-        # SAVE LOGIN IMAGE (FACULTY ONLY)
-        # =========================
-        if user.role == "faculty" and login_image:
-
-            filename = secure_filename(f"login_{user.college_id}.jpg")
-            login_path = os.path.join(LOGIN_FOLDER, filename)
-
-            login_image.save(login_path)
-
-        # =========================
-        # TOKEN GENERATION
-        # =========================
         token = create_access_token(identity=str(user.id))
 
         return jsonify({
