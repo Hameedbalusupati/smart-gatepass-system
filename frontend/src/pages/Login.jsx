@@ -16,20 +16,41 @@ export default function Login() {
   const canvasRef = useRef(null);
 
   // =========================
-  // START CAMERA (MANUAL)
+  // START CAMERA (FIXED)
   // =========================
   const startCamera = async () => {
+    setError("");
+
     try {
+      // ✅ Stop old stream
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { facingMode: "user" }
       });
 
       videoRef.current.srcObject = mediaStream;
+
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current.play();
+      };
+
       setStream(mediaStream);
       setCameraOn(true);
+
     } catch (err) {
-      console.error(err);
-      setError("Camera access denied. Please allow camera.");
+      console.error("Camera error:", err);
+
+      if (err.name === "NotAllowedError") {
+        setError("Please allow camera permission.");
+      } else if (err.name === "NotReadableError") {
+        setError("Camera is already in use.");
+      } else {
+        setError("Unable to access camera.");
+      }
     }
   };
 
@@ -38,7 +59,7 @@ export default function Login() {
   // =========================
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+      stream.getTracks().forEach(track => track.stop());
     }
     setCameraOn(false);
   };
@@ -53,13 +74,12 @@ export default function Login() {
     try {
       let blob = null;
 
-      // Capture image only if camera is ON
       if (cameraOn && videoRef.current) {
         const video = videoRef.current;
         const canvas = canvasRef.current;
 
         if (video.videoWidth === 0) {
-          setError("Camera not ready. Try again.");
+          setError("Camera not ready.");
           return;
         }
 
@@ -69,7 +89,7 @@ export default function Login() {
         const ctx = canvas.getContext("2d");
         ctx.drawImage(video, 0, 0);
 
-        blob = await new Promise((resolve) =>
+        blob = await new Promise(resolve =>
           canvas.toBlob(resolve, "image/jpeg")
         );
       }
@@ -78,7 +98,6 @@ export default function Login() {
       formData.append("email", email.toLowerCase());
       formData.append("password", password);
 
-      // Send image only if available
       if (blob) {
         formData.append("image", blob, "login.jpg");
       }
@@ -89,12 +108,13 @@ export default function Login() {
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("role", data.role);
 
-      stopCamera(); // ✅ stop camera after login
+      stopCamera();
 
       navigate(`/${data.role}`);
+
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Cannot reach server");
+      setError(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -107,19 +127,22 @@ export default function Login() {
 
         {/* CAMERA SECTION */}
         {!cameraOn ? (
-          <button onClick={startCamera}>Enable Camera</button>
+          <button onClick={startCamera}>
+            Enable Camera
+          </button>
         ) : (
           <>
             <video
               ref={videoRef}
               autoPlay
               playsInline
+              muted   // ✅ IMPORTANT FIX
               style={{
                 width: "100%",
                 borderRadius: "10px",
                 marginBottom: "10px",
               }}
-            ></video>
+            />
 
             <button onClick={stopCamera}>Close Camera</button>
           </>
