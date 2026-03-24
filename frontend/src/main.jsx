@@ -1,12 +1,13 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App.jsx";
-import "./App.css";     // ✅ ADD THIS LINE
-import "./index.css";   // (keep if you want global styles)
+import "./App.css";
+import "./index.css";
 
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);  
+const rootElement = document.getElementById("root");
+
+if (rootElement) {
+  createRoot(rootElement).render(
+    <App />   // ✅ StrictMode REMOVED
+  );
+}
