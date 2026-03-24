@@ -8,8 +8,39 @@ export default function FacultyDashboard() {
 
   const token = localStorage.getItem("access_token");
 
-  // ================= LOAD DATA =================
-  const loadData = async () => {
+  // ================= LOAD DATA (FIXED) =================
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const headers = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const pRes = await fetch(
+          `${API_BASE_URL}/faculty/gatepasses/pending`,
+          { headers }
+        );
+        const pData = await pRes.json();
+
+        const hRes = await fetch(
+          `${API_BASE_URL}/faculty/gatepasses/history`,
+          { headers }
+        );
+        const hData = await hRes.json();
+
+        if (pRes.ok) setPending(pData.gatepasses || []);
+        if (hRes.ok) setHistory(hData.gatepasses || []);
+
+      } catch {
+        setError("Server not reachable");
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  // ================= REFRESH =================
+  const refresh = async () => {
     try {
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -35,15 +66,11 @@ export default function FacultyDashboard() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // ================= APPROVE =================
+  // ================= APPROVE (FIXED URL) =================
   const approveGatepass = async (id) => {
     try {
       const res = await fetch(
-        `${API_BASE_URL}/faculty/gatepass/faculty_action/${id}`, // ✅ FIXED URL
+        `${API_BASE_URL}/gatepass/faculty_action/${id}`, // ✅ CORRECT
         {
           method: "POST",
           headers: {
@@ -63,21 +90,21 @@ export default function FacultyDashboard() {
       }
 
       alert("Approved ✅");
-      loadData();
+      refresh();
 
     } catch {
       alert("Server error");
     }
   };
 
-  // ================= REJECT =================
+  // ================= REJECT (FIXED URL) =================
   const rejectGatepass = async (id) => {
     const reason = prompt("Enter rejection reason:");
     if (!reason) return;
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/faculty/gatepass/faculty_action/${id}`, // ✅ FIXED URL
+        `${API_BASE_URL}/gatepass/faculty_action/${id}`, // ✅ CORRECT
         {
           method: "POST",
           headers: {
@@ -97,7 +124,7 @@ export default function FacultyDashboard() {
         return;
       }
 
-      loadData();
+      refresh();
 
     } catch {
       alert("Server error");
@@ -112,7 +139,6 @@ export default function FacultyDashboard() {
 
         {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {/* ================= PENDING ================= */}
         <h3 style={section}>Pending Gatepasses</h3>
 
         {pending.length === 0 ? (
@@ -136,7 +162,6 @@ export default function FacultyDashboard() {
           ))
         )}
 
-        {/* ================= HISTORY ================= */}
         <h3 style={section}>History</h3>
 
         {history.length === 0 ? (
@@ -151,8 +176,8 @@ export default function FacultyDashboard() {
                     p.status === "Approved"
                       ? "green"
                       : p.status === "Rejected"
-                        ? "red"
-                        : "orange"
+                      ? "red"
+                      : "orange"
                 }}>
                   {" "}{p.status}
                 </span>
