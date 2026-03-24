@@ -12,26 +12,22 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # Basic Info
+    # ================= BASIC INFO =================
     college_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    password = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password = db.Column(db.String(255), nullable=False)
 
     # Roles → student | faculty | hod | security
     role = db.Column(db.String(20), nullable=False, index=True)
 
-    # Academic Details
-    department = db.Column(db.String(20), nullable=True, index=True)
+    # ================= ACADEMIC =================
+    department = db.Column(db.String(50), nullable=True, index=True)
     year = db.Column(db.Integer, nullable=True)
-    section = db.Column(db.String(5), nullable=True)
+    section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGES =================
-
-    # Student profile image
     profile_image = db.Column(db.String(255), nullable=True)
-
-    # ✅ NEW: Faculty face image (for face verification)
     face_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
@@ -39,7 +35,7 @@ class User(db.Model):
     # Student created gatepasses
     student_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="GatePass.student_id",
+        foreign_keys="[GatePass.student_id]",   # ✅ FIXED (important)
         backref="student",
         lazy=True,
         cascade="all, delete-orphan"
@@ -48,7 +44,7 @@ class User(db.Model):
     # Faculty approved gatepasses
     faculty_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="GatePass.faculty_id",
+        foreign_keys="[GatePass.faculty_id]",   # ✅ FIXED
         backref="faculty",
         lazy=True
     )
@@ -56,13 +52,21 @@ class User(db.Model):
     # HOD approved gatepasses
     hod_gatepasses = db.relationship(
         "GatePass",
-        foreign_keys="GatePass.hod_id",
+        foreign_keys="[GatePass.hod_id]",       # ✅ FIXED
         backref="hod",
         lazy=True
     )
 
+    # ================= TIMESTAMP =================
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
     def __repr__(self):
-        return f"<User {self.id} {self.role}>"
+        return f"<User {self.id} - {self.role}>"
+
 
 
 # =====================================================
@@ -73,8 +77,7 @@ class GatePass(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # ================= USERS (FOREIGN KEYS) =================
-
+    # ================= FOREIGN KEYS =================
     student_id = db.Column(
         db.Integer,
         db.ForeignKey("users.id"),
@@ -97,11 +100,9 @@ class GatePass(db.Model):
     )
 
     # ================= CORE DETAILS =================
-
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
 
-    # Status Flow
     status = db.Column(
         db.String(30),
         default="PendingFaculty",
@@ -109,31 +110,26 @@ class GatePass(db.Model):
         index=True
     )
 
-    # ================= APPROVAL TRACKING =================
-
+    # ================= APPROVAL =================
     faculty_approved_at = db.Column(db.DateTime, nullable=True)
     hod_approved_at = db.Column(db.DateTime, nullable=True)
 
-    # ================= REJECTION TRACKING =================
-
+    # ================= REJECTION =================
     rejected_by = db.Column(db.String(50), nullable=True)
     rejection_reason = db.Column(db.String(255), nullable=True)
 
-    # ================= QR SYSTEM =================
-
+    # ================= QR =================
     qr_token = db.Column(db.Text, nullable=True)
 
-    # Prevent QR reuse
+    # Prevent reuse
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
-    # ================= IN / OUT TRACKING =================
-
+    # ================= IN / OUT =================
     out_time = db.Column(db.DateTime, nullable=True)
     in_time = db.Column(db.DateTime, nullable=True)
 
-    # ================= CREATED TIME =================
-
+    # ================= TIMESTAMP =================
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,

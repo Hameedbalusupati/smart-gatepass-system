@@ -31,7 +31,6 @@ export default function Register() {
 
   // ================= IMAGE HANDLER =================
   const handleImageChange = (e, type) => {
-
     const file = e.target.files[0];
     if (!file) return;
 
@@ -97,35 +96,35 @@ export default function Register() {
       formData.append("password", form.password);
       formData.append("role", form.role);
 
-      if (form.department) {
-        formData.append("department", form.department);
-      }
+      if (form.department) formData.append("department", form.department);
+      if (form.year) formData.append("year", form.year);
+      if (form.section) formData.append("section", form.section);
 
-      if (form.year) {
-        formData.append("year", form.year);
-      }
-
-      if (form.section) {
-        formData.append("section", form.section);
-      }
-
-      // ✅ IMAGE FIX (IMPORTANT)
-      if (form.role === "student" && form.profile_image) {
+      if (form.role === "student") {
         formData.append("profile_image", form.profile_image);
       }
 
-      if (form.role === "faculty" && form.face_image) {
+      if (form.role === "faculty") {
         formData.append("face_image", form.face_image);
       }
 
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+      // ✅ FIXED URL
+      const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         body: formData
       });
 
-      const data = await res.json();
+      let data;
 
-      // ✅ DEBUG (VERY IMPORTANT)
+      try {
+        data = await res.json();
+      } catch {
+        const text = await res.text();
+        console.error("SERVER ERROR:", text);
+        setError("Server crashed (non-JSON response)");
+        return;
+      }
+
       console.log("RESPONSE:", data);
 
       if (!res.ok) {
@@ -156,10 +155,10 @@ export default function Register() {
 
         {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
-        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} />
-        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} />
-        <input style={input} name="email" placeholder="College Email" onChange={handleChange} />
-        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} />
+        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} required />
+        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} required />
+        <input style={input} name="email" placeholder="College Email" onChange={handleChange} required />
+        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} required />
 
         <select style={input} name="role" onChange={handleChange}>
           <option value="student">Student</option>
@@ -195,12 +194,10 @@ export default function Register() {
           </>
         )}
 
-        {/* STUDENT IMAGE */}
         {form.role === "student" && (
           <input type="file" onChange={(e) => handleImageChange(e, "profile_image")} />
         )}
 
-        {/* FACULTY IMAGE */}
         {form.role === "faculty" && (
           <input type="file" onChange={(e) => handleImageChange(e, "face_image")} />
         )}

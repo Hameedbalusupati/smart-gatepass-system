@@ -6,7 +6,7 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from models import db
 
-# ✅ IMPORT WITHOUT "backend." (IMPORTANT FIX)
+# ✅ FIXED IMPORTS (important)
 from routes.auth_routes import auth_bp
 from routes.gatepass_routes import gatepass_bp
 from routes.student_routes import student_bp
@@ -21,16 +21,21 @@ def create_app():
     app.config.from_object(Config)
 
     # ==============================
-    # CREATE FOLDERS
+    # FOLDERS
     # ==============================
-    os.makedirs("uploads/student_images", exist_ok=True)
-    os.makedirs("uploads/faculty_faces", exist_ok=True)
-    os.makedirs("temp", exist_ok=True)
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    STUDENT_FOLDER = os.path.join(BASE_DIR, "uploads/student_images")
+    FACULTY_FOLDER = os.path.join(BASE_DIR, "uploads/faculty_faces")
+
+    os.makedirs(STUDENT_FOLDER, exist_ok=True)
+    os.makedirs(FACULTY_FOLDER, exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "temp"), exist_ok=True)
 
     # ==============================
-    # CORS
+    # CORS (IMPORTANT FIX)
     # ==============================
-    CORS(app, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
     # ==============================
     # INIT DB & JWT
@@ -49,7 +54,7 @@ def create_app():
             print("❌ Database Error:", e)
 
     # ==============================
-    # REGISTER ROUTES
+    # REGISTER ROUTES (IMPORTANT)
     # ==============================
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
@@ -64,11 +69,11 @@ def create_app():
     # ==============================
     @app.route("/uploads/student_images/<filename>")
     def student_image(filename):
-        return send_from_directory("uploads/student_images", filename)
+        return send_from_directory(STUDENT_FOLDER, filename)
 
     @app.route("/uploads/faculty_faces/<filename>")
     def faculty_face(filename):
-        return send_from_directory("uploads/faculty_faces", filename)
+        return send_from_directory(FACULTY_FOLDER, filename)
 
     # ==============================
     # HEALTH CHECK
@@ -76,7 +81,7 @@ def create_app():
     @app.route("/")
     def health():
         return jsonify({
-            "status": "Smart Gatepass Backend Running",
+            "status": "Backend Running ✅",
             "database": "Connected",
             "jwt": "Active"
         }), 200
@@ -85,14 +90,10 @@ def create_app():
 
 
 # ==============================
-# ENTRY POINT (RENDER)
+# ENTRY POINT
 # ==============================
 app = create_app()
 
-
-# ==============================
-# LOCAL RUN
-# ==============================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True, host="0.0.0.0", port=port)
