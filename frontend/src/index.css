@@ -1,52 +1,148 @@
-body {
-  font-family: Arial;
-  background: #111;
-  color: white;
-}
-
+/* =========================
+   PAGE
+========================= */
 .page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f172a, #020617);
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 20px;
 }
 
+/* =========================
+   CONTAINER
+========================= */
+.container {
+  width: 100%;
+  max-width: 900px;
+  background: #111827;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* =========================
+   TITLES
+========================= */
+.title {
+  text-align: center;
+  color: #f8fafc;
+  margin-bottom: 10px;
+}
+
+.section {
+  margin-top: 20px;
+  color: #e2e8f0;
+}
+
+/* =========================
+   ERROR / INFO
+========================= */
+.error {
+  color: #ef4444;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.info {
+  text-align: center;
+  color: #94a3b8;
+}
+
+/* =========================
+   CARD
+========================= */
 .card {
-  background: #222;
+  background: #020617;
   padding: 15px;
-  margin: 10px 0;
-  border-radius: 8px;
+  margin-top: 12px;
+  border-radius: 12px;
+  border: 1px solid #1e293b;
+  transition: 0.3s;
 }
 
-button {
-  margin-right: 10px;
-  padding: 6px 12px;
-  cursor: pointer;
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
-button.danger {
-  background: red;
-  color: white;
-}
-
-.approved {
-  color: lightgreen;
-}
-
-.rejected {
-  color: red;
-}
-
-.pending {
-  color: orange;
-}
-
-.navbar {
+/* =========================
+   ACTION BUTTONS
+========================= */
+.actions {
+  margin-top: 10px;
   display: flex;
-  justify-content: space-between;
-  padding: 10px 20px;
-  background: #000;
+  gap: 10px;
 }
 
-.bell span {
-  background: red;
-  padding: 2px 6px;
-  border-radius: 50%;
-}  
+.approve {
+  background: #22c55e;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.approve:hover {
+  background: #16a34a;
+}
+
+.reject {
+  background: #ef4444;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.reject:hover {
+  background: #dc2626;
+}
+
+/* =========================
+   CAMERA BOX
+========================= */
+.cameraBox {
+  margin-bottom: 20px;
+  border: 2px solid #334155;
+  padding: 12px;
+  border-radius: 12px;
+  background: #020617;
+}
+
+.cameraBox video {
+  border-radius: 10px;
+}
+
+/* =========================
+   BUTTON GENERAL
+========================= */
+button {
+  outline: none;
+}
+
+/* =========================
+   MOBILE RESPONSIVE
+========================= */
+@media (max-width: 600px) {
+  .container {
+    padding: 15px;
+  }
+
+  .card {
+    font-size: 14px;
+  }
+
+  .approve,
+  .reject {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+}
