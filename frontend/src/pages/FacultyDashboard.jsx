@@ -1,160 +1,107 @@
 import { useEffect, useState } from "react";
-import API_BASE_URL from "../config";
+import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 export default function FacultyDashboard() {
+  const navigate = useNavigate();
 
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("access_token");
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
   // ================= LOAD DATA =================
-  useEffect(() => {
-
-    const fetchData = async () => {
-      try {
-        const headers = {
-          Authorization: `Bearer ${token}`
-        };
-
-        // Pending
-        const pRes = await fetch(
-          `${API_BASE_URL}/faculty/gatepasses/pending`,
-          { headers }
-        );
-        const pData = await pRes.json();
-
-        // History
-        const hRes = await fetch(
-          `${API_BASE_URL}/faculty/gatepasses/history`,
-          { headers }
-        );
-        const hData = await hRes.json();
-
-        if (pRes.ok) setPending(pData.gatepasses || []);
-        if (hRes.ok) setHistory(hData.gatepasses || []);
-
-      } catch {
-        setError("Server not reachable");
-      }
-    };
-
-    fetchData();
-
-  }, [token]);
-
-
-  // ================= REFRESH =================
-  const refresh = async () => {
+  const fetchData = async () => {
     try {
-      const headers = {
-        Authorization: `Bearer ${token}`
-      };
+      setLoading(true);
 
-      const pRes = await fetch(
-        `${API_BASE_URL}/faculty/gatepasses/pending`,
-        { headers }
-      );
-      const pData = await pRes.json();
+      const pRes = await API.get("/faculty/gatepasses/pending");
+      const hRes = await API.get("/faculty/gatepasses/history");
 
-      const hRes = await fetch(
-        `${API_BASE_URL}/faculty/gatepasses/history`,
-        { headers }
-      );
-      const hData = await hRes.json();
+      setPending(pRes.data.gatepasses || []);
+      setHistory(hRes.data.gatepasses || []);
 
-      if (pRes.ok) setPending(pData.gatepasses || []);
-      if (hRes.ok) setHistory(hData.gatepasses || []);
-
-    } catch {
+    } catch (err) {
+      console.error(err);
       setError("Server not reachable");
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    fetchData();
+  }, []);
 
   // ================= APPROVE =================
   const approveGatepass = async (id) => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`,   // ✅ correct
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: new URLSearchParams({
-            action: "approve"
-          })
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Approval failed ❌");
-        return;
-      }
+      await API.post(`/gatepass/faculty_action/${id}`, {
+        action: "approve"
+      });
 
       alert("Approved ✅");
-      refresh();
+      fetchData();
 
-    } catch {
-      alert("Server error");
+    } catch (err) {
+      alert(err.response?.data?.message || "Approval failed ❌");
     }
   };
 
-
   // ================= REJECT =================
   const rejectGatepass = async (id) => {
-
     const reason = prompt("Enter rejection reason");
     if (!reason) return;
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/gatepass/faculty_action/${id}`,   // ✅ correct
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: new URLSearchParams({
-            action: "reject",
-            rejection_reason: reason
-          })
-        }
-      );
+      await API.post(`/gatepass/faculty_action/${id}`, {
+        action: "reject",
+        rejection_reason: reason
+      });
 
-      const data = await res.json();
+      alert("Rejected ❌");
+      fetchData();
 
-      if (!res.ok) {
-        alert(data.message || "Reject failed ❌");
-        return;
-      }
-
-      refresh();
-
-    } catch {
-      alert("Server error");
+    } catch (err) {
+      alert(err.response?.data?.message || "Reject failed ❌");
     }
   };
 
+  const logout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
   // ================= UI =================
   return (
     <div style={container}>
-
       <div style={box}>
 
         <h2 style={title}>Faculty Dashboard</h2>
+
+        {/* 🔥 NAVIGATION BUTTONS */}
+        <div style={topButtons}>
+          <button onClick={fetchData} style={navBtn}>Refresh</button>
+          <button onClick={logout} style={logoutBtn}>Logout</button>
+        </div>
 
         {error && <p style={{ color: "red" }}>{error}</p>}
 
         {/* ================= PENDING ================= */}
         <h3 style={section}>Pending Gatepasses</h3>
 
-        {pending.length === 0 ? (
+        {loading ? (
+          <p>Loading...</p>
+        ) : pending.length === 0 ? (
           <p style={info}>No pending requests</p>
         ) : (
           pending.map((p) => (
@@ -163,20 +110,24 @@ export default function FacultyDashboard() {
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
 
-              {/* ✅ NEW FIELD */}
+              {/* ✅ FIXED MOBILE */}
               <p>
                 <b>Parent Mobile:</b>{" "}
-                <a href={`tel:${p.parent_mobile}`} style={{ color: "#2563eb" }}>
-                  {p.parent_mobile}
-                </a>
+                {p.parent_mobile || p.parentMobile || "N/A"}
               </p>
 
-              <div>
-                <button style={approveBtn} onClick={() => approveGatepass(p.id)}>
+              <div style={{ marginTop: "10px" }}>
+                <button
+                  style={approveBtn}
+                  onClick={() => approveGatepass(p.id)}
+                >
                   Approve
                 </button>
 
-                <button style={rejectBtn} onClick={() => rejectGatepass(p.id)}>
+                <button
+                  style={rejectBtn}
+                  onClick={() => rejectGatepass(p.id)}
+                >
                   Reject
                 </button>
               </div>
@@ -196,24 +147,24 @@ export default function FacultyDashboard() {
 
               <p><b>{p.student_name}</b></p>
 
-              {/* ✅ NEW FIELD */}
+              {/* ✅ FIXED MOBILE */}
               <p>
                 <b>Parent Mobile:</b>{" "}
-                <a href={`tel:${p.parent_mobile}`} style={{ color: "#2563eb" }}>
-                  {p.parent_mobile}
-                </a>
+                {p.parent_mobile || p.parentMobile || "N/A"}
               </p>
 
               <p>
                 Status:{" "}
-                <span style={{
-                  color:
-                    p.status === "Approved"
-                      ? "green"
-                      : p.status === "Rejected"
-                      ? "red"
-                      : "orange"
-                }}>
+                <span
+                  style={{
+                    color:
+                      p.status === "Approved"
+                        ? "green"
+                        : p.status === "Rejected"
+                        ? "red"
+                        : "orange"
+                  }}
+                >
                   {p.status}
                 </span>
               </p>
@@ -226,7 +177,6 @@ export default function FacultyDashboard() {
     </div>
   );
 }
-
 
 /////////////////////////////////////////////////////////////////
 // 🎨 STYLES
@@ -290,4 +240,28 @@ const rejectBtn = {
 
 const info = {
   color: "#6b7280"
+};
+
+const topButtons = {
+  display: "flex",
+  justifyContent: "space-between",
+  marginBottom: "10px"
+};
+
+const navBtn = {
+  padding: "6px 10px",
+  background: "#3b82f6",
+  color: "white",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer"
+};
+
+const logoutBtn = {
+  padding: "6px 10px",
+  background: "#ef4444",
+  color: "white",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer"
 };
