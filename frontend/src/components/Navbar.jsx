@@ -21,10 +21,16 @@ export default function Navbar() {
   useEffect(() => {
     loadUser();
 
-    // 🔥 IMPORTANT: listen for changes (login/logout)
-    window.addEventListener("storage", loadUser);
+    // 🔥 Custom event (login/logout update)
+    const handleAuthChange = () => {
+      loadUser();
+    };
 
-    return () => window.removeEventListener("storage", loadUser);
+    window.addEventListener("authChanged", handleAuthChange);
+
+    return () => {
+      window.removeEventListener("authChanged", handleAuthChange);
+    };
   }, []);
 
   // ================= FETCH NOTIFICATIONS =================
@@ -35,7 +41,7 @@ export default function Navbar() {
       try {
         const res = await fetch(`${API_BASE_URL}/notifications/${email}`, {
           headers: {
-            Authorization: `Bearer ${token}`, // ✅ FIX
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -55,12 +61,11 @@ export default function Navbar() {
   // ================= LOGOUT =================
   const logout = () => {
     localStorage.clear();
-    setToken(null);
-    setRole(null);
-    setEmail(null);
 
-    // 🔥 FORCE UI UPDATE
-    window.location.href = "/login";
+    // 🔥 trigger update
+    window.dispatchEvent(new Event("authChanged"));
+
+    navigate("/login");
   };
 
   return (
@@ -72,6 +77,7 @@ export default function Navbar() {
       <div style={styles.links}>
         <Link style={styles.link} to="/">Home</Link>
 
+        {/* ===== NOT LOGGED IN ===== */}
         {!token && (
           <>
             <Link style={styles.link} to="/login">Login</Link>
@@ -79,6 +85,7 @@ export default function Navbar() {
           </>
         )}
 
+        {/* ===== STUDENT ===== */}
         {token && role === "student" && (
           <>
             <Link style={styles.link} to="/student">Dashboard</Link>
@@ -86,18 +93,22 @@ export default function Navbar() {
           </>
         )}
 
+        {/* ===== FACULTY ===== */}
         {token && role === "faculty" && (
           <Link style={styles.link} to="/faculty">Faculty</Link>
         )}
 
+        {/* ===== HOD ===== */}
         {token && role === "hod" && (
           <Link style={styles.link} to="/hod">HOD</Link>
         )}
 
+        {/* ===== SECURITY ===== */}
         {token && role === "security" && (
           <Link style={styles.link} to="/security">Security</Link>
         )}
 
+        {/* ===== NOTIFICATIONS ===== */}
         {token && (
           <Link to="/notifications" style={styles.notificationIcon}>
             🔔
@@ -107,6 +118,7 @@ export default function Navbar() {
           </Link>
         )}
 
+        {/* ===== LOGOUT ===== */}
         {token && (
           <button onClick={logout} style={styles.logoutBtn}>
             Logout
@@ -127,20 +139,40 @@ const styles = {
     padding: "15px 30px",
     backgroundColor: "#1e293b",
     color: "white",
-    position: "sticky",   // ✅ FIX
+    position: "sticky",
     top: 0,
     zIndex: 1000,
   },
-  logoLink: { textDecoration: "none", color: "white" },
-  logo: { margin: 0, cursor: "pointer" },
-  links: { display: "flex", gap: "18px", alignItems: "center" },
-  link: { color: "white", textDecoration: "none", fontWeight: "500" },
+
+  logoLink: {
+    textDecoration: "none",
+    color: "white",
+  },
+
+  logo: {
+    margin: 0,
+    cursor: "pointer",
+  },
+
+  links: {
+    display: "flex",
+    gap: "18px",
+    alignItems: "center",
+  },
+
+  link: {
+    color: "white",
+    textDecoration: "none",
+    fontWeight: "500",
+  },
+
   notificationIcon: {
     position: "relative",
     fontSize: "18px",
     textDecoration: "none",
     color: "white",
   },
+
   badge: {
     position: "absolute",
     top: "-8px",
@@ -151,6 +183,7 @@ const styles = {
     padding: "2px 6px",
     borderRadius: "50%",
   },
+
   logoutBtn: {
     background: "#ef4444",
     color: "white",
