@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import API from "../api";
 
 export default function HodDashboard() {
-
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -12,6 +11,7 @@ export default function HodDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError("");
 
       const pRes = await API.get("/hod/gatepasses/pending");
       const hRes = await API.get("/hod/gatepasses/history");
@@ -21,7 +21,7 @@ export default function HodDashboard() {
 
     } catch (err) {
       console.error(err);
-      setError("Server not reachable");
+      setError("Server not reachable ❌");
     } finally {
       setLoading(false);
     }
@@ -34,12 +34,8 @@ export default function HodDashboard() {
   // ================= APPROVE =================
   const handleApprove = async (id) => {
     try {
-      await API.post(`/gatepass/hod_action/${id}`, {
-        action: "approve"
-      });
-
-      fetchData(); // 🔥 refresh UI
-
+      await API.put(`/hod/gatepasses/approve/${id}`);
+      fetchData();
     } catch (err) {
       alert(err.response?.data?.message || "Approval failed");
     }
@@ -47,18 +43,14 @@ export default function HodDashboard() {
 
   // ================= REJECT =================
   const handleReject = async (id) => {
-
     const reason = prompt("Enter rejection reason");
     if (!reason) return;
 
     try {
-      await API.post(`/gatepass/hod_action/${id}`, {
-        action: "reject",
-        rejection_reason: reason
+      await API.put(`/hod/gatepasses/reject/${id}`, {
+        rejection_reason: reason,
       });
-
-      fetchData(); // 🔥 refresh UI
-
+      fetchData();
     } catch (err) {
       alert(err.response?.data?.message || "Reject failed");
     }
@@ -66,7 +58,6 @@ export default function HodDashboard() {
 
   return (
     <div style={styles.page}>
-
       <div style={styles.container}>
 
         <h2 style={styles.title}>HOD Dashboard</h2>
@@ -75,24 +66,29 @@ export default function HodDashboard() {
           {loading ? "Loading..." : "Refresh"}
         </button>
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        {error && <p style={styles.error}>{error}</p>}
 
         {/* ================= PENDING ================= */}
         <h3>Pending Requests</h3>
 
         {pending.length === 0 && <p>No pending requests</p>}
 
-        {pending.map(item => (
+        {pending.map((item) => (
           <div key={item.id} style={styles.card}>
 
             <p><b>Student:</b> {item.student_name}</p>
             <p><b>Reason:</b> {item.reason}</p>
 
+            {/* 🔥 CALL BUTTON */}
             <p>
               <b>Parent Mobile:</b>{" "}
-              <a href={`tel:${item.parent_mobile}`} style={styles.link}>
-                {item.parent_mobile}
-              </a>
+              {item.parent_mobile ? (
+                <a href={`tel:${item.parent_mobile}`} style={styles.callLink}>
+                  📞 {item.parent_mobile}
+                </a>
+              ) : (
+                "Not available"
+              )}
             </p>
 
             <div style={styles.actions}>
@@ -119,7 +115,7 @@ export default function HodDashboard() {
 
         {history.length === 0 && <p>No history</p>}
 
-        {history.map(item => (
+        {history.map((item) => (
           <div key={item.id} style={styles.card}>
 
             <p><b>Student:</b> {item.student_name}</p>
@@ -127,9 +123,13 @@ export default function HodDashboard() {
 
             <p>
               <b>Parent Mobile:</b>{" "}
-              <a href={`tel:${item.parent_mobile}`} style={styles.link}>
-                {item.parent_mobile}
-              </a>
+              {item.parent_mobile ? (
+                <a href={`tel:${item.parent_mobile}`} style={styles.callLink}>
+                  📞 {item.parent_mobile}
+                </a>
+              ) : (
+                "Not available"
+              )}
             </p>
 
             <p style={{ color: getStatusColor(item.status) }}>
@@ -187,6 +187,11 @@ const styles = {
     marginBottom: "15px"
   },
 
+  error: {
+    color: "#ef4444",
+    marginBottom: "10px"
+  },
+
   card: {
     background: "#1f2937",
     padding: "15px",
@@ -218,8 +223,9 @@ const styles = {
     cursor: "pointer"
   },
 
-  link: {
-    color: "#60a5fa",
-    textDecoration: "none"
+  callLink: {
+    color: "#38bdf8",
+    textDecoration: "none",
+    fontWeight: "bold"
   }
 };

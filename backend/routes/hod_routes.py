@@ -12,20 +12,31 @@ QR_ALGORITHM = "HS256"
 
 
 # =====================================================
+# GET CURRENT HOD
+# =====================================================
+def get_current_hod():
+    try:
+        user_id = int(get_jwt_identity())
+    except:
+        return None
+
+    user = db.session.get(User, user_id)
+
+    if not user or user.role.lower() != "hod":
+        return None
+
+    return user
+
+
+# =====================================================
 # VIEW PENDING GATEPASSES
 # =====================================================
 @hod_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
 def hod_pending():
 
-    try:
-        user_id = int(get_jwt_identity())
-    except:
-        return jsonify({"success": False, "message": "Invalid token"}), 401
-
-    hod = db.session.get(User, user_id)
-
-    if not hod or hod.role.lower() != "hod":
+    hod = get_current_hod()
+    if not hod:
         return jsonify({"success": False, "message": "Access denied"}), 403
 
     if not hod.department:
@@ -54,12 +65,13 @@ def hod_pending():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
+                "parent_mobile": gp.parent_mobile,  # 🔥 FIXED
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }
             for gp in gatepasses
         ]
-    }), 200
+    })
 
 
 # =====================================================
@@ -69,14 +81,8 @@ def hod_pending():
 @jwt_required()
 def hod_approve(gatepass_id):
 
-    try:
-        user_id = int(get_jwt_identity())
-    except:
-        return jsonify({"success": False, "message": "Invalid token"}), 401
-
-    hod = db.session.get(User, user_id)
-
-    if not hod or hod.role.lower() != "hod":
+    hod = get_current_hod()
+    if not hod:
         return jsonify({"success": False, "message": "Access denied"}), 403
 
     gp = db.session.get(GatePass, gatepass_id)
@@ -96,28 +102,27 @@ def hod_approve(gatepass_id):
             "message": "Unauthorized department access"
         }), 403
 
+    # ================= APPROVE =================
     gp.status = "Approved"
     gp.hod_id = hod.id
     gp.is_used = False
     gp.used_at = None
+    gp.hod_approved_at = datetime.utcnow()
 
-    expiry = datetime.utcnow() + timedelta(minutes=10)
-
+    # ================= GENERATE QR =================
     payload = {
         "gatepass_id": gp.id,
-        "student_id": gp.student_id,
-        "exp": expiry
+        "exp": datetime.utcnow() + timedelta(hours=6)
     }
 
     try:
-        qr_token = jwt.encode(
+        gp.qr_token = jwt.encode(
             payload,
             Config.QR_SECRET_KEY,
             algorithm=QR_ALGORITHM
         )
-        gp.qr_token = qr_token
     except Exception as e:
-        print("QR GENERATION ERROR:", e)
+        print("QR ERROR:", e)
         return jsonify({
             "success": False,
             "message": "QR generation failed"
@@ -127,8 +132,8 @@ def hod_approve(gatepass_id):
 
     return jsonify({
         "success": True,
-        "message": "Gatepass approved & QR generated"
-    }), 200
+        "message": "Gatepass approved successfully"
+    })
 
 
 # =====================================================
@@ -138,14 +143,8 @@ def hod_approve(gatepass_id):
 @jwt_required()
 def hod_reject(gatepass_id):
 
-    try:
-        user_id = int(get_jwt_identity())
-    except:
-        return jsonify({"success": False, "message": "Invalid token"}), 401
-
-    hod = db.session.get(User, user_id)
-
-    if not hod or hod.role.lower() != "hod":
+    hod = get_current_hod()
+    if not hod:
         return jsonify({"success": False, "message": "Access denied"}), 403
 
     gp = db.session.get(GatePass, gatepass_id)
@@ -168,6 +167,7 @@ def hod_reject(gatepass_id):
             "message": "Rejection reason required"
         }), 400
 
+    # ================= REJECT =================
     gp.status = "Rejected"
     gp.hod_id = hod.id
     gp.rejected_by = "HOD"
@@ -178,31 +178,19 @@ def hod_reject(gatepass_id):
     return jsonify({
         "success": True,
         "message": "Gatepass rejected successfully"
-    }), 200
+    })
 
 
 # =====================================================
-# HOD GATEPASS HISTORY
+# HOD HISTORY
 # =====================================================
 @hod_bp.route("/gatepasses/history", methods=["GET"])
 @jwt_required()
 def hod_history():
 
-    try:
-        user_id = int(get_jwt_identity())
-    except:
-        return jsonify({"success": False, "message": "Invalid token"}), 401
-
-    hod = db.session.get(User, user_id)
-
-    if not hod or hod.role.lower() != "hod":
+    hod = get_current_hod()
+    if not hod:
         return jsonify({"success": False, "message": "Access denied"}), 403
-
-    if not hod.department:
-        return jsonify({
-            "success": False,
-            "message": "HOD department not assigned"
-        }), 400
 
     gatepasses = (
         GatePass.query
@@ -223,9 +211,10 @@ def hod_history():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
+                "parent_mobile": gp.parent_mobile,  # 🔥 IMPORTANT
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }
             for gp in gatepasses
         ]
-    }), 200
+    })
