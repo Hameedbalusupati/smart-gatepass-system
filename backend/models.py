@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import os
 
 db = SQLAlchemy()
 
@@ -27,10 +28,10 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGES =================
+    # 🔥 STORE ONLY FILE NAME (IMPORTANT)
     profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
-
     student_gatepasses = db.relationship(
         "GatePass",
         foreign_keys="GatePass.student_id",
@@ -60,8 +61,20 @@ class User(db.Model):
         nullable=False
     )
 
+    # =====================================================
+    # 🔥 HELPER: GET FULL IMAGE URL (VERY IMPORTANT)
+    # =====================================================
+    def get_image_url(self, base_url):
+        if not self.profile_image:
+            return None
+
+        filename = os.path.basename(self.profile_image)
+
+        return f"{base_url}/uploads/student_images/{filename}"
+
     def __repr__(self):
-        return f"<User {self.id} - {self.role}>"
+        return f"<User {self.id} | {self.role} | {self.name}>"
+
 
 
 # =====================================================
@@ -115,4 +128,4 @@ class GatePass(db.Model):
     )
 
     def __repr__(self):
-        return f"<GatePass {self.id} - {self.status}>"
+        return f"<GatePass {self.id} | {self.status}>"

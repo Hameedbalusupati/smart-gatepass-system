@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
 
@@ -10,6 +10,13 @@ export default function SecurityDashboard() {
 
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
+
+  // ================= CLEANUP =================
+  useEffect(() => {
+    return () => {
+      qrRef.current?.stop().catch(() => {});
+    };
+  }, []);
 
   // ================= START SCANNER =================
   const startScanner = async () => {
@@ -60,18 +67,19 @@ export default function SecurityDashboard() {
       await qrRef.current?.stop();
       setIsScanning(false);
       setMessage("Scanner stopped");
-    } catch { }
+    } catch {}
   };
 
   // ================= VERIFY =================
   const verifyQR = async (qrToken) => {
     try {
       setLoading(true);
+      setMessage("Verifying QR... ⏳");
 
       const token = localStorage.getItem("access_token");
 
       const res = await API.post(
-        "/security/verify_qr",   // ✅ FIXED
+        "/security/verify_qr",
         { qr_token: qrToken },
         {
           headers: {
@@ -79,6 +87,8 @@ export default function SecurityDashboard() {
           },
         }
       );
+
+      console.log("API RESPONSE:", res.data); // 🔥 DEBUG
 
       if (!res.data?.success) {
         setMessage("Invalid QR ❌");
@@ -104,7 +114,7 @@ export default function SecurityDashboard() {
       const token = localStorage.getItem("access_token");
 
       const res = await API.post(
-        `/security/confirm_exit/${data?.gatepass_id}`, // ✅ FIXED
+        `/security/confirm_exit/${data?.gatepass_id}`,
         {},
         {
           headers: {
@@ -135,6 +145,9 @@ export default function SecurityDashboard() {
 
         <p>{message}</p>
 
+        {/* LOADING */}
+        {loading && <p>Processing... ⏳</p>}
+
         {/* CONTROLS */}
         {!data && (
           <div style={btnRow}>
@@ -155,13 +168,15 @@ export default function SecurityDashboard() {
           <div style={resultBox}>
             <h3>Student Details</h3>
 
-            {data?.profile_image && (
-              <img
-                src={data.profile_image}   // ✅ FIXED
-                alt="student"
-                style={image}
-              />
-            )}
+            {/* 🔥 IMAGE FIX */}
+            <img
+              src={data.profile_image || "https://via.placeholder.com/120"}
+              alt="student"
+              style={image}
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/120";
+              }}
+            />
 
             <p><b>Name:</b> {data.student_name}</p>
             <p><b>ID:</b> {data.college_id}</p>
@@ -242,6 +257,7 @@ const image = {
   width: "120px",
   height: "120px",
   borderRadius: "10px",
+  objectFit: "cover",
 };
 
 const exitBtn = {

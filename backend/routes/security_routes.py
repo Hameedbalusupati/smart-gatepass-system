@@ -12,7 +12,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =========================================
-# VERIFY QR (🔥 FIXED ROUTE NAME)
+# VERIFY QR (FIXED)
 # =========================================
 @security_bp.route("/verify_qr", methods=["POST"])
 def verify_qr():
@@ -26,7 +26,7 @@ def verify_qr():
                 "message": "QR token missing"
             }), 400
 
-        # 🔥 DECODE TOKEN
+        # Decode QR
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -57,11 +57,20 @@ def verify_qr():
 
         student = gatepass.student
 
-        # 🔥 IMAGE URL FIX
+        # =========================================
+        # 🔥 FIXED IMAGE URL (IMPORTANT)
+        # =========================================
         image_url = None
+
         if student.profile_image:
             filename = os.path.basename(student.profile_image)
-            image_url = request.host_url + "uploads/student_images/" + filename
+
+            # remove trailing slash from host_url
+            base_url = request.host_url.rstrip("/")
+
+            image_url = f"{base_url}/uploads/student_images/{filename}"
+
+            print("✅ IMAGE URL:", image_url)  # DEBUG
 
         return jsonify({
             "success": True,
@@ -74,6 +83,8 @@ def verify_qr():
             "department": student.department,
             "year": student.year,
             "parent_mobile": gatepass.parent_mobile,
+
+            # 🔥 IMPORTANT KEY
             "profile_image": image_url
         })
 
@@ -98,7 +109,7 @@ def verify_qr():
 
 
 # =========================================
-# CONFIRM EXIT (🔥 MATCH FRONTEND)
+# CONFIRM EXIT
 # =========================================
 @security_bp.route("/confirm_exit/<int:gatepass_id>", methods=["POST"])
 def confirm_exit(gatepass_id):
