@@ -28,18 +28,26 @@ export default function FacultyDashboard() {
     fetchData();
   }, []);
 
-  // ================= ACTION =================
+  // ================= HANDLE APPROVE / REJECT =================
   const handleAction = async (id, action) => {
     try {
-      await API.post(`/faculty/gatepass/faculty_action/${id}`, {
-        action: action,
-      });
+      let payload = { action };
 
-      fetchData(); // refresh
+      // 🔥 ask reason for reject
+      if (action === "reject") {
+        const reason = prompt("Enter rejection reason:");
+        if (!reason) return;
+
+        payload.rejection_reason = reason;
+      }
+
+      await API.post(`/faculty/gatepass/faculty_action/${id}`, payload);
+
+      fetchData(); // refresh data
 
     } catch (err) {
       console.error("Action error:", err);
-      alert("Action failed");
+      alert(err.response?.data?.message || "Action failed");
     }
   };
 
@@ -58,7 +66,7 @@ export default function FacultyDashboard() {
         <h2 style={styles.title}>Faculty Dashboard</h2>
 
         <button onClick={fetchData} style={styles.refreshBtn}>
-          Refresh
+          {loading ? "Loading..." : "Refresh"}
         </button>
 
         {/* ================= PENDING ================= */}
@@ -100,16 +108,20 @@ export default function FacultyDashboard() {
         {/* ================= HISTORY ================= */}
         <h3 style={styles.section}>History</h3>
 
-        {history.map((h) => (
-          <div key={h.id} style={styles.historyCard}>
-            <p><b>{h.student_name}</b></p>
-            <p><b>Parent Mobile:</b> {h.parent_mobile}</p>
+        {history.length === 0 ? (
+          <p>No history available</p>
+        ) : (
+          history.map((h) => (
+            <div key={h.id} style={styles.historyCard}>
+              <p><b>{h.student_name}</b></p>
+              <p><b>Parent Mobile:</b> {h.parent_mobile}</p>
 
-            <p style={{ color: getStatusColor(h.status) }}>
-              Status: {h.status}
-            </p>
-          </div>
-        ))}
+              <p style={{ color: getStatusColor(h.status) }}>
+                Status: {h.status}
+              </p>
+            </div>
+          ))
+        )}
 
       </div>
     </div>
