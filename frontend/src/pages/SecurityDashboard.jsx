@@ -1,68 +1,69 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
-import API_BASE_URL from "../config";
 
 export default function SecurityDashboard() {
   const [data, setData] = useState(null);
-  const [message, setMessage] = useState("Starting camera...");
+  const [message, setMessage] = useState("Click Start Scanner");
   const [loading, setLoading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
-  // ================= START CAMERA =================
-  useEffect(() => {
-    const startScanner = async () => {
-      try {
-        const qr = new Html5Qrcode("qr-reader");
-        qrRef.current = qr;
+  // ================= START SCANNER =================
+  const startScanner = async () => {
+    try {
+      const qr = new Html5Qrcode("qr-reader");
+      qrRef.current = qr;
 
-        const devices = await Html5Qrcode.getCameras();
+      const devices = await Html5Qrcode.getCameras();
 
-        if (!devices.length) {
-          setMessage("No camera found ❌");
-          return;
-        }
-
-        // 🔥 BACK CAMERA FIX
-        const camera =
-          devices.find(d => d.label.toLowerCase().includes("back")) ||
-          devices[0];
-
-        await qr.start(
-          camera.id,
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
-          async (decodedText) => {
-            if (scannedRef.current) return;
-
-            scannedRef.current = true;
-            verifyQR(decodedText);
-
-            await qr.stop();
-          },
-          () => {}
-        );
-
-        setMessage("Camera ready 📷");
-
-      } catch (err) {
-        console.error(err);
-        setMessage("Camera permission denied ❌");
+      if (!devices.length) {
+        setMessage("No camera found ❌");
+        return;
       }
-    };
 
-    startScanner();
+      const camera =
+        devices.find(d => d.label.toLowerCase().includes("back")) ||
+        devices[0];
 
-    return () => {
-      qrRef.current?.stop().catch(() => {});
-    };
-  }, []);
+      scannedRef.current = false;
 
-  // ================= VERIFY QR =================
+      await qr.start(
+        camera.id,
+        { fps: 10, qrbox: 250 },
+        async (decodedText) => {
+          if (scannedRef.current) return;
+
+          scannedRef.current = true;
+
+          await qr.stop();
+          setIsScanning(false);
+
+          verifyQR(decodedText);
+        }
+      );
+
+      setIsScanning(true);
+      setMessage("Scanning... 📷");
+
+    } catch (err) {
+      console.error(err);
+      setMessage("Camera error ❌");
+    }
+  };
+
+  // ================= STOP =================
+  const stopScanner = async () => {
+    try {
+      await qrRef.current?.stop();
+      setIsScanning(false);
+      setMessage("Scanner stopped");
+    } catch { }
+  };
+
+  // ================= VERIFY =================
   const verifyQR = async (qrToken) => {
     try {
       setLoading(true);
@@ -70,7 +71,7 @@ export default function SecurityDashboard() {
       const token = localStorage.getItem("access_token");
 
       const res = await API.post(
-        "/gatepass/verify_qr",
+        "/security/verify_qr",   // ✅ FIXED
         { qr_token: qrToken },
         {
           headers: {
@@ -103,7 +104,7 @@ export default function SecurityDashboard() {
       const token = localStorage.getItem("access_token");
 
       const res = await API.post(
-        `/gatepass/confirm_exit/${data?.gatepass_id}`,
+        `/security/confirm_exit/${data?.gatepass_id}`, // ✅ FIXED
         {},
         {
           headers: {
@@ -116,9 +117,6 @@ export default function SecurityDashboard() {
         setMessage("Exit Confirmed ✅");
         setData(null);
         scannedRef.current = false;
-
-        // 🔥 Restart scanner
-        window.location.reload();
       }
 
     } catch (err) {
@@ -132,27 +130,42 @@ export default function SecurityDashboard() {
       <div style={card}>
         <h2>Security Dashboard</h2>
 
-        {/* ✅ CAMERA VIEW */}
-        {!data && <div id="qr-reader" style={cameraStyle}></div>}
+        {/* CAMERA */}
+        {!data && <div id="qr-reader" style={camera}></div>}
 
         <p>{message}</p>
 
-        {/* ===== RESULT ===== */}
+        {/* CONTROLS */}
+        {!data && (
+          <div style={btnRow}>
+            {!isScanning ? (
+              <button style={btnGreen} onClick={startScanner}>
+                Start Scan
+              </button>
+            ) : (
+              <button style={btnRed} onClick={stopScanner}>
+                Stop
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* RESULT */}
         {data && (
           <div style={resultBox}>
             <h3>Student Details</h3>
 
             {data?.profile_image && (
               <img
-                src={`${API_BASE_URL}/uploads/student_images/${data.profile_image}`}
+                src={data.profile_image}   // ✅ FIXED
                 alt="student"
                 style={image}
               />
             )}
 
             <p><b>Name:</b> {data.student_name}</p>
-            <p><b>College ID:</b> {data.college_id}</p>
-            <p><b>Department:</b> {data.department}</p>
+            <p><b>ID:</b> {data.college_id}</p>
+            <p><b>Dept:</b> {data.department}</p>
             <p><b>Year:</b> {data.year}</p>
 
             <p>
@@ -172,9 +185,9 @@ export default function SecurityDashboard() {
   );
 }
 
-//////////////////////////////////////////////////////////
-// 🎨 STYLES
-//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+// STYLES
+//////////////////////////////////////////////////////
 
 const container = {
   minHeight: "100vh",
@@ -186,16 +199,36 @@ const container = {
 
 const card = {
   background: "#111827",
-  padding: "25px",
+  padding: "20px",
   borderRadius: "10px",
   color: "white",
-  width: "400px",
+  width: "350px",
   textAlign: "center",
 };
 
-const cameraStyle = {
+const camera = {
   width: "100%",
-  marginBottom: "15px",
+  marginBottom: "10px",
+};
+
+const btnRow = {
+  marginTop: "10px",
+};
+
+const btnGreen = {
+  background: "#22c55e",
+  padding: "10px",
+  border: "none",
+  borderRadius: "5px",
+  color: "white",
+};
+
+const btnRed = {
+  background: "#ef4444",
+  padding: "10px",
+  border: "none",
+  borderRadius: "5px",
+  color: "white",
 };
 
 const resultBox = {
@@ -209,7 +242,6 @@ const image = {
   width: "120px",
   height: "120px",
   borderRadius: "10px",
-  objectFit: "cover",
 };
 
 const exitBtn = {
@@ -219,7 +251,6 @@ const exitBtn = {
   border: "none",
   borderRadius: "6px",
   color: "white",
-  cursor: "pointer",
 };
 
 const link = {

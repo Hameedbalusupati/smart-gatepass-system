@@ -61,11 +61,39 @@ def apply_gatepass():
     db.session.add(gp)
     db.session.commit()
 
-    return jsonify({"message": "Gatepass applied"}), 201
+    return jsonify({"message": "Gatepass applied successfully"}), 201
 
 
 # =================================================
-# ✅ FACULTY PENDING (🔥 FIX ADDED)
+# STUDENT - GET QR CODE (🔥 IMPORTANT)
+# =================================================
+@gatepass_bp.route("/my_gatepass", methods=["GET"])
+@jwt_required()
+def my_gatepass():
+
+    student_id = int(get_jwt_identity())
+
+    gp = GatePass.query.filter_by(
+        student_id=student_id,
+        status="Approved",
+        is_used=False
+    ).order_by(GatePass.id.desc()).first()
+
+    if not gp:
+        return jsonify({
+            "success": False,
+            "message": "No approved gatepass"
+        })
+
+    return jsonify({
+        "success": True,
+        "qr_token": gp.qr_token,
+        "gatepass_id": gp.id
+    })
+
+
+# =================================================
+# FACULTY PENDING
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -82,7 +110,7 @@ def faculty_pending():
             "id": g.id,
             "student_name": student.name,
             "reason": g.reason,
-            "parent_mobile": g.parent_mobile,   # ✅ FIX
+            "parent_mobile": g.parent_mobile,
             "status": g.status
         })
 
@@ -90,7 +118,7 @@ def faculty_pending():
 
 
 # =================================================
-# ✅ FACULTY HISTORY (🔥 FIX ADDED)
+# FACULTY HISTORY
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/history", methods=["GET"])
 @jwt_required()
@@ -108,7 +136,7 @@ def faculty_history():
         result.append({
             "id": g.id,
             "student_name": student.name,
-            "parent_mobile": g.parent_mobile,   # ✅ FIX
+            "parent_mobile": g.parent_mobile,
             "status": g.status
         })
 
@@ -155,11 +183,11 @@ def faculty_action(id):
 
     db.session.commit()
 
-    return jsonify({"message": "Updated"})
+    return jsonify({"message": "Updated successfully"})
 
 
 # =================================================
-# HOD ACTION
+# HOD ACTION (🔥 QR FIX)
 # =================================================
 @gatepass_bp.route("/hod_action/<int:id>", methods=["POST"])
 @jwt_required()
@@ -185,6 +213,7 @@ def hod_action(id):
     if action == "approve":
         gp.status = "Approved"
 
+        # 🔥 FIXED QR TOKEN FORMAT (MATCHES SECURITY)
         qr_payload = {
             "gatepass_id": gp.id,
             "exp": datetime.utcnow() + timedelta(hours=6)
@@ -209,4 +238,4 @@ def hod_action(id):
 
     db.session.commit()
 
-    return jsonify({"message": "Updated"})
+    return jsonify({"message": "Updated successfully"})

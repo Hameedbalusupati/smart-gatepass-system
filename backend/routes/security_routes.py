@@ -12,11 +12,10 @@ QR_ALGORITHM = "HS256"
 
 
 # =========================================
-# SCAN QR CODE
+# VERIFY QR (🔥 FIXED ROUTE NAME)
 # =========================================
-@security_bp.route("/scan", methods=["POST"])
-def scan_qr():
-
+@security_bp.route("/verify_qr", methods=["POST"])
+def verify_qr():
     try:
         data = request.get_json()
         qr_token = data.get("qr_token")
@@ -27,6 +26,7 @@ def scan_qr():
                 "message": "QR token missing"
             }), 400
 
+        # 🔥 DECODE TOKEN
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -34,6 +34,12 @@ def scan_qr():
         )
 
         gatepass_id = decoded.get("gatepass_id")
+
+        if not gatepass_id:
+            return jsonify({
+                "success": False,
+                "message": "Invalid QR data"
+            }), 400
 
         gatepass = db.session.get(GatePass, gatepass_id)
 
@@ -51,7 +57,7 @@ def scan_qr():
 
         student = gatepass.student
 
-        # Build image URL
+        # 🔥 IMAGE URL FIX
         image_url = None
         if student.profile_image:
             filename = os.path.basename(student.profile_image)
@@ -61,24 +67,30 @@ def scan_qr():
             "success": True,
             "message": "Gatepass Verified",
 
-            "student": {
-                "name": student.name,
-                "roll_no": student.college_id,
-                "department": student.department,
-                "year": student.year,
-                "section": student.section,
-                "profile_image": image_url
-            },
+            "gatepass_id": gatepass.id,
 
-            "gatepass": {
-                "id": gatepass.id,
-                "reason": gatepass.reason
-            }
+            "student_name": student.name,
+            "college_id": student.college_id,
+            "department": student.department,
+            "year": student.year,
+            "parent_mobile": gatepass.parent_mobile,
+            "profile_image": image_url
         })
+
+    except jwt.ExpiredSignatureError:
+        return jsonify({
+            "success": False,
+            "message": "QR expired"
+        }), 401
+
+    except jwt.InvalidTokenError:
+        return jsonify({
+            "success": False,
+            "message": "Invalid QR token"
+        }), 401
 
     except Exception as e:
         print("QR ERROR:", e)
-
         return jsonify({
             "success": False,
             "message": "Server error"
@@ -86,13 +98,11 @@ def scan_qr():
 
 
 # =========================================
-# CONFIRM EXIT
+# CONFIRM EXIT (🔥 MATCH FRONTEND)
 # =========================================
-@security_bp.route("/confirm/<int:gatepass_id>", methods=["POST"])
+@security_bp.route("/confirm_exit/<int:gatepass_id>", methods=["POST"])
 def confirm_exit(gatepass_id):
-
     try:
-
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -119,9 +129,7 @@ def confirm_exit(gatepass_id):
         })
 
     except Exception as e:
-
         print("EXIT ERROR:", e)
-
         return jsonify({
             "success": False,
             "message": "Server error"
@@ -133,13 +141,10 @@ def confirm_exit(gatepass_id):
 # =========================================
 @security_bp.route("/exit-history", methods=["GET"])
 def exit_history():
-
     exits = GatePass.query.filter_by(status="Completed").all()
 
     data = []
-
     for g in exits:
-
         data.append({
             "name": g.student.name,
             "roll": g.student.college_id,
@@ -155,7 +160,6 @@ def exit_history():
 # =========================================
 @security_bp.route("/exit-count", methods=["GET"])
 def exit_count():
-
     today = datetime.utcnow().date()
 
     exits = GatePass.query.filter(
@@ -163,7 +167,6 @@ def exit_count():
     ).all()
 
     count = 0
-
     for g in exits:
         if g.out_time and g.out_time.date() == today:
             count += 1
