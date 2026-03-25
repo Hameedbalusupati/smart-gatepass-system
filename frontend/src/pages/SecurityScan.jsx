@@ -8,7 +8,6 @@ export default function SecurityScan() {
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
   const [exitCount, setExitCount] = useState(0);
-  const [cameraStarted, setCameraStarted] = useState(false);
 
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
@@ -54,7 +53,9 @@ export default function SecurityScan() {
       setGatepass({ id: data.gatepass_id });
       setMessage("Gatepass Verified ✅");
 
+      // stop camera after scan
       await qrRef.current.stop();
+
     } catch (err) {
       console.error(err);
       setMessage("Verification failed ❌");
@@ -63,49 +64,48 @@ export default function SecurityScan() {
   };
 
   // ================= START CAMERA =================
-  const startCamera = async () => {
-    try {
-      const html5QrCode = new Html5Qrcode("qr-reader");
-      qrRef.current = html5QrCode;
-
-      const devices = await Html5Qrcode.getCameras();
-
-      if (!devices || devices.length === 0) {
-        setMessage("No camera found ❌");
-        return;
-      }
-
-      // 🔥 Use back camera (important for mobile)
-      const backCamera =
-        devices.find((d) =>
-          d.label.toLowerCase().includes("back")
-        ) || devices[0];
-
-      await html5QrCode.start(
-        backCamera.id,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-        },
-        (decodedText) => {
-          if (scannedRef.current) return;
-
-          scannedRef.current = true;
-          verifyQR(decodedText);
-        },
-        () => {}
-      );
-
-      setCameraStarted(true);
-      setMessage("Camera started 📷");
-    } catch (err) {
-      console.error(err);
-      setMessage("Camera permission denied ❌");
-    }
-  };
-
-  // ================= INIT =================
   useEffect(() => {
+    const startCamera = async () => {
+      try {
+        const html5QrCode = new Html5Qrcode("qr-reader");
+        qrRef.current = html5QrCode;
+
+        const devices = await Html5Qrcode.getCameras();
+
+        if (!devices || devices.length === 0) {
+          setMessage("No camera found ❌");
+          return;
+        }
+
+        // 🔥 FORCE BACK CAMERA (important)
+        const backCamera =
+          devices.find((d) =>
+            d.label.toLowerCase().includes("back")
+          ) || devices[0];
+
+        await html5QrCode.start(
+          backCamera.id,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            if (scannedRef.current) return;
+
+            scannedRef.current = true;
+            verifyQR(decodedText);
+          },
+          () => {}
+        );
+
+        setMessage("Camera started 📷");
+
+      } catch (err) {
+        console.error(err);
+        setMessage("Camera permission denied ❌");
+      }
+    };
+
     startCamera();
 
     return () => {
@@ -130,8 +130,8 @@ export default function SecurityScan() {
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
 
-        // restart scanner
-        startCamera();
+        // restart camera
+        window.location.reload();
       }
     } catch (err) {
       console.error(err);
@@ -144,18 +144,9 @@ export default function SecurityScan() {
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {/* CAMERA */}
+      {/* 🔥 CAMERA ONLY */}
       {!student && (
-        <div
-          id="qr-reader"
-          style={styles.cameraBox}
-        />
-      )}
-
-      {!cameraStarted && (
-        <button style={styles.startBtn} onClick={startCamera}>
-          Start Camera
-        </button>
+        <div id="qr-reader" style={styles.camera} />
       )}
 
       {message && <p>{message}</p>}
@@ -184,7 +175,7 @@ export default function SecurityScan() {
             </a>
           </p>
 
-          <button style={styles.confirmBtn} onClick={confirmExit}>
+          <button style={styles.btn} onClick={confirmExit}>
             Confirm Exit
           </button>
         </div>
@@ -202,18 +193,9 @@ const styles = {
     color: "white",
   },
 
-  cameraBox: {
+  camera: {
     width: "100%",
-    marginTop: "15px",
-  },
-
-  startBtn: {
-    marginTop: "10px",
-    padding: "10px",
-    background: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
+    marginTop: "20px",
   },
 
   card: {
@@ -229,7 +211,7 @@ const styles = {
     borderRadius: "10px",
   },
 
-  confirmBtn: {
+  btn: {
     marginTop: "10px",
     padding: "10px",
     background: "green",
