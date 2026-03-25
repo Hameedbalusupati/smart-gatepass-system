@@ -1,87 +1,49 @@
 import { useEffect, useState } from "react";
-import API_BASE_URL from "../config";
+import API from "../api";
 
 export default function HodDashboard() {
 
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const token = localStorage.getItem("access_token");
-
-  // ================= LOAD DATA =================
-  useEffect(() => {
-
-    const fetchData = async () => {
-      try {
-        const headers = {
-          Authorization: `Bearer ${token}`
-        };
-
-        const pRes = await fetch(
-          `${API_BASE_URL}/hod/gatepasses/pending`,
-          { headers }
-        );
-        const pData = await pRes.json();
-
-        const hRes = await fetch(
-          `${API_BASE_URL}/hod/gatepasses/history`,
-          { headers }
-        );
-        const hData = await hRes.json();
-
-        if (pRes.ok && pData.success) {
-          setPending(pData.gatepasses || []);
-        }
-
-        if (hRes.ok && hData.success) {
-          setHistory(hData.gatepasses || []);
-        }
-
-      } catch {
-        setError("Server not reachable");
-      }
-    };
-
-    fetchData();
-
-  }, [token]);
-
-
-
-  // ================= APPROVE =================
-  const handleApprove = async (id) => {
-
+  // ================= FETCH DATA =================
+  const fetchData = async () => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/gatepass/hod_action/${id}`,   // ✅ FIXED
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ action: "approve" })
-        }
-      );
+      setLoading(true);
 
-      const data = await res.json();
+      const pRes = await API.get("/hod/gatepasses/pending");
+      const hRes = await API.get("/hod/gatepasses/history");
 
-      if (!res.ok) {
-        alert(data.message || "Approval failed ❌");
-        return;
-      }
+      setPending(pRes.data.gatepasses || []);
+      setHistory(hRes.data.gatepasses || []);
 
-      alert("Approved ✅");
-
-      // refresh UI
-      setPending(prev => prev.filter(item => item.id !== id));
-
-    } catch {
-      alert("Server error");
+    } catch (err) {
+      console.error(err);
+      setError("Server not reachable");
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // ================= APPROVE =================
+  const handleApprove = async (id) => {
+    try {
+      await API.post(`/gatepass/hod_action/${id}`, {
+        action: "approve"
+      });
+
+      fetchData(); // 🔥 refresh UI
+
+    } catch (err) {
+      alert(err.response?.data?.message || "Approval failed");
+    }
+  };
 
   // ================= REJECT =================
   const handleReject = async (id) => {
@@ -90,145 +52,143 @@ export default function HodDashboard() {
     if (!reason) return;
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/gatepass/hod_action/${id}`,   // ✅ FIXED
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            action: "reject",
-            rejection_reason: reason
-          })
-        }
-      );
+      await API.post(`/gatepass/hod_action/${id}`, {
+        action: "reject",
+        rejection_reason: reason
+      });
 
-      const data = await res.json();
+      fetchData(); // 🔥 refresh UI
 
-      if (!res.ok) {
-        alert(data.message || "Reject failed ❌");
-        return;
-      }
-
-      setPending(prev => prev.filter(item => item.id !== id));
-
-    } catch {
-      alert("Server error");
+    } catch (err) {
+      alert(err.response?.data?.message || "Reject failed");
     }
   };
 
-
   return (
-
     <div style={styles.page}>
 
-      <h2 style={styles.title}>HOD Dashboard</h2>
+      <div style={styles.container}>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+        <h2 style={styles.title}>HOD Dashboard</h2>
 
-      {/* ================= PENDING ================= */}
+        <button onClick={fetchData} style={styles.refresh}>
+          {loading ? "Loading..." : "Refresh"}
+        </button>
 
-      <h3>Pending Requests</h3>
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-      {pending.length === 0 && (
-        <p>No pending requests</p>
-      )}
+        {/* ================= PENDING ================= */}
+        <h3>Pending Requests</h3>
 
-      {pending.map(item => (
+        {pending.length === 0 && <p>No pending requests</p>}
 
-        <div key={item.id} style={styles.card}>
+        {pending.map(item => (
+          <div key={item.id} style={styles.card}>
 
-          <p><b>Student:</b> {item.student_name}</p>
-          <p><b>College ID:</b> {item.college_id}</p>
-          <p><b>Department:</b> {item.department}</p>
-          <p><b>Year:</b> {item.year}</p>
-          <p><b>Section:</b> {item.section}</p>
-          <p><b>Reason:</b> {item.reason}</p>
+            <p><b>Student:</b> {item.student_name}</p>
+            <p><b>Reason:</b> {item.reason}</p>
 
-          {/* ✅ NEW FIELD */}
-          <p>
-            <b>Parent Mobile:</b>{" "}
-            <a href={`tel:${item.parent_mobile}`} style={{ color: "#60a5fa" }}>
-              {item.parent_mobile}
-            </a>
-          </p>
+            <p>
+              <b>Parent Mobile:</b>{" "}
+              <a href={`tel:${item.parent_mobile}`} style={styles.link}>
+                {item.parent_mobile}
+              </a>
+            </p>
 
-          <div style={styles.actions}>
+            <div style={styles.actions}>
+              <button
+                style={styles.approve}
+                onClick={() => handleApprove(item.id)}
+              >
+                Approve
+              </button>
 
-            <button
-              style={styles.approve}
-              onClick={() => handleApprove(item.id)}
-            >
-              Approve
-            </button>
-
-            <button
-              style={styles.reject}
-              onClick={() => handleReject(item.id)}
-            >
-              Reject
-            </button>
+              <button
+                style={styles.reject}
+                onClick={() => handleReject(item.id)}
+              >
+                Reject
+              </button>
+            </div>
 
           </div>
+        ))}
 
-        </div>
+        {/* ================= HISTORY ================= */}
+        <h3 style={{ marginTop: "30px" }}>History</h3>
 
-      ))}
+        {history.length === 0 && <p>No history</p>}
 
+        {history.map(item => (
+          <div key={item.id} style={styles.card}>
 
-      {/* ================= HISTORY ================= */}
+            <p><b>Student:</b> {item.student_name}</p>
+            <p><b>Reason:</b> {item.reason}</p>
 
-      <h3 style={{ marginTop: "30px" }}>History</h3>
+            <p>
+              <b>Parent Mobile:</b>{" "}
+              <a href={`tel:${item.parent_mobile}`} style={styles.link}>
+                {item.parent_mobile}
+              </a>
+            </p>
 
-      {history.length === 0 && (
-        <p>No history</p>
-      )}
+            <p style={{ color: getStatusColor(item.status) }}>
+              <b>Status:</b> {item.status}
+            </p>
 
-      {history.map(item => (
+          </div>
+        ))}
 
-        <div key={item.id} style={styles.card}>
-
-          <p><b>Student:</b> {item.student_name}</p>
-          <p><b>Reason:</b> {item.reason}</p>
-
-          {/* ✅ NEW FIELD */}
-          <p>
-            <b>Parent Mobile:</b>{" "}
-            <a href={`tel:${item.parent_mobile}`} style={{ color: "#60a5fa" }}>
-              {item.parent_mobile}
-            </a>
-          </p>
-
-          <p><b>Status:</b> {item.status}</p>
-
-        </div>
-
-      ))}
-
+      </div>
     </div>
   );
 }
 
 
-/* ================= STYLES ================= */
+// ================= STATUS COLOR =================
+function getStatusColor(status) {
+  if (status === "Approved") return "#22c55e";
+  if (status === "Rejected") return "#ef4444";
+  if (status === "PendingHOD") return "#f59e0b";
+  return "#94a3b8";
+}
 
+
+// ================= STYLES =================
 const styles = {
-
   page: {
-    padding: "20px",
     minHeight: "100vh",
     background: "#0f172a",
+    display: "flex",
+    justifyContent: "center",
+    paddingTop: "30px"
+  },
+
+  container: {
+    width: "450px",
+    background: "#111827",
+    padding: "25px",
+    borderRadius: "10px",
     color: "white"
   },
 
   title: {
-    marginBottom: "20px"
+    textAlign: "center",
+    marginBottom: "10px"
+  },
+
+  refresh: {
+    background: "#3b82f6",
+    border: "none",
+    padding: "6px 12px",
+    color: "white",
+    borderRadius: "5px",
+    cursor: "pointer",
+    marginBottom: "15px"
   },
 
   card: {
-    background: "#111827",
+    background: "#1f2937",
     padding: "15px",
     marginBottom: "10px",
     borderRadius: "8px"
@@ -256,6 +216,10 @@ const styles = {
     color: "white",
     borderRadius: "5px",
     cursor: "pointer"
-  }
+  },
 
+  link: {
+    color: "#60a5fa",
+    textDecoration: "none"
+  }
 };

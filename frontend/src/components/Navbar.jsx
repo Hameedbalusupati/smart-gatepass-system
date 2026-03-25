@@ -11,22 +11,34 @@ export default function Navbar() {
   const [email, setEmail] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ✅ SAFE localStorage access
+  // ================= LOAD USER =================
+  const loadUser = () => {
+    setToken(localStorage.getItem("access_token"));
+    setRole(localStorage.getItem("role"));
+    setEmail(localStorage.getItem("email"));
+  };
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setToken(localStorage.getItem("access_token"));
-      setRole(localStorage.getItem("role"));
-      setEmail(localStorage.getItem("email"));
-    }
+    loadUser();
+
+    // 🔥 IMPORTANT: listen for changes (login/logout)
+    window.addEventListener("storage", loadUser);
+
+    return () => window.removeEventListener("storage", loadUser);
   }, []);
 
-  // ✅ Fetch notifications safely
+  // ================= FETCH NOTIFICATIONS =================
   useEffect(() => {
     if (!email || !token) return;
 
     const fetchNotifications = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/notifications/${email}`);
+        const res = await fetch(`${API_BASE_URL}/notifications/${email}`, {
+          headers: {
+            Authorization: `Bearer ${token}`, // ✅ FIX
+          },
+        });
+
         if (!res.ok) return;
 
         const data = await res.json();
@@ -40,10 +52,15 @@ export default function Navbar() {
     fetchNotifications();
   }, [email, token]);
 
+  // ================= LOGOUT =================
   const logout = () => {
     localStorage.clear();
     setToken(null);
-    navigate("/login");
+    setRole(null);
+    setEmail(null);
+
+    // 🔥 FORCE UI UPDATE
+    window.location.href = "/login";
   };
 
   return (
@@ -110,8 +127,9 @@ const styles = {
     padding: "15px 30px",
     backgroundColor: "#1e293b",
     color: "white",
-    position: "relative",
-    zIndex: 1000, // ✅ FIX overlay issue
+    position: "sticky",   // ✅ FIX
+    top: 0,
+    zIndex: 1000,
   },
   logoLink: { textDecoration: "none", color: "white" },
   logo: { margin: 0, cursor: "pointer" },
