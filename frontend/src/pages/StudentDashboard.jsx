@@ -18,31 +18,44 @@ export default function StudentDashboard() {
     setMessage("");
     setSuccess(false);
 
-    if (!reason.trim() || !parentMobile.trim()) {
-      setMessage("Reason and parent mobile are required");
+    const cleanReason = reason.trim();
+    const cleanMobile = parentMobile.trim();
+
+    // ✅ VALIDATIONS
+    if (!cleanReason || !cleanMobile) {
+      setMessage("Reason and parent mobile are required ❌");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(cleanMobile)) {
+      setMessage("Enter valid 10-digit mobile number ❌");
       return;
     }
 
     try {
       setLoading(true);
 
-      // ✅ TOKEN handled automatically by API interceptor
       const res = await API.post("/gatepass/apply", {
-        reason: reason.trim(),
-        parent_mobile: parentMobile.trim(),
+        reason: cleanReason,
+        parent_mobile: cleanMobile,
       });
 
-      const data = res.data;
-
-      setMessage(data.message || "Gatepass applied successfully ✅");
+      setMessage(res.data.message || "Gatepass applied successfully ✅");
       setSuccess(true);
+
+      // ✅ RESET FORM
       setReason("");
       setParentMobile("");
+
+      // ✅ AUTO CLEAR MESSAGE
+      setTimeout(() => {
+        setMessage("");
+      }, 3000);
 
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later."
+        err.response?.data?.message || "Server error. Try again later ❌"
       );
     } finally {
       setLoading(false);
@@ -55,7 +68,7 @@ export default function StudentDashboard() {
 
         <h2 style={styles.title}>Student Dashboard</h2>
 
-        {/* ✅ ONLY NAVIGATION BUTTONS (NO LOGOUT HERE) */}
+        {/* 🔥 CLEAN NAVIGATION */}
         <div style={styles.buttonRow}>
           <button
             onClick={() => navigate("/status")}
@@ -72,11 +85,12 @@ export default function StudentDashboard() {
           </button>
         </div>
 
+        {/* ================= APPLY ================= */}
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 
         <input
           type="text"
-          placeholder="Reason"
+          placeholder="Enter reason"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           style={styles.input}
@@ -84,7 +98,7 @@ export default function StudentDashboard() {
 
         <input
           type="tel"
-          placeholder="Parent Mobile Number"
+          placeholder="Enter parent mobile number"
           value={parentMobile}
           onChange={(e) => setParentMobile(e.target.value)}
           style={styles.input}
@@ -101,6 +115,7 @@ export default function StudentDashboard() {
           {loading ? "Applying..." : "Apply Gatepass"}
         </button>
 
+        {/* ================= MESSAGE ================= */}
         {message && (
           <p
             style={{
@@ -145,16 +160,19 @@ const styles = {
   buttonRow: {
     display: "flex",
     justifyContent: "space-between",
-    marginBottom: "15px",
+    gap: "10px",
+    marginBottom: "20px",
   },
 
   navBtn: {
-    padding: "8px 12px",
+    flex: 1,
+    padding: "10px",
     background: "#3b82f6",
     color: "white",
     border: "none",
-    borderRadius: "5px",
+    borderRadius: "6px",
     cursor: "pointer",
+    fontWeight: "500",
   },
 
   subTitle: {
