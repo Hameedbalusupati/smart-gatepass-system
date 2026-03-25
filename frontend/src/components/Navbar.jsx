@@ -6,12 +6,21 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export default function Navbar() {
   const navigate = useNavigate();
 
-  const token = localStorage.getItem("access_token");
-  const role = localStorage.getItem("role");
-  const email = localStorage.getItem("email");
-
+  const [token, setToken] = useState(null);
+  const [role, setRole] = useState(null);
+  const [email, setEmail] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // ✅ SAFE localStorage access
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setToken(localStorage.getItem("access_token"));
+      setRole(localStorage.getItem("role"));
+      setEmail(localStorage.getItem("email"));
+    }
+  }, []);
+
+  // ✅ Fetch notifications safely
   useEffect(() => {
     if (!email || !token) return;
 
@@ -33,6 +42,7 @@ export default function Navbar() {
 
   const logout = () => {
     localStorage.clear();
+    setToken(null);
     navigate("/login");
   };
 
@@ -90,7 +100,7 @@ export default function Navbar() {
   );
 }
 
-/* ================= STYLES (FIXED) ================= */
+/* ================= STYLES ================= */
 
 const styles = {
   nav: {
@@ -100,9 +110,8 @@ const styles = {
     padding: "15px 30px",
     backgroundColor: "#1e293b",
     color: "white",
-
-    position: "relative",   // ✅ FIX
-    zIndex: 1000            // ✅ FIX (VERY IMPORTANT)
+    position: "relative",
+    zIndex: 1000, // ✅ FIX overlay issue
   },
   logoLink: { textDecoration: "none", color: "white" },
   logo: { margin: 0, cursor: "pointer" },

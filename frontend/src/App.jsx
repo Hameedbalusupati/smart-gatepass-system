@@ -17,8 +17,13 @@ import NotificationsPage from "./pages/NotificationsPage";
 /* ================= PROTECTED ROUTE ================= */
 
 function ProtectedRoute({ children, role }) {
-  const token = localStorage.getItem("access_token");
-  const userRole = localStorage.getItem("role");
+  let token = null;
+  let userRole = null;
+
+  if (typeof window !== "undefined") {
+    token = localStorage.getItem("access_token");
+    userRole = localStorage.getItem("role");
+  }
 
   if (!token) {
     return <Navigate to="/login" replace />;
