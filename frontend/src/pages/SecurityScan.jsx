@@ -1,16 +1,16 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
 import API_BASE_URL from "../config";
 
 export default function SecurityScan() {
-
   const [student, setStudent] = useState(null);
   const [gatepass, setGatepass] = useState(null);
   const [message, setMessage] = useState("");
   const [exitCount, setExitCount] = useState(0);
+  const [cameraStarted, setCameraStarted] = useState(false);
 
-  const scannerRef = useRef(null);
+  const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
   // ================= LOAD EXIT COUNT =================
@@ -23,7 +23,6 @@ export default function SecurityScan() {
         console.error(err);
       }
     };
-
     loadExitCount();
   }, []);
 
@@ -31,7 +30,7 @@ export default function SecurityScan() {
   const verifyQR = async (token) => {
     try {
       const res = await API.post("/gatepass/verify_qr", {
-        qr_token: token
+        qr_token: token,
       });
 
       const data = res.data;
@@ -49,15 +48,13 @@ export default function SecurityScan() {
         section: data.section,
         department: data.department,
         profile_image: data.profile_image,
-        parent_mobile: data.parent_mobile
+        parent_mobile: data.parent_mobile,
       });
 
       setGatepass({ id: data.gatepass_id });
       setMessage("Gatepass Verified ✅");
 
-      // stop camera after scan
-      scannerRef.current.stop().catch(() => { });
-
+      await qrRef.current.stop();
     } catch (err) {
       console.error(err);
       setMessage("Verification failed ❌");
@@ -65,55 +62,63 @@ export default function SecurityScan() {
     }
   };
 
-  // ================= INIT CAMERA =================
-  useEffect(() => {
-    const startScanner = async () => {
-      try {
-        const html5QrCode = new Html5Qrcode("qr-reader");
-        scannerRef.current = html5QrCode;
+  // ================= START CAMERA =================
+  const startCamera = async () => {
+    try {
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      qrRef.current = html5QrCode;
 
-        const devices = await Html5Qrcode.getCameras();
+      const devices = await Html5Qrcode.getCameras();
 
-        if (devices && devices.length) {
-          const cameraId = devices[0].id;
-
-          await html5QrCode.start(
-            cameraId,
-            {
-              fps: 10,
-              qrbox: 250
-            },
-            (decodedText) => {
-              if (scannedRef.current) return;
-
-              scannedRef.current = true;
-              verifyQR(decodedText);
-            },
-            (error) => {
-              console.log("Scan error:", error);
-            }
-          );
-        } else {
-          setMessage("No camera found ❌");
-        }
-
-      } catch (err) {
-        console.error("Camera error:", err);
-        setMessage("Camera permission denied ❌");
+      if (!devices || devices.length === 0) {
+        setMessage("No camera found ❌");
+        return;
       }
-    };
 
-    startScanner();
+      // 🔥 Use back camera (important for mobile)
+      const backCamera =
+        devices.find((d) =>
+          d.label.toLowerCase().includes("back")
+        ) || devices[0];
+
+      await html5QrCode.start(
+        backCamera.id,
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        (decodedText) => {
+          if (scannedRef.current) return;
+
+          scannedRef.current = true;
+          verifyQR(decodedText);
+        },
+        () => {}
+      );
+
+      setCameraStarted(true);
+      setMessage("Camera started 📷");
+    } catch (err) {
+      console.error(err);
+      setMessage("Camera permission denied ❌");
+    }
+  };
+
+  // ================= INIT =================
+  useEffect(() => {
+    startCamera();
 
     return () => {
-      scannerRef.current?.stop().catch(() => { });
+      qrRef.current?.stop().catch(() => {});
     };
   }, []);
 
   // ================= CONFIRM EXIT =================
   const confirmExit = async () => {
     try {
-      const res = await API.post(`/gatepass/confirm_exit/${gatepass?.id}`);
+      const res = await API.post(
+        `/gatepass/confirm_exit/${gatepass?.id}`
+      );
 
       if (res.data?.success) {
         setMessage("Exit recorded ✅");
@@ -126,9 +131,8 @@ export default function SecurityScan() {
         setExitCount(res2.data?.total_exits || 0);
 
         // restart scanner
-        window.location.reload();
+        startCamera();
       }
-
     } catch (err) {
       console.error(err);
       setMessage("Exit failed ❌");
@@ -137,19 +141,28 @@ export default function SecurityScan() {
 
   return (
     <div style={styles.container}>
-
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {/* CAMERA VIEW */}
-      {!student && <div id="qr-reader" style={{ width: "100%" }} />}
+      {/* CAMERA */}
+      {!student && (
+        <div
+          id="qr-reader"
+          style={styles.cameraBox}
+        />
+      )}
+
+      {!cameraStarted && (
+        <button style={styles.startBtn} onClick={startCamera}>
+          Start Camera
+        </button>
+      )}
 
       {message && <p>{message}</p>}
 
       {/* STUDENT DATA */}
       {student && (
         <div style={styles.card}>
-
           {student.profile_image && (
             <img
               src={`${API_BASE_URL}/uploads/student_images/${student.profile_image}`}
@@ -160,63 +173,72 @@ export default function SecurityScan() {
 
           <h3>{student.name}</h3>
 
-          <p><b>Roll No:</b> {student.roll_no}</p>
+          <p><b>Roll:</b> {student.roll_no}</p>
           <p><b>Year:</b> {student.year}</p>
-          <p><b>Section:</b> {student.section}</p>
-          <p><b>Department:</b> {student.department}</p>
+          <p><b>Dept:</b> {student.department}</p>
 
           <p>
-            <b>Parent Mobile:</b>{" "}
+            <b>Parent:</b>{" "}
             <a href={`tel:${student.parent_mobile}`} style={styles.link}>
               {student.parent_mobile}
             </a>
           </p>
 
-          <button style={styles.btn} onClick={confirmExit}>
+          <button style={styles.confirmBtn} onClick={confirmExit}>
             Confirm Exit
           </button>
-
         </div>
       )}
-
     </div>
   );
 }
 
-/* ================= STYLES ================= */
-
+// ================= STYLES =================
 const styles = {
   container: {
     maxWidth: "350px",
     margin: "auto",
     textAlign: "center",
-    color: "white"
+    color: "white",
+  },
+
+  cameraBox: {
+    width: "100%",
+    marginTop: "15px",
+  },
+
+  startBtn: {
+    marginTop: "10px",
+    padding: "10px",
+    background: "#3b82f6",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
   },
 
   card: {
     marginTop: "20px",
     background: "#111",
     padding: "15px",
-    borderRadius: "10px"
+    borderRadius: "10px",
   },
 
   image: {
     width: "200px",
     height: "200px",
-    borderRadius: "10px"
+    borderRadius: "10px",
   },
 
-  btn: {
+  confirmBtn: {
     marginTop: "10px",
     padding: "10px",
     background: "green",
-    border: "none",
     color: "white",
+    border: "none",
     borderRadius: "5px",
-    cursor: "pointer"
   },
 
   link: {
-    color: "#3b82f6"
-  }
+    color: "#3b82f6",
+  },
 };
