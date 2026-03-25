@@ -21,7 +21,7 @@ export default function Navbar() {
         if (!res.ok) return;
 
         const data = await res.json();
-        const unread = data.filter(n => !n.is_read).length;
+        const unread = data.filter((n) => !n.is_read).length;
         setUnreadCount(unread);
       } catch (err) {
         console.log("Notification error:", err);
@@ -90,6 +90,8 @@ export default function Navbar() {
   );
 }
 
+/* ================= STYLES (FIXED) ================= */
+
 const styles = {
   nav: {
     display: "flex",
@@ -98,6 +100,9 @@ const styles = {
     padding: "15px 30px",
     backgroundColor: "#1e293b",
     color: "white",
+
+    position: "relative",   // ✅ FIX
+    zIndex: 1000            // ✅ FIX (VERY IMPORTANT)
   },
   logoLink: { textDecoration: "none", color: "white" },
   logo: { margin: 0, cursor: "pointer" },

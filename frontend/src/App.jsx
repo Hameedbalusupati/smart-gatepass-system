@@ -20,7 +20,6 @@ function ProtectedRoute({ children, role }) {
   const token = localStorage.getItem("access_token");
   const userRole = localStorage.getItem("role");
 
-  // 🚀 FIX: wait-safe fallback
   if (!token) {
     return <Navigate to="/login" replace />;
   }
@@ -37,8 +36,8 @@ function ProtectedRoute({ children, role }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* ✅ FIX: Navbar safe render */}
-      {localStorage.getItem("access_token") && <Navbar />}
+      {/* ✅ ALWAYS SHOW NAVBAR */}
+      <Navbar />
 
       <Routes>
         {/* ---------- PUBLIC ---------- */}
@@ -94,7 +93,7 @@ export default function App() {
           }
         />
 
-        {/* ---------- SECURITY (FIXED) ---------- */}
+        {/* ---------- SECURITY ---------- */}
         <Route
           path="/security"
           element={
