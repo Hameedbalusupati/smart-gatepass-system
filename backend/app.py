@@ -38,9 +38,13 @@ def create_app():
     os.makedirs(TEMP_FOLDER, exist_ok=True)
 
     # ==============================
-    # CORS
+    # ✅ FULL CORS FIX (IMPORTANT)
     # ==============================
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    CORS(
+        app,
+        resources={r"/*": {"origins": "*"}},   # 🔥 allow all routes
+        supports_credentials=True
+    )
 
     # ==============================
     # INIT DB & JWT
@@ -54,9 +58,9 @@ def create_app():
     with app.app_context():
         try:
             db.create_all()
-            print("✅ Database Connected Successfully")
+            print("Database Connected Successfully")
         except Exception as e:
-            print("❌ Database Error:", e)
+            print("Database Error:", e)
 
     # ==============================
     # REGISTER ROUTES
@@ -81,12 +85,12 @@ def create_app():
         return send_from_directory(FACULTY_FOLDER, filename)
 
     # ==============================
-    # HEALTH CHECK (VERY IMPORTANT)
+    # HEALTH CHECK
     # ==============================
     @app.route("/")
     def health():
         return jsonify({
-            "status": "Backend Running ✅",
+            "status": "Backend Running",
             "database": "Connected",
             "jwt": "Active"
         }), 200
@@ -101,8 +105,8 @@ app = create_app()
 
 
 # ==============================
-# LOCAL RUN (Render uses Gunicorn)
+# LOCAL RUN
 # ==============================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # 🔥 FIXED PORT
+    port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
