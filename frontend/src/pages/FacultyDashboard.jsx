@@ -1,267 +1,204 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function FacultyDashboard() {
-  const navigate = useNavigate();
-
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
-  // ================= LOAD DATA =================
+  // ================= FETCH DATA =================
   const fetchData = async () => {
     try {
       setLoading(true);
 
-      const pRes = await API.get("/faculty/gatepasses/pending");
-      const hRes = await API.get("/faculty/gatepasses/history");
+      const res1 = await API.get("/faculty/gatepasses/pending");
+      const res2 = await API.get("/faculty/gatepasses/history");
 
-      setPending(pRes.data.gatepasses || []);
-      setHistory(hRes.data.gatepasses || []);
+      setPending(res1.data.gatepasses || []);
+      setHistory(res2.data.gatepasses || []);
 
     } catch (err) {
-      console.error(err);
-      setError("Server not reachable");
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
     fetchData();
   }, []);
 
-  // ================= APPROVE =================
-  const approveGatepass = async (id) => {
+  // ================= ACTION =================
+  const handleAction = async (id, action) => {
     try {
-      await API.post(`/gatepass/faculty_action/${id}`, {
-        action: "approve"
+      await API.post(`/faculty/gatepass/faculty_action/${id}`, {
+        action: action,
       });
 
-      alert("Approved ✅");
-      fetchData();
+      fetchData(); // refresh
 
     } catch (err) {
-      alert(err.response?.data?.message || "Approval failed ❌");
+      console.error("Action error:", err);
+      alert("Action failed");
     }
   };
 
-  // ================= REJECT =================
-  const rejectGatepass = async (id) => {
-    const reason = prompt("Enter rejection reason");
-    if (!reason) return;
-
-    try {
-      await API.post(`/gatepass/faculty_action/${id}`, {
-        action: "reject",
-        rejection_reason: reason
-      });
-
-      alert("Rejected ❌");
-      fetchData();
-
-    } catch (err) {
-      alert(err.response?.data?.message || "Reject failed ❌");
-    }
+  // ================= STATUS COLOR =================
+  const getStatusColor = (status) => {
+    if (status === "Approved") return "#22c55e";
+    if (status === "Rejected") return "#ef4444";
+    if (status === "PendingHOD") return "#f59e0b";
+    return "#94a3b8";
   };
 
-  const logout = () => {
-    localStorage.clear();
-    navigate("/login");
-  };
-
-  // ================= UI =================
   return (
-    <div style={container}>
-      <div style={box}>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-        <h2 style={title}>Faculty Dashboard</h2>
+        <h2 style={styles.title}>Faculty Dashboard</h2>
 
-        {/* 🔥 NAVIGATION BUTTONS */}
-        <div style={topButtons}>
-          <button onClick={fetchData} style={navBtn}>Refresh</button>
-          <button onClick={logout} style={logoutBtn}>Logout</button>
-        </div>
-
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        <button onClick={fetchData} style={styles.refreshBtn}>
+          Refresh
+        </button>
 
         {/* ================= PENDING ================= */}
-        <h3 style={section}>Pending Gatepasses</h3>
+        <h3 style={styles.section}>Pending Gatepasses</h3>
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : pending.length === 0 ? (
-          <p style={info}>No pending requests</p>
+        {pending.length === 0 ? (
+          <p>No pending requests</p>
         ) : (
           pending.map((p) => (
-            <div key={p.id} style={card}>
-
+            <div key={p.id} style={styles.card}>
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
+              <p><b>Parent Mobile:</b> {p.parent_mobile}</p>
 
-              {/* ✅ FIXED MOBILE */}
-              <p>
-                <b>Parent Mobile:</b>{" "}
-                {p.parent_mobile || p.parentMobile || "N/A"}
-              </p>
+              {/* 📞 CALL BUTTON */}
+              <a href={`tel:${p.parent_mobile}`} style={styles.callBtn}>
+                📞 Call Parent
+              </a>
 
-              <div style={{ marginTop: "10px" }}>
+              <div style={styles.btnRow}>
                 <button
-                  style={approveBtn}
-                  onClick={() => approveGatepass(p.id)}
+                  style={styles.approve}
+                  onClick={() => handleAction(p.id, "approve")}
                 >
                   Approve
                 </button>
 
                 <button
-                  style={rejectBtn}
-                  onClick={() => rejectGatepass(p.id)}
+                  style={styles.reject}
+                  onClick={() => handleAction(p.id, "reject")}
                 >
                   Reject
                 </button>
               </div>
-
             </div>
           ))
         )}
 
         {/* ================= HISTORY ================= */}
-        <h3 style={section}>History</h3>
+        <h3 style={styles.section}>History</h3>
 
-        {history.length === 0 ? (
-          <p style={info}>No history available</p>
-        ) : (
-          history.map((p) => (
-            <div key={p.id} style={historyCard}>
+        {history.map((h) => (
+          <div key={h.id} style={styles.historyCard}>
+            <p><b>{h.student_name}</b></p>
+            <p><b>Parent Mobile:</b> {h.parent_mobile}</p>
 
-              <p><b>{p.student_name}</b></p>
-
-              {/* ✅ FIXED MOBILE */}
-              <p>
-                <b>Parent Mobile:</b>{" "}
-                {p.parent_mobile || p.parentMobile || "N/A"}
-              </p>
-
-              <p>
-                Status:{" "}
-                <span
-                  style={{
-                    color:
-                      p.status === "Approved"
-                        ? "green"
-                        : p.status === "Rejected"
-                        ? "red"
-                        : "orange"
-                  }}
-                >
-                  {p.status}
-                </span>
-              </p>
-
-            </div>
-          ))
-        )}
+            <p style={{ color: getStatusColor(h.status) }}>
+              Status: {h.status}
+            </p>
+          </div>
+        ))}
 
       </div>
     </div>
   );
 }
 
-/////////////////////////////////////////////////////////////////
-// 🎨 STYLES
-/////////////////////////////////////////////////////////////////
 
-const container = {
-  minHeight: "100vh",
-  background: "#0f172a",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center"
-};
+/* ================= STYLES ================= */
 
-const box = {
-  width: "500px",
-  background: "#ffffff",
-  padding: "20px",
-  borderRadius: "12px"
-};
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#0f172a",
+    display: "flex",
+    justifyContent: "center",
+    paddingTop: "30px"
+  },
 
-const title = {
-  textAlign: "center",
-  color: "#111827"
-};
+  container: {
+    width: "450px",
+    background: "#111827",
+    padding: "25px",
+    borderRadius: "10px",
+    color: "white",
+    boxShadow: "0 10px 25px rgba(0,0,0,0.6)"
+  },
 
-const section = {
-  marginTop: "20px",
-  color: "#1f2937"
-};
+  title: {
+    textAlign: "center",
+    marginBottom: "10px"
+  },
 
-const card = {
-  background: "#f9fafb",
-  padding: "10px",
-  marginTop: "10px",
-  borderRadius: "8px"
-};
+  refreshBtn: {
+    background: "#3b82f6",
+    color: "white",
+    border: "none",
+    padding: "6px 12px",
+    borderRadius: "5px",
+    cursor: "pointer",
+    marginBottom: "15px"
+  },
 
-const historyCard = {
-  background: "#eef2ff",
-  padding: "10px",
-  marginTop: "10px",
-  borderRadius: "8px"
-};
+  section: {
+    marginTop: "15px",
+    marginBottom: "10px"
+  },
 
-const approveBtn = {
-  background: "#16a34a",
-  color: "white",
-  border: "none",
-  padding: "6px 12px",
-  marginRight: "10px",
-  cursor: "pointer"
-};
+  card: {
+    background: "#1f2937",
+    padding: "15px",
+    borderRadius: "8px",
+    marginBottom: "10px"
+  },
 
-const rejectBtn = {
-  background: "#dc2626",
-  color: "white",
-  border: "none",
-  padding: "6px 12px",
-  cursor: "pointer"
-};
+  historyCard: {
+    background: "#374151",
+    padding: "12px",
+    borderRadius: "8px",
+    marginBottom: "10px"
+  },
 
-const info = {
-  color: "#6b7280"
-};
+  btnRow: {
+    marginTop: "10px",
+    display: "flex",
+    gap: "10px"
+  },
 
-const topButtons = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginBottom: "10px"
-};
+  approve: {
+    background: "#22c55e",
+    border: "none",
+    padding: "6px 12px",
+    color: "white",
+    borderRadius: "5px",
+    cursor: "pointer"
+  },
 
-const navBtn = {
-  padding: "6px 10px",
-  background: "#3b82f6",
-  color: "white",
-  border: "none",
-  borderRadius: "5px",
-  cursor: "pointer"
-};
+  reject: {
+    background: "#ef4444",
+    border: "none",
+    padding: "6px 12px",
+    color: "white",
+    borderRadius: "5px",
+    cursor: "pointer"
+  },
 
-const logoutBtn = {
-  padding: "6px 10px",
-  background: "#ef4444",
-  color: "white",
-  border: "none",
-  borderRadius: "5px",
-  cursor: "pointer"
+  callBtn: {
+    display: "inline-block",
+    marginTop: "5px",
+    color: "#38bdf8",
+    textDecoration: "none"
+  }
 };
