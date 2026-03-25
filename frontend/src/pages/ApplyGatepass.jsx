@@ -1,7 +1,9 @@
 import { useState } from "react";
-import API_BASE_URL from "../config";
+import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 export default function ApplyGatepass() {
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     reason: "",
@@ -12,19 +14,19 @@ export default function ApplyGatepass() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [success, setSuccess] = useState(false);
 
-  const token = localStorage.getItem("access_token");
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
-
+  // ================= HANDLE INPUT =================
   const handleChange = (e) => {
-
     const { name, value } = e.target;
 
     if (name === "parent_mobile") {
-
-      // allow only digits and max 10 numbers
       if (!/^\d{0,10}$/.test(value)) return;
-
     }
 
     setForm({
@@ -33,79 +35,92 @@ export default function ApplyGatepass() {
     });
   };
 
-
+  // ================= VALIDATION =================
   const validateMobile = (number) => {
-
     const mobileRegex = /^[6-9]\d{9}$/;
     return mobileRegex.test(number);
-
   };
 
-
+  // ================= SUBMIT =================
   const handleSubmit = async (e) => {
-
     e.preventDefault();
 
     setMessage("");
+    setSuccess(false);
 
     if (!validateMobile(form.parent_mobile)) {
-      setMessage("Parent mobile number must be a valid 10-digit Indian number");
+      setMessage("Enter valid 10-digit mobile number");
+      return;
+    }
+
+    if (!token) {
+      setMessage("Session expired. Please login again.");
       return;
     }
 
     try {
-
       setLoading(true);
 
-      const res = await fetch(`${API_BASE_URL}/gatepass/apply`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+      const res = await API.post(
+        "/gatepass/apply",
+        {
+          reason: form.reason.trim(),
+          out_time: form.out_time,
+          return_time: form.return_time,
+          parent_mobile: form.parent_mobile.trim()
         },
-        body: JSON.stringify(form)
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      setMessage(res.data.message || "Gatepass applied successfully ✅");
+      setSuccess(true);
+
+      setForm({
+        reason: "",
+        out_time: "",
+        return_time: "",
+        parent_mobile: ""
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-
-        setMessage(data.message || "Failed to apply gatepass");
-
-      } else {
-
-        setMessage("Gatepass applied successfully!");
-
-        setForm({
-          reason: "",
-          out_time: "",
-          return_time: "",
-          parent_mobile: ""
-        });
-
-      }
-
-    } catch (error) {
-
-      console.error("Gatepass submit error:", error);
-      setMessage("Cannot reach server");
-
+    } catch (err) {
+      setSuccess(false);
+      setMessage(
+        err.response?.data?.message || "Server error. Try again later."
+      );
     } finally {
-
       setLoading(false);
-
     }
-
   };
 
+  const logout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
   return (
-
     <div style={styles.page}>
-
       <div style={styles.container}>
 
         <h2 style={styles.title}>Apply Gatepass</h2>
+
+        {/* 🔥 NAVIGATION BUTTONS */}
+        <div style={styles.topButtons}>
+          <button onClick={() => navigate("/student")} style={styles.navBtn}>
+            Dashboard
+          </button>
+
+          <button onClick={() => navigate("/status")} style={styles.navBtn}>
+            Status
+          </button>
+
+          <button onClick={logout} style={styles.logoutBtn}>
+            Logout
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
 
@@ -146,28 +161,31 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={styles.button}
-          >
+          <button type="submit" disabled={loading} style={styles.button}>
             {loading ? "Submitting..." : "Apply Gatepass"}
           </button>
 
         </form>
 
-        {message && <p style={styles.message}>{message}</p>}
+        {message && (
+          <p
+            style={{
+              ...styles.message,
+              color: success ? "#22c55e" : "#ef4444"
+            }}
+          >
+            {message}
+          </p>
+        )}
 
       </div>
-
     </div>
-
   );
 }
 
+/* ===== STYLES ===== */
 
 const styles = {
-
   page: {
     minHeight: "100vh",
     background: "#0f172a",
@@ -187,7 +205,31 @@ const styles = {
 
   title: {
     textAlign: "center",
-    marginBottom: "20px"
+    marginBottom: "15px"
+  },
+
+  topButtons: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: "15px"
+  },
+
+  navBtn: {
+    padding: "6px 10px",
+    background: "#3b82f6",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer"
+  },
+
+  logoutBtn: {
+    padding: "6px 10px",
+    background: "#ef4444",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer"
   },
 
   form: {
@@ -208,7 +250,7 @@ const styles = {
     padding: "10px",
     border: "none",
     borderRadius: "5px",
-    background: "#2563eb",
+    background: "#22c55e",
     color: "white",
     cursor: "pointer"
   },
@@ -216,7 +258,6 @@ const styles = {
   message: {
     marginTop: "10px",
     textAlign: "center",
-    color: "#22c55e"
+    fontWeight: "500"
   }
-
 };

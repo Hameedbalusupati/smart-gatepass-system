@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function StudentDashboard() {
+  const navigate = useNavigate();
+
   const [reason, setReason] = useState("");
   const [parentMobile, setParentMobile] = useState("");
   const [message, setMessage] = useState("");
@@ -29,7 +32,7 @@ export default function StudentDashboard() {
       setLoading(true);
 
       const res = await API.post(
-        "/gatepass/apply", // ✅ API baseURL already includes /api
+        "/gatepass/apply",
         {
           reason: reason.trim(),
           parent_mobile: parentMobile.trim(),
@@ -58,31 +61,33 @@ export default function StudentDashboard() {
     }
   };
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "#0f172a",
-        color: "white",
-      }}
-    >
-      <div
-        style={{
-          width: "420px",
-          background: "#111827",
-          padding: "25px",
-          borderRadius: "10px",
-          boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
-        }}
-      >
-        <h2 style={{ textAlign: "center", marginBottom: "20px" }}>
-          Student Dashboard
-        </h2>
+  const logout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
-        <h3 style={{ marginBottom: "10px" }}>Apply Gatepass</h3>
+  return (
+    <div style={containerStyle}>
+      <div style={cardStyle}>
+
+        <h2 style={{ textAlign: "center" }}>Student Dashboard</h2>
+
+        {/* 🔥 NEW BUTTONS */}
+        <div style={buttonRow}>
+          <button onClick={() => navigate("/status")} style={navBtn}>
+            View Status
+          </button>
+
+          <button onClick={() => navigate("/notifications")} style={navBtn}>
+            Notifications
+          </button>
+
+          <button onClick={logout} style={logoutBtn}>
+            Logout
+          </button>
+        </div>
+
+        <h3 style={{ marginTop: "15px" }}>Apply Gatepass</h3>
 
         <input
           type="text"
@@ -104,29 +109,15 @@ export default function StudentDashboard() {
           onClick={applyGatePass}
           disabled={loading}
           style={{
-            width: "100%",
-            padding: "12px",
+            ...applyBtn,
             backgroundColor: loading ? "#64748b" : "#22c55e",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-            fontWeight: "600",
-            cursor: loading ? "not-allowed" : "pointer",
-            marginTop: "10px",
           }}
         >
           {loading ? "Applying..." : "Apply Gatepass"}
         </button>
 
         {message && (
-          <p
-            style={{
-              marginTop: "15px",
-              textAlign: "center",
-              color: success ? "#22c55e" : "#ef4444",
-              fontWeight: "500",
-            }}
-          >
+          <p style={{ ...msgStyle, color: success ? "#22c55e" : "#ef4444" }}>
             {message}
           </p>
         )}
@@ -135,14 +126,72 @@ export default function StudentDashboard() {
   );
 }
 
-/* ===== INPUT STYLE ===== */
+/* ===== STYLES ===== */
+
+const containerStyle = {
+  minHeight: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  backgroundColor: "#0f172a",
+  color: "white",
+};
+
+const cardStyle = {
+  width: "420px",
+  background: "#111827",
+  padding: "25px",
+  borderRadius: "10px",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
+};
+
+const buttonRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  marginTop: "10px",
+};
+
+const navBtn = {
+  padding: "8px 10px",
+  background: "#3b82f6",
+  color: "white",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer",
+};
+
+const logoutBtn = {
+  padding: "8px 10px",
+  background: "#ef4444",
+  color: "white",
+  border: "none",
+  borderRadius: "5px",
+  cursor: "pointer",
+};
+
 const inputStyle = {
   width: "100%",
   padding: "10px",
-  marginBottom: "10px",
+  marginTop: "10px",
   borderRadius: "6px",
   border: "1px solid #374151",
   backgroundColor: "#020617",
   color: "white",
-  outline: "none",
+};
+
+const applyBtn = {
+  width: "100%",
+  padding: "12px",
+  color: "white",
+  border: "none",
+  borderRadius: "6px",
+  fontWeight: "600",
+  cursor: "pointer",
+  marginTop: "10px",
+};
+
+const msgStyle = {
+  marginTop: "15px",
+  textAlign: "center",
+  fontWeight: "500",
 };
