@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api";   // axios instance
+import API from "../api";
 import "../index.css";
 
 export default function Login() {
@@ -43,6 +43,7 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // ✅ CORRECT ENDPOINT
       const res = await API.post("/auth/login", {
         email,
         password
@@ -53,10 +54,12 @@ export default function Login() {
       console.log("LOGIN RESPONSE:", data);
 
       // ================= STORE TOKEN =================
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("role", data.role);
-      localStorage.setItem("name", data.name);
-      localStorage.setItem("user_id", data.id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("role", data.role);
+        localStorage.setItem("name", data.name);
+        localStorage.setItem("user_id", data.id);
+      }
 
       // ================= NAVIGATION =================
       switch (data.role) {
@@ -104,6 +107,7 @@ export default function Login() {
             type="email"
             name="email"
             placeholder="Email"
+            value={form.email}
             onChange={handleChange}
             required
           />
@@ -112,6 +116,7 @@ export default function Login() {
             type="password"
             name="password"
             placeholder="Password"
+            value={form.password}
             onChange={handleChange}
             required
           />

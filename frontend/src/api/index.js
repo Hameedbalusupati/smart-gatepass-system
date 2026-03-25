@@ -1,19 +1,20 @@
 import axios from "axios";
-import API_BASE_URL from "../config";
 
 const API = axios.create({
-  baseURL: `${API_BASE_URL}/api`,   // ✅ FIXED
+  baseURL: import.meta.env.VITE_API_BASE_URL, // ✅ NO /api here
   timeout: 20000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Attach JWT token automatically
+// ✅ Attach token safely
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("access_token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

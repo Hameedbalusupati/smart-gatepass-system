@@ -3,7 +3,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
 import os
-import re
 
 from models import db, User
 
@@ -11,10 +10,13 @@ auth_bp = Blueprint("auth_bp", __name__)
 
 
 # =================================================
-# REGISTER (FACULTY IMAGE REQUIRED ✅)
+# REGISTER
 # =================================================
-@auth_bp.route("/register", methods=["POST"])
+@auth_bp.route("/register", methods=["POST", "OPTIONS"])
 def register():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
     try:
         college_id = (request.form.get("college_id") or "").strip()
         name = (request.form.get("name") or "").strip()
@@ -28,37 +30,26 @@ def register():
 
         image = request.files.get("profile_image")
 
-        # ================= VALIDATION =================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # ================= EMAIL =================
+        # EMAIL VALIDATION
         parts = email.split("@")
-        if len(parts) != 2:
-            return jsonify({"message": "Invalid email"}), 400
-
-        email_user, domain = parts
-
-        if domain != "pace.ac.in":
+        if len(parts) != 2 or parts[1] != "pace.ac.in":
             return jsonify({"message": "Use college email"}), 400
 
-        # ================= STUDENT RULE =================
-        if role == "student":
-            if email_user != college_id.lower():
-                return jsonify({"message": "Email must match roll number"}), 400
+        if role == "student" and parts[0] != college_id.lower():
+            return jsonify({"message": "Email must match roll number"}), 400
 
-        # ================= FACULTY RULE =================
         if role == "faculty":
             if not college_id.isdigit():
                 return jsonify({"message": "Faculty ID must be numeric"}), 400
-
             if not image:
-                return jsonify({"message": "Faculty image is required"}), 400
+                return jsonify({"message": "Faculty image required"}), 400
 
-        # ================= ROLE =================
         if role in ["student", "faculty"] and (not year or not section):
             return jsonify({"message": "Year & Section required"}), 400
 
@@ -67,15 +58,15 @@ def register():
         except:
             return jsonify({"message": "Invalid year"}), 400
 
-        # ================= IMAGE SAVE =================
-        profile_path = None
-
+        # IMAGE SAVE
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "student_images")
         FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "faculty_images")
 
         os.makedirs(STUDENT_FOLDER, exist_ok=True)
         os.makedirs(FACULTY_FOLDER, exist_ok=True)
+
+        profile_path = None
 
         if role == "student" and image:
             path = os.path.join(STUDENT_FOLDER, f"{college_id}.jpg")
@@ -87,7 +78,6 @@ def register():
             image.save(path)
             profile_path = path
 
-        # ================= CREATE USER =================
         user = User(
             college_id=college_id,
             name=name,
@@ -112,14 +102,17 @@ def register():
     except Exception as e:
         db.session.rollback()
         print("REGISTER ERROR:", e)
-        return jsonify({"message": str(e)}), 500
+        return jsonify({"message": "Server error"}), 500
 
 
 # =================================================
 # LOGIN
 # =================================================
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+
     try:
         data = request.get_json()
 
@@ -146,4 +139,4 @@ def login():
 
     except Exception as e:
         print("LOGIN ERROR:", e)
-        return jsonify({"message": str(e)}), 500
+        return jsonify({"message": "Server error"}), 500
