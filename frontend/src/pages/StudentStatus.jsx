@@ -1,98 +1,75 @@
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import API_BASE_URL from "../config";
+import API from "../api"; // ✅ FIXED (use axios instance)
 
 export default function StudentStatus() {
-
   const [pass, setPass] = useState(null);
   const [now, setNow] = useState(0);
-
-  const token = localStorage.getItem("access_token");
+  const [loading, setLoading] = useState(true);
 
   // ================= TIMER =================
   useEffect(() => {
-
     const updateTime = () => {
       setNow(Math.floor(Date.now() / 1000));
     };
 
     updateTime();
-
     const timer = setInterval(updateTime, 1000);
 
     return () => clearInterval(timer);
-
   }, []);
-
-
 
   // ================= FETCH STATUS =================
   useEffect(() => {
-
-    if (!token) return;
-
     const fetchStatus = async () => {
-
       try {
+        const res = await API.get("/student/status");
 
-        const res = await fetch(`${API_BASE_URL}/student/status`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        console.log("STATUS RESPONSE:", res.data); // 🔥 debug
 
-        const data = await res.json();
-
-        if (res.ok && data.success) {
-          setPass(data.gatepass);
+        // ✅ HANDLE BOTH CASES
+        if (res.data?.gatepass) {
+          setPass(res.data.gatepass);
+        } else if (res.data) {
+          setPass(res.data);
         } else {
           setPass(null);
         }
 
       } catch (err) {
-
         console.error("Fetch error:", err);
         setPass(null);
-
+      } finally {
+        setLoading(false);
       }
-
     };
 
     fetchStatus();
-
-  }, [token]);
-
-
+  }, []);
 
   // ================= QR VALIDATION =================
   const isQrValid = (qrToken) => {
-
     try {
       const decoded = jwtDecode(qrToken);
       return decoded.exp > now;
     } catch {
       return false;
     }
-
   };
 
-
   return (
-
     <div style={styles.page}>
-
       <div style={styles.container}>
-
         <h2 style={styles.title}>Gatepass Status</h2>
 
-        {!pass && (
-          <p style={styles.error}>No gatepass applied</p>
+        {loading && <p style={styles.info}>Loading...</p>}
+
+        {!loading && !pass && (
+          <p style={styles.error}>No gatepass found</p>
         )}
 
         {pass && (
-
           <div style={styles.card}>
-
             <p><b>Reason:</b> {pass.reason}</p>
 
             <p>
@@ -102,28 +79,19 @@ export default function StudentStatus() {
               </span>
             </p>
 
-
-            {/* REJECTION MESSAGE */}
-
+            {/* REJECTED */}
             {pass.status === "Rejected" && pass.rejection_reason && (
-
               <p style={styles.rejection}>
                 <b>Rejection Reason:</b> {pass.rejection_reason}
               </p>
-
             )}
 
-
             {/* QR CODE */}
-
             {pass.status === "Approved" &&
               pass.qr_token &&
               !pass.is_used && (
-
                 isQrValid(pass.qr_token) ? (
-
                   <div style={styles.qrBox}>
-
                     <img
                       style={styles.qrImage}
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(pass.qr_token)}`}
@@ -133,35 +101,23 @@ export default function StudentStatus() {
                     <p style={styles.valid}>
                       Show this QR at Security Gate
                     </p>
-
                   </div>
-
                 ) : (
-
                   <p style={styles.expired}>
                     QR expired. Contact HOD.
                   </p>
-
                 )
               )}
-
           </div>
-
         )}
-
       </div>
-
     </div>
-
   );
 }
-
-
 
 /* ================= STYLES ================= */
 
 const styles = {
-
   page: {
     minHeight: "100vh",
     background: "#0f172a",
@@ -224,18 +180,18 @@ const styles = {
     color: "#eab308",
   },
 
+  info: {
+    textAlign: "center",
+    color: "#38bdf8",
+  },
 };
 
-
 const statusStyle = (status) => ({
-
   fontWeight: "bold",
-
   color:
     status === "Approved"
       ? "#22c55e"
       : status === "Rejected"
-        ? "#ef4444"
-        : "#eab308",
-
+      ? "#ef4444"
+      : "#eab308",
 });
