@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function StudentDashboard() {
-  const navigate = useNavigate();
-
   const [reason, setReason] = useState("");
   const [parentMobile, setParentMobile] = useState("");
   const [message, setMessage] = useState("");
@@ -43,15 +40,11 @@ export default function StudentDashboard() {
       setMessage(res.data.message || "Gatepass applied successfully ✅");
       setSuccess(true);
 
-      // ✅ RESET FORM
+      // RESET
       setReason("");
       setParentMobile("");
 
-      // ✅ AUTO CLEAR MESSAGE
-      setTimeout(() => {
-        setMessage("");
-      }, 3000);
-
+      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       setSuccess(false);
       setMessage(
@@ -65,27 +58,10 @@ export default function StudentDashboard() {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-
         <h2 style={styles.title}>Student Dashboard</h2>
 
-        {/* 🔥 CLEAN NAVIGATION */}
-        <div style={styles.buttonRow}>
-          <button
-            onClick={() => navigate("/status")}
-            style={styles.navBtn}
-          >
-            View Status
-          </button>
+        {/* 🚀 ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
 
-          <button
-            onClick={() => navigate("/notifications")}
-            style={styles.navBtn}
-          >
-            Notifications
-          </button>
-        </div>
-
-        {/* ================= APPLY ================= */}
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 
         <input
@@ -115,7 +91,6 @@ export default function StudentDashboard() {
           {loading ? "Applying..." : "Apply Gatepass"}
         </button>
 
-        {/* ================= MESSAGE ================= */}
         {message && (
           <p
             style={{
@@ -126,7 +101,6 @@ export default function StudentDashboard() {
             {message}
           </p>
         )}
-
       </div>
     </div>
   );
@@ -154,25 +128,7 @@ const styles = {
 
   title: {
     textAlign: "center",
-    marginBottom: "15px",
-  },
-
-  buttonRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
     marginBottom: "20px",
-  },
-
-  navBtn: {
-    flex: 1,
-    padding: "10px",
-    background: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "500",
   },
 
   subTitle: {
