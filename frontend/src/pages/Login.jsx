@@ -27,6 +27,7 @@ export default function Login() {
   // ================= LOGIN =================
   const handleLogin = async (e) => {
     e.preventDefault();
+
     if (loading) return;
 
     setError("");
@@ -40,10 +41,9 @@ export default function Login() {
       return;
     }
 
-    setLoading(true);
-
     try {
-      // ✅ CORRECT ENDPOINT
+      setLoading(true);
+
       const res = await API.post("/auth/login", {
         email,
         password
@@ -53,30 +53,27 @@ export default function Login() {
 
       console.log("LOGIN RESPONSE:", data);
 
-      // ================= STORE TOKEN =================
-      if (typeof window !== "undefined") {
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("role", data.role);
-        localStorage.setItem("name", data.name);
-        localStorage.setItem("user_id", data.id);
-      }
+      // ================= STORE DATA =================
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("name", data.name || "");
+      localStorage.setItem("user_id", data.id || "");
+      localStorage.setItem("email", email);
 
-      // ================= NAVIGATION =================
-      switch (data.role) {
-        case "student":
-          navigate("/student");
-          break;
-        case "faculty":
-          navigate("/faculty");
-          break;
-        case "hod":
-          navigate("/hod");
-          break;
-        case "security":
-          navigate("/security");
-          break;
-        default:
-          navigate("/");
+      // 🔥 IMPORTANT → UPDATE NAVBAR
+      window.dispatchEvent(new Event("authChanged"));
+
+      // ================= NAVIGATE =================
+      if (data.role === "student") {
+        navigate("/student");
+      } else if (data.role === "faculty") {
+        navigate("/faculty");
+      } else if (data.role === "hod") {
+        navigate("/hod");
+      } else if (data.role === "security") {
+        navigate("/security");
+      } else {
+        navigate("/");
       }
 
     } catch (err) {
@@ -87,6 +84,7 @@ export default function Login() {
       } else {
         setError("Server not reachable");
       }
+
     } finally {
       setLoading(false);
     }
@@ -99,14 +97,18 @@ export default function Login() {
 
         <h2>Smart Gatepass Login</h2>
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="error" style={{ marginBottom: "10px" }}>
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleLogin}>
 
           <input
             type="email"
             name="email"
-            placeholder="Email"
+            placeholder="Enter Email"
             value={form.email}
             onChange={handleChange}
             required
@@ -115,7 +117,7 @@ export default function Login() {
           <input
             type="password"
             name="password"
-            placeholder="Password"
+            placeholder="Enter Password"
             value={form.password}
             onChange={handleChange}
             required
