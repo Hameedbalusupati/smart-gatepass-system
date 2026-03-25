@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API_BASE_URL from "../config";
 
 export default function Register() {
   const navigate = useNavigate();
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,20 +19,16 @@ export default function Register() {
     department: "",
     year: "",
     section: "",
-    profile_image: null, // ✅ only this
+    profile_image: null,
   });
 
-  // ================= HANDLE INPUT =================
+  // ================= INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ================= IMAGE HANDLER =================
+  // ================= IMAGE =================
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -61,6 +58,11 @@ export default function Register() {
 
     setError("");
 
+    if (!API_BASE_URL) {
+      setError("API not configured ❌");
+      return;
+    }
+
     const collegeId = form.college_id.trim();
     const email = form.email.trim().toLowerCase();
 
@@ -74,7 +76,6 @@ export default function Register() {
       return;
     }
 
-    // 🔥 FIXED CONDITION
     if ((form.role === "student" || form.role === "faculty") && !form.profile_image) {
       setError("Image is required");
       return;
@@ -95,10 +96,11 @@ export default function Register() {
       if (form.year) formData.append("year", form.year);
       if (form.section) formData.append("section", form.section);
 
-      // ✅ ALWAYS SEND THIS
       if (form.profile_image) {
         formData.append("profile_image", form.profile_image);
       }
+
+      console.log("API URL:", API_BASE_URL); // 🔥 DEBUG
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
@@ -117,7 +119,7 @@ export default function Register() {
 
     } catch (err) {
       console.error(err);
-      setError("Server not reachable");
+      setError("Server not reachable ❌");
     } finally {
       setLoading(false);
     }
@@ -181,7 +183,6 @@ export default function Register() {
           </>
         )}
 
-        {/* ✅ SINGLE IMAGE FIELD */}
         {(form.role === "student" || form.role === "faculty") && (
           <input type="file" accept="image/*" onChange={handleImageChange} />
         )}
@@ -199,9 +200,7 @@ export default function Register() {
   );
 }
 
-// styles same as yours...
-
-// ================= STYLES =================
+// styles same
 const container = {
   minHeight: "100vh",
   display: "flex",
