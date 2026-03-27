@@ -41,12 +41,14 @@ function ProtectedRoute({ children, role }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* ✅ ALWAYS SHOW NAVBAR */}
-      <Navbar />
+      {/* ✅ TEMPORARILY REMOVE NAVBAR FOR TEST */}
+      {/* <Navbar /> */}
 
       <Routes>
+        {/* ---------- TEST ROUTE ---------- */}
+        <Route path="/" element={<h1 style={{ color: "white" }}>APP WORKING ✅</h1>} />
+
         {/* ---------- PUBLIC ---------- */}
-        <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
