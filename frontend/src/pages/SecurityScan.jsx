@@ -53,8 +53,9 @@ export default function SecurityScan() {
       setGatepass({ id: data.gatepass_id });
       setMessage("Gatepass Verified ✅");
 
-      // stop camera after scan
+      // 🔥 STOP CAMERA + CLEAR UI
       await qrRef.current.stop();
+      await qrRef.current.clear();
 
     } catch (err) {
       console.error(err);
@@ -77,17 +78,17 @@ export default function SecurityScan() {
           return;
         }
 
-        // 🔥 FORCE BACK CAMERA (important)
         const backCamera =
           devices.find((d) =>
             d.label.toLowerCase().includes("back")
           ) || devices[0];
 
         await html5QrCode.start(
-          backCamera.id,
+          { deviceId: { exact: backCamera.id } }, // 🔥 FIXED
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.777,
           },
           (decodedText) => {
             if (scannedRef.current) return;
@@ -130,7 +131,7 @@ export default function SecurityScan() {
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
 
-        // restart camera
+        // 🔥 RESTART CAMERA WITHOUT RELOAD
         window.location.reload();
       }
     } catch (err) {
@@ -144,9 +145,9 @@ export default function SecurityScan() {
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {/* 🔥 CAMERA ONLY */}
+      {/* 🔥 ONLY CAMERA */}
       {!student && (
-        <div id="qr-reader" style={styles.camera} />
+        <div id="qr-reader" style={styles.camera}></div>
       )}
 
       {message && <p>{message}</p>}
@@ -163,9 +164,9 @@ export default function SecurityScan() {
           )}
 
           <h3>{student.name}</h3>
-
           <p><b>Roll:</b> {student.roll_no}</p>
           <p><b>Year:</b> {student.year}</p>
+          <p><b>Section:</b> {student.section}</p>
           <p><b>Dept:</b> {student.department}</p>
 
           <p>
@@ -195,7 +196,10 @@ const styles = {
 
   camera: {
     width: "100%",
+    height: "300px", // 🔥 IMPORTANT
     marginTop: "20px",
+    borderRadius: "10px",
+    overflow: "hidden",
   },
 
   card: {
