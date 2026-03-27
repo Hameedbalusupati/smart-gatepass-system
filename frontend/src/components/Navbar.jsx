@@ -1,29 +1,35 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// ✅ Safe fallback
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://smart-gatepass-system.onrender.com/api";
 
 export default function Navbar() {
   const navigate = useNavigate();
 
-  const [token, setToken] = useState(null);
-  const [role, setRole] = useState(null);
-  const [email, setEmail] = useState(null);
+  // ✅ Initialize state directly (FIXED)
+  const [token, setToken] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+  );
+
+  const [role, setRole] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("role") : null
+  );
+
+  const [email, setEmail] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("email") : null
+  );
+
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ================= LOAD USER =================
-  const loadUser = () => {
-    setToken(localStorage.getItem("access_token"));
-    setRole(localStorage.getItem("role"));
-    setEmail(localStorage.getItem("email"));
-  };
-
+  // ================= LISTEN FOR AUTH CHANGES =================
   useEffect(() => {
-    loadUser();
-
-    // 🔥 Custom event (login/logout update)
     const handleAuthChange = () => {
-      loadUser();
+      setToken(localStorage.getItem("access_token"));
+      setRole(localStorage.getItem("role"));
+      setEmail(localStorage.getItem("email"));
     };
 
     window.addEventListener("authChanged", handleAuthChange);
@@ -48,8 +54,12 @@ export default function Navbar() {
         if (!res.ok) return;
 
         const data = await res.json();
-        const unread = data.filter((n) => !n.is_read).length;
-        setUnreadCount(unread);
+
+        // ✅ Safe check
+        if (Array.isArray(data)) {
+          const unread = data.filter((n) => !n.is_read).length;
+          setUnreadCount(unread);
+        }
       } catch (err) {
         console.log("Notification error:", err);
       }
@@ -61,10 +71,7 @@ export default function Navbar() {
   // ================= LOGOUT =================
   const logout = () => {
     localStorage.clear();
-
-    // 🔥 trigger update
     window.dispatchEvent(new Event("authChanged"));
-
     navigate("/login");
   };
 
@@ -77,7 +84,6 @@ export default function Navbar() {
       <div style={styles.links}>
         <Link style={styles.link} to="/">Home</Link>
 
-        {/* ===== NOT LOGGED IN ===== */}
         {!token && (
           <>
             <Link style={styles.link} to="/login">Login</Link>
@@ -85,7 +91,6 @@ export default function Navbar() {
           </>
         )}
 
-        {/* ===== STUDENT ===== */}
         {token && role === "student" && (
           <>
             <Link style={styles.link} to="/student">Dashboard</Link>
@@ -93,22 +98,18 @@ export default function Navbar() {
           </>
         )}
 
-        {/* ===== FACULTY ===== */}
         {token && role === "faculty" && (
           <Link style={styles.link} to="/faculty">Faculty</Link>
         )}
 
-        {/* ===== HOD ===== */}
         {token && role === "hod" && (
           <Link style={styles.link} to="/hod">HOD</Link>
         )}
 
-        {/* ===== SECURITY ===== */}
         {token && role === "security" && (
           <Link style={styles.link} to="/security">Security</Link>
         )}
 
-        {/* ===== NOTIFICATIONS ===== */}
         {token && (
           <Link to="/notifications" style={styles.notificationIcon}>
             🔔
@@ -118,7 +119,6 @@ export default function Navbar() {
           </Link>
         )}
 
-        {/* ===== LOGOUT ===== */}
         {token && (
           <button onClick={logout} style={styles.logoutBtn}>
             Logout
