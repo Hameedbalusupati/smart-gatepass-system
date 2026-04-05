@@ -9,7 +9,7 @@ export default function ScanQR() {
     if (!result?.text || locked) return;
 
     setLocked(true);
-    setMessage("🔄 Scanning QR...");
+    setMessage("Scanning QR...");
 
     try {
       const scanUrl = result.text;
@@ -18,14 +18,14 @@ export default function ScanQR() {
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        setMessage(`❌ ${data.message || "Scan failed"}`);
+        setMessage(`${data.message || "Scan failed"}`);
         setTimeout(() => setLocked(false), 3000);
         return;
       }
 
       // SUCCESS
       setMessage(
-        `✅ GATE OPENED\n\n` +
+        ` GATE OPENED\n\n` +
         `Student: ${data.student_name}\n` +
         `College ID: ${data.college_id}\n` +
         `Department: ${data.department}\n` +
@@ -34,7 +34,7 @@ export default function ScanQR() {
 
     } catch (err) {
       console.error("SCAN ERROR:", err);
-      setMessage("❌ Server error while scanning");
+      setMessage("Server error while scanning");
     } finally {
       setTimeout(() => setLocked(false), 3000);
     }

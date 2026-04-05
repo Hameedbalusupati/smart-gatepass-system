@@ -12,7 +12,7 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 
 # =====================================================
-# ✅ PENDING GATEPASSES (FIXED)
+#  PENDING GATEPASSES (FIXED)
 # =====================================================
 @faculty_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -53,7 +53,7 @@ def pending_gatepasses():
 
 
 # =====================================================
-# ✅ APPROVE / REJECT (FIXED JSON SUPPORT)
+#  APPROVE / REJECT (FIXED JSON SUPPORT)
 # =====================================================
 @faculty_bp.route("/gatepass/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -70,7 +70,7 @@ def faculty_action(gatepass_id):
         if not gp or gp.status != "PendingFaculty":
             return jsonify({"message": "Invalid gatepass"}), 400
 
-        # 🔥 SUPPORT BOTH JSON + FORM
+        #  SUPPORT BOTH JSON + FORM
         data = request.get_json() or request.form
 
         action = data.get("action")
@@ -104,7 +104,7 @@ def faculty_action(gatepass_id):
 
 
 # =====================================================
-# ✅ HISTORY (FIXED)
+# HISTORY (FIXED)
 # =====================================================
 @faculty_bp.route("/gatepasses/history", methods=["GET"])
 @jwt_required()

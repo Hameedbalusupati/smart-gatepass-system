@@ -53,7 +53,7 @@ def profile():
 
 
 # =================================================
-# APPLY GATEPASS (🔥 MAIN FIX HERE)
+# APPLY GATEPASS ( MAIN FIX HERE)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -76,7 +76,7 @@ def apply_gatepass():
         }), 400
 
     # ==============================
-    # 🚫 CHECK: ONE GATEPASS PER DAY
+    #  CHECK: ONE GATEPASS PER DAY
     # ==============================
     today = date.today()
 

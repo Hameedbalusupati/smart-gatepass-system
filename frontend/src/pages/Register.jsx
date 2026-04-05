@@ -59,7 +59,7 @@ export default function Register() {
     setError("");
 
     if (!API_BASE_URL) {
-      setError("API not configured ❌");
+      setError("API not configured ");
       return;
     }
 
@@ -100,7 +100,7 @@ export default function Register() {
         formData.append("profile_image", form.profile_image);
       }
 
-      console.log("API URL:", API_BASE_URL); // 🔥 DEBUG
+      console.log("API URL:", API_BASE_URL); //  DEBUG
 
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
@@ -114,12 +114,12 @@ export default function Register() {
         return;
       }
 
-      alert("Registered Successfully ✅");
+      alert("Registered Successfully ");
       navigate("/login");
 
     } catch (err) {
       console.error(err);
-      setError("Server not reachable ❌");
+      setError("Server not reachable ");
     } finally {
       setLoading(false);
     }

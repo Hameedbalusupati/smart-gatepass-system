@@ -1,7 +1,7 @@
 import os
 import sys
 
-# 🔥 IMPORTANT: Fix module imports for Render
+#  IMPORTANT: Fix module imports for Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
@@ -12,7 +12,7 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from models import db
 
-# ✅ ROUTES
+#  ROUTES
 from routes.auth_routes import auth_bp
 from routes.gatepass_routes import gatepass_bp
 from routes.student_routes import student_bp
@@ -38,7 +38,7 @@ def create_app():
     os.makedirs(TEMP_FOLDER, exist_ok=True)
 
     # ==============================
-    # ✅ FULL CORS FIX (IMPORTANT)
+    #  FULL CORS FIX (IMPORTANT)
     # ==============================
     CORS(
         app,

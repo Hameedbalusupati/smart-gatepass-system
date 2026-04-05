@@ -35,7 +35,7 @@ export default function SecurityScan() {
       const data = res.data;
 
       if (!data?.success) {
-        setMessage("Invalid QR ❌");
+        setMessage("Invalid QR");
         scannedRef.current = false;
         return;
       }
@@ -51,15 +51,15 @@ export default function SecurityScan() {
       });
 
       setGatepass({ id: data.gatepass_id });
-      setMessage("Gatepass Verified ✅");
+      setMessage("Gatepass Verified");
 
-      // 🔥 STOP CAMERA + CLEAR UI
+      //  STOP CAMERA + CLEAR UI
       await qrRef.current.stop();
       await qrRef.current.clear();
 
     } catch (err) {
       console.error(err);
-      setMessage("Verification failed ❌");
+      setMessage("Verification failed");
       scannedRef.current = false;
     }
   };
@@ -74,7 +74,7 @@ export default function SecurityScan() {
         const devices = await Html5Qrcode.getCameras();
 
         if (!devices || devices.length === 0) {
-          setMessage("No camera found ❌");
+          setMessage("No camera found ");
           return;
         }
 
@@ -84,7 +84,7 @@ export default function SecurityScan() {
           ) || devices[0];
 
         await html5QrCode.start(
-          { deviceId: { exact: backCamera.id } }, // 🔥 FIXED
+          { deviceId: { exact: backCamera.id } }, //  FIXED
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
@@ -103,7 +103,7 @@ export default function SecurityScan() {
 
       } catch (err) {
         console.error(err);
-        setMessage("Camera permission denied ❌");
+        setMessage("Camera permission denied");
       }
     };
 
@@ -122,7 +122,7 @@ export default function SecurityScan() {
       );
 
       if (res.data?.success) {
-        setMessage("Exit recorded ✅");
+        setMessage("Exit recorded");
 
         setStudent(null);
         setGatepass(null);
@@ -131,12 +131,12 @@ export default function SecurityScan() {
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
 
-        // 🔥 RESTART CAMERA WITHOUT RELOAD
+        // RESTART CAMERA WITHOUT RELOAD
         window.location.reload();
       }
     } catch (err) {
       console.error(err);
-      setMessage("Exit failed ❌");
+      setMessage("Exit failed");
     }
   };
 
@@ -145,7 +145,7 @@ export default function SecurityScan() {
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {/* 🔥 ONLY CAMERA */}
+      {/*  ONLY CAMERA */}
       {!student && (
         <div id="qr-reader" style={styles.camera}></div>
       )}
@@ -196,7 +196,7 @@ const styles = {
 
   camera: {
     width: "100%",
-    height: "300px", // 🔥 IMPORTANT
+    height: "300px", //  IMPORTANT
     marginTop: "20px",
     borderRadius: "10px",
     overflow: "hidden",

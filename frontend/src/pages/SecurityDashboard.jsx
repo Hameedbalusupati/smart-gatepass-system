@@ -53,7 +53,7 @@ export default function SecurityDashboard() {
       const devices = await Html5Qrcode.getCameras();
 
       if (!devices.length) {
-        setMessage("No camera found ❌");
+        setMessage("No camera found ");
         return;
       }
 
@@ -79,10 +79,10 @@ export default function SecurityDashboard() {
       );
 
       setIsScanning(true);
-      setMessage("Scanning... 📷");
+      setMessage("Scanning... ");
     } catch (err) {
       console.error(err);
-      setMessage("Camera error ❌");
+      setMessage("Camera error");
     }
   };
 
@@ -116,13 +116,13 @@ export default function SecurityDashboard() {
       );
 
       if (!res.data?.success) {
-        setMessage(res.data?.message || "Invalid QR ❌");
+        setMessage(res.data?.message || "Invalid QR ");
         scannedRef.current = false;
         return;
       }
 
       setData(res.data);
-      setMessage("QR Verified ✅");
+      setMessage("QR Verified ");
     } catch (err) {
       console.error(err);
       setMessage("Verification failed ❌");
@@ -148,7 +148,7 @@ export default function SecurityDashboard() {
       );
 
       if (res.data?.success) {
-        setMessage("Exit Confirmed ✅");
+        setMessage("Exit Confirmed ");
         setData(null);
         scannedRef.current = false;
 
@@ -157,7 +157,7 @@ export default function SecurityDashboard() {
       }
     } catch (err) {
       console.error(err);
-      setMessage("Exit failed ❌");
+      setMessage("Exit failed ");
     }
   };
 
@@ -166,7 +166,7 @@ export default function SecurityDashboard() {
       <div style={card}>
         <h2>Security Dashboard</h2>
 
-        {/* ✅ COUNT */}
+        {/*  COUNT */}
         <h3 style={{ color: "#22c55e" }}>
           Students Exited Today: {exitCount}
         </h3>

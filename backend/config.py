@@ -23,7 +23,7 @@ class Config:
     if not db_url:
         raise ValueError("DATABASE_URL not found. Check your .env file.")
 
-    # 🔥 FIX: use psycopg (v3)
+    #  FIX: use psycopg (v3)
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
     elif db_url.startswith("postgresql://"):

@@ -33,7 +33,7 @@ export default function FacultyDashboard() {
     try {
       let payload = { action };
 
-      // 🔥 ask reason for reject
+      //  ask reason for reject
       if (action === "reject") {
         const reason = prompt("Enter rejection reason:");
         if (!reason) return;

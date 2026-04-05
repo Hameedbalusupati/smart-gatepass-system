@@ -41,7 +41,7 @@ function ProtectedRoute({ children, role }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* ✅ ALWAYS SHOW NAVBAR */}
+      {/*  ALWAYS SHOW NAVBAR */}
       <Navbar />
 
       <Routes>

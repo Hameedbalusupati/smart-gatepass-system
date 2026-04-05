@@ -21,7 +21,7 @@ export default function HodDashboard() {
 
     } catch (err) {
       console.error(err);
-      setError("Server not reachable ❌");
+      setError("Server not reachable ");
     } finally {
       setLoading(false);
     }
@@ -79,7 +79,7 @@ export default function HodDashboard() {
             <p><b>Student:</b> {item.student_name}</p>
             <p><b>Reason:</b> {item.reason}</p>
 
-            {/* 🔥 CALL BUTTON */}
+            {/* CALL BUTTON */}
             <p>
               <b>Parent Mobile:</b>{" "}
               {item.parent_mobile ? (

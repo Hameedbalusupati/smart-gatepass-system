@@ -70,7 +70,7 @@ def compare_faces(image1_base64, image2_base64):
 
         print("Face distance:", distance)
 
-        # 🔥 IMPROVED THRESHOLD
+        #  IMPROVED THRESHOLD
         return distance < 50   # Adjust if needed
 
     except Exception as e:

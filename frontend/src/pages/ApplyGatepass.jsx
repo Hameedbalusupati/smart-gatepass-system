@@ -41,26 +41,26 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // ✅ Required validation
+    //  Required validation
     if (
       !form.reason.trim() ||
       !form.out_time ||
       !form.return_time ||
       !form.parent_mobile
     ) {
-      setMessage("All fields are required ❌");
+      setMessage("All fields are required ");
       return;
     }
 
-    // ✅ Mobile validation
+    //  Mobile validation
     if (!validateMobile(form.parent_mobile)) {
-      setMessage("Enter valid 10-digit mobile number ❌");
+      setMessage("Enter valid 10-digit mobile number ");
       return;
     }
 
-    // ✅ Token check
+    //  Token check
     if (!token) {
-      setMessage("Session expired. Please login again ❌");
+      setMessage("Session expired. Please login again ");
       return;
     }
 
@@ -82,7 +82,7 @@ export default function ApplyGatepass() {
         }
       );
 
-      setMessage(res.data.message || "Gatepass applied successfully ✅");
+      setMessage(res.data.message || "Gatepass applied successfully ");
       setSuccess(true);
 
       // reset form
@@ -96,7 +96,7 @@ export default function ApplyGatepass() {
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later ❌"
+        err.response?.data?.message || "Server error. Try again later "
       );
     } finally {
       setLoading(false);
@@ -108,7 +108,7 @@ export default function ApplyGatepass() {
       <div style={styles.container}>
         <h2 style={styles.title}>Apply Gatepass</h2>
 
-        {/* ✅ FORM ONLY (NO DUPLICATE NAVBAR BUTTONS) */}
+        {/*  FORM ONLY (NO DUPLICATE NAVBAR BUTTONS) */}
         <form onSubmit={handleSubmit} style={styles.form}>
           <textarea
             name="reason"

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-// ✅ Safe fallback
+//  Safe fallback
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "https://smart-gatepass-system.onrender.com/api";
@@ -9,7 +9,7 @@ const API_BASE_URL =
 export default function Navbar() {
   const navigate = useNavigate();
 
-  // ✅ Initialize state directly (FIXED)
+  //  Initialize state directly (FIXED)
   const [token, setToken] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null
   );
@@ -55,7 +55,7 @@ export default function Navbar() {
 
         const data = await res.json();
 
-        // ✅ Safe check
+        //  Safe check
         if (Array.isArray(data)) {
           const unread = data.filter((n) => !n.is_read).length;
           setUnreadCount(unread);

@@ -18,14 +18,14 @@ export default function StudentDashboard() {
     const cleanReason = reason.trim();
     const cleanMobile = parentMobile.trim();
 
-    // ✅ VALIDATIONS
+    // VALIDATIONS
     if (!cleanReason || !cleanMobile) {
-      setMessage("Reason and parent mobile are required ❌");
+      setMessage("Reason and parent mobile are required");
       return;
     }
 
     if (!/^\d{10}$/.test(cleanMobile)) {
-      setMessage("Enter valid 10-digit mobile number ❌");
+      setMessage("Enter valid 10-digit mobile number");
       return;
     }
 
@@ -37,7 +37,7 @@ export default function StudentDashboard() {
         parent_mobile: cleanMobile,
       });
 
-      setMessage(res.data.message || "Gatepass applied successfully ✅");
+      setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
       // RESET
@@ -48,7 +48,7 @@ export default function StudentDashboard() {
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later ❌"
+        err.response?.data?.message || "Server error. Try again later"
       );
     } finally {
       setLoading(false);
@@ -60,7 +60,7 @@ export default function StudentDashboard() {
       <div style={styles.card}>
         <h2 style={styles.title}>Student Dashboard</h2>
 
-        {/* 🚀 ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
+        {/* ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
 
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 

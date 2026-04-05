@@ -58,7 +58,7 @@ def verify_qr():
         student = gatepass.student
 
         # =========================================
-        # 🔥 FIXED IMAGE URL (IMPORTANT)
+        #  FIXED IMAGE URL (IMPORTANT)
         # =========================================
         image_url = None
 
@@ -70,7 +70,7 @@ def verify_qr():
 
             image_url = f"{base_url}/uploads/student_images/{filename}"
 
-            print("✅ IMAGE URL:", image_url)  # DEBUG
+            print(" IMAGE URL:", image_url)  # DEBUG
 
         return jsonify({
             "success": True,
@@ -84,7 +84,7 @@ def verify_qr():
             "year": student.year,
             "parent_mobile": gatepass.parent_mobile,
 
-            # 🔥 IMPORTANT KEY
+            #  IMPORTANT KEY
             "profile_image": image_url
         })
 

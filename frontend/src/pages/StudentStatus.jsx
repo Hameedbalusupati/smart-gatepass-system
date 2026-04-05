@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import API from "../api"; // ✅ FIXED (use axios instance)
+import API from "../api"; //  FIXED (use axios instance)
 
 export default function StudentStatus() {
   const [pass, setPass] = useState(null);
@@ -25,9 +25,9 @@ export default function StudentStatus() {
       try {
         const res = await API.get("/student/status");
 
-        console.log("STATUS RESPONSE:", res.data); // 🔥 debug
+        console.log("STATUS RESPONSE:", res.data); //  debug
 
-        // ✅ HANDLE BOTH CASES
+        //  HANDLE BOTH CASES
         if (res.data?.gatepass) {
           setPass(res.data.gatepass);
         } else if (res.data) {

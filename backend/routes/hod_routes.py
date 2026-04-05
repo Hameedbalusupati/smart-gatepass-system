@@ -65,7 +65,7 @@ def hod_pending():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
-                "parent_mobile": gp.parent_mobile,  # 🔥 FIXED
+                "parent_mobile": gp.parent_mobile,  #  FIXED
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }
@@ -211,7 +211,7 @@ def hod_history():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
-                "parent_mobile": gp.parent_mobile,  # 🔥 IMPORTANT
+                "parent_mobile": gp.parent_mobile,  #  IMPORTANT
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }

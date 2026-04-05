@@ -60,7 +60,7 @@ export default function Login() {
       localStorage.setItem("user_id", data.id || "");
       localStorage.setItem("email", email);
 
-      // 🔥 IMPORTANT → UPDATE NAVBAR
+      //  IMPORTANT → UPDATE NAVBAR
       window.dispatchEvent(new Event("authChanged"));
 
       // ================= NAVIGATE =================

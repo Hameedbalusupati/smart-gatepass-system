@@ -28,7 +28,7 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGES =================
-    # 🔥 STORE ONLY FILE NAME (IMPORTANT)
+    #  STORE ONLY FILE NAME (IMPORTANT)
     profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
@@ -62,7 +62,7 @@ class User(db.Model):
     )
 
     # =====================================================
-    # 🔥 HELPER: GET FULL IMAGE URL (VERY IMPORTANT)
+    #  HELPER: GET FULL IMAGE URL (VERY IMPORTANT)
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
