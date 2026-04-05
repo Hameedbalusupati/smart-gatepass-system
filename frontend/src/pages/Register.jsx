@@ -132,7 +132,7 @@ export default function Register() {
     <div style={container}>
       <form onSubmit={handleRegister} style={box}>
 
-        <h2 style={title}>Register</h2>
+        <h2 style={title}>Smart Gatepass Register</h2>
 
         {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
