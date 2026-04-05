@@ -7,14 +7,40 @@ export default function SecurityDashboard() {
   const [message, setMessage] = useState("Click Start Scanner");
   const [loading, setLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [exitCount, setExitCount] = useState(0);
 
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
+  // ================= FETCH EXIT COUNT =================
+  const fetchExitCount = async () => {
+    try {
+      const token = localStorage.getItem("access_token");
+
+      const res = await API.get("/security/exit-count", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setExitCount(res.data.total_exits || 0);
+    } catch (err) {
+      console.error("Exit count error:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchExitCount();
+    const interval = setInterval(fetchExitCount, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ================= CLEANUP =================
   useEffect(() => {
     return () => {
-      qrRef.current?.stop().catch(() => {});
+      qrRef.current?.stop().catch((err) => {
+        console.log("Cleanup error:", err);
+      });
     };
   }, []);
 
@@ -32,7 +58,7 @@ export default function SecurityDashboard() {
       }
 
       const camera =
-        devices.find(d => d.label.toLowerCase().includes("back")) ||
+        devices.find((d) => d.label.toLowerCase().includes("back")) ||
         devices[0];
 
       scannedRef.current = false;
@@ -54,7 +80,6 @@ export default function SecurityDashboard() {
 
       setIsScanning(true);
       setMessage("Scanning... 📷");
-
     } catch (err) {
       console.error(err);
       setMessage("Camera error ❌");
@@ -67,7 +92,9 @@ export default function SecurityDashboard() {
       await qrRef.current?.stop();
       setIsScanning(false);
       setMessage("Scanner stopped");
-    } catch {}
+    } catch (err) {
+      console.error("Stop error:", err);
+    }
   };
 
   // ================= VERIFY =================
@@ -88,17 +115,14 @@ export default function SecurityDashboard() {
         }
       );
 
-      console.log("API RESPONSE:", res.data); // 🔥 DEBUG
-
       if (!res.data?.success) {
-        setMessage("Invalid QR ❌");
+        setMessage(res.data?.message || "Invalid QR ❌");
         scannedRef.current = false;
         return;
       }
 
       setData(res.data);
       setMessage("QR Verified ✅");
-
     } catch (err) {
       console.error(err);
       setMessage("Verification failed ❌");
@@ -127,8 +151,10 @@ export default function SecurityDashboard() {
         setMessage("Exit Confirmed ✅");
         setData(null);
         scannedRef.current = false;
-      }
 
+        // update count
+        fetchExitCount();
+      }
     } catch (err) {
       console.error(err);
       setMessage("Exit failed ❌");
@@ -140,15 +166,17 @@ export default function SecurityDashboard() {
       <div style={card}>
         <h2>Security Dashboard</h2>
 
-        {/* CAMERA */}
+        {/* ✅ COUNT */}
+        <h3 style={{ color: "#22c55e" }}>
+          Students Exited Today: {exitCount}
+        </h3>
+
         {!data && <div id="qr-reader" style={camera}></div>}
 
         <p>{message}</p>
 
-        {/* LOADING */}
         {loading && <p>Processing... ⏳</p>}
 
-        {/* CONTROLS */}
         {!data && (
           <div style={btnRow}>
             {!isScanning ? (
@@ -163,12 +191,10 @@ export default function SecurityDashboard() {
           </div>
         )}
 
-        {/* RESULT */}
         {data && (
           <div style={resultBox}>
             <h3>Student Details</h3>
 
-            {/* 🔥 IMAGE FIX */}
             <img
               src={data.profile_image || "https://via.placeholder.com/120"}
               alt="student"
@@ -200,9 +226,7 @@ export default function SecurityDashboard() {
   );
 }
 
-//////////////////////////////////////////////////////
-// STYLES
-//////////////////////////////////////////////////////
+// ================= STYLES =================
 
 const container = {
   minHeight: "100vh",
