@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function ApplyGatepass() {
-  const navigate = useNavigate();
-
   const [form, setForm] = useState({
     reason: "",
     out_time: "",
     return_time: "",
-    parent_mobile: ""
+    parent_mobile: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -25,21 +22,17 @@ export default function ApplyGatepass() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    if (name === "parent_mobile") {
-      if (!/^\d{0,10}$/.test(value)) return;
-    }
+    // mobile validation (only numbers)
+    if (name === "parent_mobile" && !/^\d{0,10}$/.test(value)) return;
 
-    setForm({
-      ...form,
-      [name]: value
-    });
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // ================= VALIDATION =================
-  const validateMobile = (number) => {
-    const mobileRegex = /^[6-9]\d{9}$/;
-    return mobileRegex.test(number);
-  };
+  const validateMobile = (number) => /^[6-9]\d{9}$/.test(number);
 
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
@@ -48,13 +41,26 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    if (!validateMobile(form.parent_mobile)) {
-      setMessage("Enter valid 10-digit mobile number");
+    // ✅ Required validation
+    if (
+      !form.reason.trim() ||
+      !form.out_time ||
+      !form.return_time ||
+      !form.parent_mobile
+    ) {
+      setMessage("All fields are required ❌");
       return;
     }
 
+    // ✅ Mobile validation
+    if (!validateMobile(form.parent_mobile)) {
+      setMessage("Enter valid 10-digit mobile number ❌");
+      return;
+    }
+
+    // ✅ Token check
     if (!token) {
-      setMessage("Session expired. Please login again.");
+      setMessage("Session expired. Please login again ❌");
       return;
     }
 
@@ -67,63 +73,43 @@ export default function ApplyGatepass() {
           reason: form.reason.trim(),
           out_time: form.out_time,
           return_time: form.return_time,
-          parent_mobile: form.parent_mobile.trim()
+          parent_mobile: form.parent_mobile.trim(),
         },
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
       setMessage(res.data.message || "Gatepass applied successfully ✅");
       setSuccess(true);
 
+      // reset form
       setForm({
         reason: "",
         out_time: "",
         return_time: "",
-        parent_mobile: ""
+        parent_mobile: "",
       });
 
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later."
+        err.response?.data?.message || "Server error. Try again later ❌"
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.clear();
-    navigate("/login");
-  };
-
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-
         <h2 style={styles.title}>Apply Gatepass</h2>
 
-        {/* 🔥 NAVIGATION BUTTONS */}
-        <div style={styles.topButtons}>
-          <button onClick={() => navigate("/student")} style={styles.navBtn}>
-            Dashboard
-          </button>
-
-          <button onClick={() => navigate("/status")} style={styles.navBtn}>
-            Status
-          </button>
-
-          <button onClick={logout} style={styles.logoutBtn}>
-            Logout
-          </button>
-        </div>
-
+        {/* ✅ FORM ONLY (NO DUPLICATE NAVBAR BUTTONS) */}
         <form onSubmit={handleSubmit} style={styles.form}>
-
           <textarea
             name="reason"
             placeholder="Reason for leaving"
@@ -161,23 +147,28 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          <button type="submit" disabled={loading} style={styles.button}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              ...styles.button,
+              backgroundColor: loading ? "#64748b" : "#22c55e",
+            }}
+          >
             {loading ? "Submitting..." : "Apply Gatepass"}
           </button>
-
         </form>
 
         {message && (
           <p
             style={{
               ...styles.message,
-              color: success ? "#22c55e" : "#ef4444"
+              color: success ? "#22c55e" : "#ef4444",
             }}
           >
             {message}
           </p>
         )}
-
       </div>
     </div>
   );
@@ -191,7 +182,7 @@ const styles = {
     background: "#0f172a",
     display: "flex",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   container: {
@@ -200,42 +191,18 @@ const styles = {
     borderRadius: "10px",
     width: "95%",
     maxWidth: "400px",
-    color: "white"
+    color: "white",
   },
 
   title: {
     textAlign: "center",
-    marginBottom: "15px"
-  },
-
-  topButtons: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginBottom: "15px"
-  },
-
-  navBtn: {
-    padding: "6px 10px",
-    background: "#3b82f6",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer"
-  },
-
-  logoutBtn: {
-    padding: "6px 10px",
-    background: "#ef4444",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer"
+    marginBottom: "15px",
   },
 
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "12px"
+    gap: "12px",
   },
 
   input: {
@@ -243,21 +210,20 @@ const styles = {
     borderRadius: "5px",
     border: "1px solid #334155",
     background: "#020617",
-    color: "white"
+    color: "white",
   },
 
   button: {
     padding: "10px",
     border: "none",
     borderRadius: "5px",
-    background: "#22c55e",
     color: "white",
-    cursor: "pointer"
+    cursor: "pointer",
   },
 
   message: {
     marginTop: "10px",
     textAlign: "center",
-    fontWeight: "500"
-  }
+    fontWeight: "500",
+  },
 };
