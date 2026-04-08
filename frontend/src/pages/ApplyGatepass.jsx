@@ -2,13 +2,8 @@ import { useState } from "react";
 import API from "../api";
 
 export default function ApplyGatepass() {
-  const [form, setForm] = useState({
-    reason: "",
-    out_time: "",
-    return_time: "",
-    parent_mobile: "",
-  });
-
+  const [reason, setReason] = useState("");
+  const [parentMobile, setParentMobile] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -18,49 +13,31 @@ export default function ApplyGatepass() {
       ? localStorage.getItem("access_token")
       : null;
 
-  // ================= HANDLE INPUT =================
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    // mobile validation (only numbers)
-    if (name === "parent_mobile" && !/^\d{0,10}$/.test(value)) return;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  // ================= VALIDATION =================
-  const validateMobile = (number) => /^[6-9]\d{9}$/.test(number);
-
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return;
+
     setMessage("");
     setSuccess(false);
 
-    //  Required validation
-    if (
-      !form.reason.trim() ||
-      !form.out_time ||
-      !form.return_time ||
-      !form.parent_mobile
-    ) {
-      setMessage("All fields are required ");
+    const cleanReason = reason.trim();
+    const cleanMobile = parentMobile.trim();
+
+    // ✅ VALIDATION
+    if (!cleanReason || !cleanMobile) {
+      setMessage("All fields are required");
       return;
     }
 
-    //  Mobile validation
-    if (!validateMobile(form.parent_mobile)) {
-      setMessage("Enter valid 10-digit mobile number ");
+    if (!/^\d{10}$/.test(cleanMobile)) {
+      setMessage("Enter valid 10-digit mobile number");
       return;
     }
 
-    //  Token check
     if (!token) {
-      setMessage("Session expired. Please login again ");
+      setMessage("Session expired. Please login again");
       return;
     }
 
@@ -68,12 +45,10 @@ export default function ApplyGatepass() {
       setLoading(true);
 
       const res = await API.post(
-        "/gatepass/apply",
+        "/student/apply_gatepass",
         {
-          reason: form.reason.trim(),
-          out_time: form.out_time,
-          return_time: form.return_time,
-          parent_mobile: form.parent_mobile.trim(),
+          reason: cleanReason,
+          parent_mobile: cleanMobile,
         },
         {
           headers: {
@@ -82,22 +57,25 @@ export default function ApplyGatepass() {
         }
       );
 
-      setMessage(res.data.message || "Gatepass applied successfully ");
+      setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // reset form
-      setForm({
-        reason: "",
-        out_time: "",
-        return_time: "",
-        parent_mobile: "",
-      });
+      // ✅ RESET
+      setReason("");
+      setParentMobile("");
+
+      setTimeout(() => setMessage(""), 3000);
 
     } catch (err) {
       setSuccess(false);
-      setMessage(
-        err.response?.data?.message || "Server error. Try again later "
-      );
+
+      if (err.response) {
+        setMessage(err.response.data.message || "Error occurred");
+      } else if (err.request) {
+        setMessage("Server not responding");
+      } else {
+        setMessage("Something went wrong");
+      }
     } finally {
       setLoading(false);
     }
@@ -108,57 +86,43 @@ export default function ApplyGatepass() {
       <div style={styles.container}>
         <h2 style={styles.title}>Apply Gatepass</h2>
 
-        {/*  FORM ONLY (NO DUPLICATE NAVBAR BUTTONS) */}
         <form onSubmit={handleSubmit} style={styles.form}>
+          
+          {/* ===== REASON ===== */}
           <textarea
-            name="reason"
-            placeholder="Reason for leaving"
-            value={form.reason}
-            onChange={handleChange}
-            required
+            placeholder="Enter reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required   // ✅ FIXED
             style={styles.input}
           />
 
-          <input
-            type="datetime-local"
-            name="out_time"
-            value={form.out_time}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-
-          <input
-            type="datetime-local"
-            name="return_time"
-            value={form.return_time}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-
+          {/* ===== PARENT MOBILE ===== */}
           <input
             type="tel"
-            name="parent_mobile"
-            placeholder="Parent Mobile Number"
-            value={form.parent_mobile}
-            onChange={handleChange}
-            required
+            placeholder="Enter parent mobile number"
+            value={parentMobile}
+            onChange={(e) => setParentMobile(e.target.value)}
+            required   // ✅ FIXED
+            maxLength={10}
             style={styles.input}
           />
 
+          {/* ===== BUTTON ===== */}
           <button
             type="submit"
             disabled={loading}
             style={{
               ...styles.button,
               backgroundColor: loading ? "#64748b" : "#22c55e",
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "Submitting..." : "Apply Gatepass"}
           </button>
         </form>
 
+        {/* ===== MESSAGE ===== */}
         {message && (
           <p
             style={{
@@ -174,7 +138,7 @@ export default function ApplyGatepass() {
   );
 }
 
-/* ===== STYLES ===== */
+/* ================= STYLES ================= */
 
 const styles = {
   page: {
@@ -188,15 +152,17 @@ const styles = {
   container: {
     background: "#111827",
     padding: "25px",
-    borderRadius: "10px",
+    borderRadius: "12px",
     width: "95%",
-    maxWidth: "400px",
+    maxWidth: "420px",
     color: "white",
+    boxShadow: "0 0 20px rgba(0,0,0,0.5)",
   },
 
   title: {
     textAlign: "center",
     marginBottom: "15px",
+    fontSize: "22px",
   },
 
   form: {
@@ -207,22 +173,23 @@ const styles = {
 
   input: {
     padding: "10px",
-    borderRadius: "5px",
+    borderRadius: "6px",
     border: "1px solid #334155",
     background: "#020617",
     color: "white",
+    outline: "none",
   },
 
   button: {
-    padding: "10px",
+    padding: "12px",
     border: "none",
-    borderRadius: "5px",
+    borderRadius: "6px",
     color: "white",
-    cursor: "pointer",
+    fontWeight: "bold",
   },
 
   message: {
-    marginTop: "10px",
+    marginTop: "12px",
     textAlign: "center",
     fontWeight: "500",
   },

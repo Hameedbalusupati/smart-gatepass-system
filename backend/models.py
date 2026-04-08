@@ -22,13 +22,15 @@ class User(db.Model):
     role = db.Column(db.String(20), nullable=False, index=True)
 
     # ================= ACADEMIC =================
-    department = db.Column(db.String(50), nullable=True, index=True)
+    department = db.Column(db.String(50), nullable=True)
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGE =================
-    # Store filename OR path
     profile_image = db.Column(db.String(255), nullable=True)
+
+    # ================= 🔥 PARENT NUMBER =================
+    parent_number = db.Column(db.String(15), nullable=True, index=True)
 
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
@@ -60,25 +62,18 @@ class User(db.Model):
         nullable=False
     )
 
-    # =====================================================
-    # 🔥 FIXED IMAGE URL HANDLER (VERY IMPORTANT)
-    # =====================================================
+    # ================= IMAGE URL =================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
 
-        img = self.profile_image
+        if self.profile_image.startswith("http"):
+            return self.profile_image
 
-        # Case 1: Already full URL
-        if img.startswith("http"):
-            return img
+        if self.profile_image.startswith("/uploads"):
+            return f"{base_url}{self.profile_image}"
 
-        # Case 2: Starts with /uploads
-        if img.startswith("/uploads"):
-            return f"{base_url}{img}"
-
-        # Case 3: Only filename
-        return f"{base_url}/uploads/student_images/{img}"
+        return f"{base_url}/uploads/student_images/{self.profile_image}"
 
     def __repr__(self):
         return f"<User {self.id} | {self.role} | {self.name}>"
@@ -93,13 +88,32 @@ class GatePass(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # ================= FOREIGN KEYS =================
-    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    faculty_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
-    hod_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    student_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    faculty_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=True,
+        index=True
+    )
+
+    hod_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=True,
+        index=True
+    )
 
     # ================= CORE DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
-    parent_mobile = db.Column(db.String(15), nullable=False)
+
+    # 🔥 AUTO-FILLED FROM USER
+    parent_mobile = db.Column(db.String(15), nullable=False, index=True)
 
     status = db.Column(
         db.String(30),
@@ -119,7 +133,8 @@ class GatePass(db.Model):
     # ================= QR =================
     qr_token = db.Column(db.Text, nullable=True)
 
-    is_used = db.Column(db.Boolean, default=False)
+    # ================= USAGE =================
+    is_used = db.Column(db.Boolean, default=False, nullable=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
     # ================= IN / OUT =================

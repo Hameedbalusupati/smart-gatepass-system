@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 
-//  Safe fallback
+// ✅ API BASE URL
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   "https://smart-gatepass-system.onrender.com/api";
@@ -9,22 +9,22 @@ const API_BASE_URL =
 export default function Navbar() {
   const navigate = useNavigate();
 
-  //  Initialize state directly (FIXED)
-  const [token, setToken] = useState(() =>
+  // ================= STATE =================
+  const [token, setToken] = useState(
     typeof window !== "undefined" ? localStorage.getItem("access_token") : null
   );
 
-  const [role, setRole] = useState(() =>
+  const [role, setRole] = useState(
     typeof window !== "undefined" ? localStorage.getItem("role") : null
   );
 
-  const [email, setEmail] = useState(() =>
+  const [email, setEmail] = useState(
     typeof window !== "undefined" ? localStorage.getItem("email") : null
   );
 
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ================= LISTEN FOR AUTH CHANGES =================
+  // ================= AUTH LISTENER =================
   useEffect(() => {
     const handleAuthChange = () => {
       setToken(localStorage.getItem("access_token"));
@@ -43,29 +43,48 @@ export default function Navbar() {
   useEffect(() => {
     if (!email || !token) return;
 
+    const controller = new AbortController();
+
     const fetchNotifications = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/notifications/${email}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          `${API_BASE_URL}/notifications/${email}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            signal: controller.signal,
+          }
+        );
 
-        if (!res.ok) return;
+        // ✅ Prevent crash if API fails
+        if (!res.ok) {
+          console.log("Notification API failed:", res.status);
+          return;
+        }
 
         const data = await res.json();
 
-        //  Safe check
         if (Array.isArray(data)) {
           const unread = data.filter((n) => !n.is_read).length;
           setUnreadCount(unread);
+        } else {
+          setUnreadCount(0);
         }
       } catch (err) {
-        console.log("Notification error:", err);
+        if (err.name !== "AbortError") {
+          console.log("Notification error:", err.message);
+        }
       }
     };
 
     fetchNotifications();
+
+    // ✅ Cleanup
+    return () => controller.abort();
+
   }, [email, token]);
 
   // ================= LOGOUT =================
@@ -75,6 +94,7 @@ export default function Navbar() {
     navigate("/login");
   };
 
+  // ================= UI =================
   return (
     <nav style={styles.nav}>
       <Link to="/" style={styles.logoLink}>
@@ -84,6 +104,7 @@ export default function Navbar() {
       <div style={styles.links}>
         <Link style={styles.link} to="/">Home</Link>
 
+        {/* ===== NOT LOGGED IN ===== */}
         {!token && (
           <>
             <Link style={styles.link} to="/login">Login</Link>
@@ -91,6 +112,7 @@ export default function Navbar() {
           </>
         )}
 
+        {/* ===== STUDENT ===== */}
         {token && role === "student" && (
           <>
             <Link style={styles.link} to="/student">Dashboard</Link>
@@ -98,18 +120,22 @@ export default function Navbar() {
           </>
         )}
 
+        {/* ===== FACULTY ===== */}
         {token && role === "faculty" && (
           <Link style={styles.link} to="/faculty">Faculty</Link>
         )}
 
+        {/* ===== HOD ===== */}
         {token && role === "hod" && (
           <Link style={styles.link} to="/hod">HOD</Link>
         )}
 
+        {/* ===== SECURITY ===== */}
         {token && role === "security" && (
           <Link style={styles.link} to="/security">Security</Link>
         )}
 
+        {/* ===== NOTIFICATIONS ===== */}
         {token && (
           <Link to="/notifications" style={styles.notificationIcon}>
             🔔
@@ -119,6 +145,7 @@ export default function Navbar() {
           </Link>
         )}
 
+        {/* ===== LOGOUT ===== */}
         {token && (
           <button onClick={logout} style={styles.logoutBtn}>
             Logout
