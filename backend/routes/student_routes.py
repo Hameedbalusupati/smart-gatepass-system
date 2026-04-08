@@ -1,8 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
-import re
-
 from models import db, User, GatePass
 
 student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
@@ -14,7 +12,7 @@ student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 def get_student():
     try:
         student_id = int(get_jwt_identity())
-    except Exception:
+    except:
         return None, jsonify({
             "success": False,
             "message": "Invalid token"
@@ -37,118 +35,81 @@ def get_student():
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def profile():
-    try:
-        student, error, code = get_student()
-        if error:
-            return error, code
 
-        return jsonify({
-            "success": True,
-            "user": {
-                "name": student.name,
-                "college_id": student.college_id,
-                "department": student.department,
-                "year": student.year,
-                "section": student.section,
-                "parent_number": student.parent_number
-            }
-        }), 200
+    student, error, code = get_student()
+    if error:
+        return error, code
 
-    except Exception as e:
-        print("PROFILE ERROR:", e)
-        return jsonify({
-            "success": False,
-            "message": "Server error"
-        }), 500
+    return jsonify({
+        "success": True,
+        "user": {
+            "name": student.name,
+            "college_id": student.college_id,
+            "department": student.department,
+            "year": student.year,
+            "section": student.section
+        }
+    }), 200
 
 
 # =================================================
-# APPLY GATEPASS (FINAL FIXED)
+# APPLY GATEPASS ( MAIN FIX HERE)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
 def apply_gatepass():
-    try:
-        student, error, code = get_student()
-        if error:
-            return error, code
 
-        data = request.get_json() or {}
+    student, error, code = get_student()
+    if error:
+        return error, code
 
-        print("DEBUG REQUEST:", data)  # 🔥 debug log
+    data = request.get_json()
 
-        reason = (data.get("reason") or "").strip()
-        entered_mobile = (data.get("parent_mobile") or "").strip()
+    reason = data.get("reason")
+    out_time = data.get("out_time")
+    in_time = data.get("in_time")
 
-        # ================= VALIDATION =================
-        if not reason or not entered_mobile:
-            return jsonify({
-                "success": False,
-                "message": "All fields are required"
-            }), 400
-
-        # ✅ Mobile format check
-        if not re.fullmatch(r"\d{10}", entered_mobile):
-            return jsonify({
-                "success": False,
-                "message": "Enter valid 10-digit mobile number"
-            }), 400
-
-        # ✅ Normalize DB value
-        db_mobile = (student.parent_number or "").strip()
-
-        if not db_mobile:
-            return jsonify({
-                "success": False,
-                "message": "Parent number not found. Contact admin"
-            }), 400
-
-        # ✅ Compare numbers
-        if db_mobile != entered_mobile:
-            return jsonify({
-                "success": False,
-                "message": "Parent mobile number is incorrect"
-            }), 400
-
-        # ================= ONE PER DAY =================
-        today = date.today()
-
-        existing_gatepass = GatePass.query.filter(
-            GatePass.student_id == student.id,
-            db.func.date(GatePass.created_at) == today
-        ).first()
-
-        if existing_gatepass:
-            return jsonify({
-                "success": False,
-                "message": "You already applied for a gatepass today"
-            }), 400
-
-        # ================= CREATE =================
-        new_gatepass = GatePass(
-            student_id=student.id,
-            reason=reason,
-            parent_mobile=db_mobile,
-            out_time=datetime.utcnow(),
-            status="PendingFaculty",
-            created_at=datetime.utcnow(),
-            is_used=False
-        )
-
-        db.session.add(new_gatepass)
-        db.session.commit()
-
-        return jsonify({
-            "success": True,
-            "message": "Gatepass applied successfully"
-        }), 201
-
-    except Exception as e:
-        print("APPLY ERROR:", e)
+    if not reason or not out_time or not in_time:
         return jsonify({
             "success": False,
-            "message": "Server error"
-        }), 500
+            "message": "All fields are required"
+        }), 400
+
+    # ==============================
+    #  CHECK: ONE GATEPASS PER DAY
+    # ==============================
+    today = date.today()
+
+    existing_gatepass = GatePass.query.filter(
+        GatePass.student_id == student.id,
+        db.func.date(GatePass.created_at) == today
+    ).first()
+
+    if existing_gatepass:
+        return jsonify({
+            "success": False,
+            "message": "You have already applied for a gatepass today"
+        }), 400
+
+    # ==============================
+    # CREATE NEW GATEPASS
+    # ==============================
+    new_gatepass = GatePass(
+        student_id=student.id,
+        reason=reason,
+        out_time=out_time,
+        in_time=in_time,
+        status="Pending",
+        created_at=datetime.utcnow()
+    )
+
+    db.session.add(new_gatepass)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "Gatepass applied successfully"
+    }), 201
 
 
 # =================================================
@@ -157,43 +118,34 @@ def apply_gatepass():
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
 def student_status():
-    try:
-        student, error, code = get_student()
-        if error:
-            return error, code
 
-        gp = (
-            GatePass.query
-            .filter(GatePass.student_id == student.id)
-            .order_by(GatePass.created_at.desc())
-            .first()
-        )
+    student, error, code = get_student()
+    if error:
+        return error, code
 
-        if not gp:
-            return jsonify({
-                "success": True,
-                "gatepass": None
-            }), 200
+    gp = (
+        GatePass.query
+        .filter(GatePass.student_id == student.id)
+        .order_by(GatePass.created_at.desc())
+        .first()
+    )
 
+    if not gp:
         return jsonify({
             "success": True,
-            "gatepass": {
-                "id": gp.id,
-                "reason": gp.reason,
-                "status": gp.status,
-                "created_at": gp.created_at.isoformat(),
-                "out_time": gp.out_time.isoformat() if gp.out_time else None,
-                "is_used": gp.is_used or False,
-                "parent_mobile": gp.parent_mobile,
-                "rejected_by": gp.rejected_by,
-                "rejection_reason": gp.rejection_reason,
-                "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
-            }
+            "gatepass": None
         }), 200
 
-    except Exception as e:
-        print("STATUS ERROR:", e)
-        return jsonify({
-            "success": False,
-            "message": "Server error"
-        }), 500
+    return jsonify({
+        "success": True,
+        "gatepass": {
+            "id": gp.id,
+            "reason": gp.reason,
+            "status": gp.status,
+            "created_at": gp.created_at.isoformat(),
+            "is_used": gp.is_used or False,
+            "rejected_by": gp.rejected_by,
+            "rejection_reason": gp.rejection_reason,
+            "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
+        }
+    }), 200

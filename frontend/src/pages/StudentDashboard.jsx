@@ -8,15 +8,8 @@ export default function StudentDashboard() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
   // ================= APPLY GATEPASS =================
-  const applyGatePass = async (e) => {
-    e.preventDefault();
-
+  const applyGatePass = async () => {
     if (loading) return;
 
     setMessage("");
@@ -25,9 +18,9 @@ export default function StudentDashboard() {
     const cleanReason = reason.trim();
     const cleanMobile = parentMobile.trim();
 
-    // ✅ VALIDATION
+    // VALIDATIONS
     if (!cleanReason || !cleanMobile) {
-      setMessage("All fields are required");
+      setMessage("Reason and parent mobile are required");
       return;
     }
 
@@ -36,26 +29,13 @@ export default function StudentDashboard() {
       return;
     }
 
-    if (!token) {
-      setMessage("Session expired. Please login again");
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const res = await API.post(
-        "/student/apply_gatepass",
-        {
-          reason: cleanReason,
-          parent_mobile: cleanMobile,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await API.post("/gatepass/apply", {
+        reason: cleanReason,
+        parent_mobile: cleanMobile,
+      });
 
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
@@ -65,17 +45,11 @@ export default function StudentDashboard() {
       setParentMobile("");
 
       setTimeout(() => setMessage(""), 3000);
-
     } catch (err) {
       setSuccess(false);
-
-      if (err.response) {
-        setMessage(err.response.data?.message || "Request failed");
-      } else if (err.request) {
-        setMessage("Server not responding");
-      } else {
-        setMessage("Something went wrong");
-      }
+      setMessage(
+        err.response?.data?.message || "Server error. Try again later"
+      );
     } finally {
       setLoading(false);
     }
@@ -86,47 +60,37 @@ export default function StudentDashboard() {
       <div style={styles.card}>
         <h2 style={styles.title}>Student Dashboard</h2>
 
+        {/* ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
+
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 
-        {/* ✅ FORM ADDED */}
-        <form onSubmit={applyGatePass}>
-          
-          {/* ===== REASON ===== */}
-          <input
-            type="text"
-            placeholder="Enter reason"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            required
-            style={styles.input}
-          />
+        <input
+          type="text"
+          placeholder="Enter reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          style={styles.input}
+        />
 
-          {/* ===== PARENT MOBILE ===== */}
-          <input
-            type="tel"
-            placeholder="Enter parent mobile number"
-            value={parentMobile}
-            onChange={(e) => setParentMobile(e.target.value)}
-            required
-            maxLength={10}
-            style={styles.input}
-          />
+        <input
+          type="tel"
+          placeholder="Enter parent mobile number"
+          value={parentMobile}
+          onChange={(e) => setParentMobile(e.target.value)}
+          style={styles.input}
+        />
 
-          {/* ===== BUTTON ===== */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.applyBtn,
-              backgroundColor: loading ? "#64748b" : "#22c55e",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Applying..." : "Apply Gatepass"}
-          </button>
-        </form>
+        <button
+          onClick={applyGatePass}
+          disabled={loading}
+          style={{
+            ...styles.applyBtn,
+            backgroundColor: loading ? "#64748b" : "#22c55e",
+          }}
+        >
+          {loading ? "Applying..." : "Apply Gatepass"}
+        </button>
 
-        {/* ===== MESSAGE ===== */}
         {message && (
           <p
             style={{
@@ -188,6 +152,7 @@ const styles = {
     border: "none",
     borderRadius: "6px",
     fontWeight: "600",
+    cursor: "pointer",
   },
 
   message: {
@@ -195,4 +160,4 @@ const styles = {
     textAlign: "center",
     fontWeight: "500",
   },
-};
+}; 
