@@ -12,6 +12,9 @@ export default function SecurityDashboard() {
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
+  // 🔥 BACKEND BASE URL (IMPORTANT)
+  const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
+
   // ================= FETCH EXIT COUNT =================
   const fetchExitCount = async () => {
     try {
@@ -38,9 +41,7 @@ export default function SecurityDashboard() {
   // ================= CLEANUP =================
   useEffect(() => {
     return () => {
-      qrRef.current?.stop().catch((err) => {
-        console.log("Cleanup error:", err);
-      });
+      qrRef.current?.stop().catch(() => {});
     };
   }, []);
 
@@ -53,7 +54,7 @@ export default function SecurityDashboard() {
       const devices = await Html5Qrcode.getCameras();
 
       if (!devices.length) {
-        setMessage("No camera found ");
+        setMessage("No camera found");
         return;
       }
 
@@ -79,7 +80,7 @@ export default function SecurityDashboard() {
       );
 
       setIsScanning(true);
-      setMessage("Scanning... ");
+      setMessage("Scanning...");
     } catch (err) {
       console.error(err);
       setMessage("Camera error");
@@ -116,16 +117,16 @@ export default function SecurityDashboard() {
       );
 
       if (!res.data?.success) {
-        setMessage(res.data?.message || "Invalid QR ");
+        setMessage(res.data?.message || "Invalid QR");
         scannedRef.current = false;
         return;
       }
 
       setData(res.data);
-      setMessage("QR Verified ");
+      setMessage("QR Verified");
     } catch (err) {
       console.error(err);
-      setMessage("Verification failed ❌");
+      setMessage("Verification failed");
       scannedRef.current = false;
     } finally {
       setLoading(false);
@@ -148,16 +149,15 @@ export default function SecurityDashboard() {
       );
 
       if (res.data?.success) {
-        setMessage("Exit Confirmed ");
+        setMessage("Exit Confirmed");
         setData(null);
         scannedRef.current = false;
 
-        // update count
         fetchExitCount();
       }
     } catch (err) {
       console.error(err);
-      setMessage("Exit failed ");
+      setMessage("Exit failed");
     }
   };
 
@@ -166,7 +166,6 @@ export default function SecurityDashboard() {
       <div style={card}>
         <h2>Security Dashboard</h2>
 
-        {/*  COUNT */}
         <h3 style={{ color: "#22c55e" }}>
           Students Exited Today: {exitCount}
         </h3>
@@ -195,8 +194,13 @@ export default function SecurityDashboard() {
           <div style={resultBox}>
             <h3>Student Details</h3>
 
+            {/* 🔥 FIXED IMAGE */}
             <img
-              src={data.profile_image || "https://via.placeholder.com/120"}
+              src={
+                data.profile_image
+                  ? `${BACKEND_URL}${data.profile_image}`
+                  : "https://via.placeholder.com/120"
+              }
               alt="student"
               style={image}
               onError={(e) => {
