@@ -233,7 +233,7 @@ def hod_action(id):
 
             qr_payload = {
                 "gatepass_id": gp.id,
-                "exp": datetime.utcnow() + timedelta(hours=6)
+                "exp": datetime.utcnow() + timedelta(minutes=10)
             }
 
             gp.qr_token = jwt.encode(
