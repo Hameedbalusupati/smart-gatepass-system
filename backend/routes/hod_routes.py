@@ -65,7 +65,7 @@ def hod_pending():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
-                "parent_mobile": gp.parent_mobile,  #  FIXED
+                "parent_mobile": gp.parent_mobile,
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }
@@ -75,7 +75,7 @@ def hod_pending():
 
 
 # =====================================================
-# APPROVE GATEPASS
+# APPROVE GATEPASS (QR GENERATION - 10 MIN)
 # =====================================================
 @hod_bp.route("/gatepasses/approve/<int:gatepass_id>", methods=["PUT"])
 @jwt_required()
@@ -109,10 +109,10 @@ def hod_approve(gatepass_id):
     gp.used_at = None
     gp.hod_approved_at = datetime.utcnow()
 
-    # ================= GENERATE QR =================
+    # ================= GENERATE QR (10 MINUTES) =================
     payload = {
         "gatepass_id": gp.id,
-        "exp": datetime.utcnow() + timedelta(minutes=10)
+        "exp": datetime.utcnow() + timedelta(minutes=10)   # 🔥 CHANGED HERE
     }
 
     try:
@@ -132,7 +132,7 @@ def hod_approve(gatepass_id):
 
     return jsonify({
         "success": True,
-        "message": "Gatepass approved successfully"
+        "message": "Gatepass approved successfully (Valid for 10 minutes)"
     })
 
 
@@ -211,7 +211,7 @@ def hod_history():
                 "year": gp.student.year,
                 "section": gp.student.section,
                 "reason": gp.reason,
-                "parent_mobile": gp.parent_mobile,  #  IMPORTANT
+                "parent_mobile": gp.parent_mobile,
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat()
             }
