@@ -112,7 +112,7 @@ def hod_approve(gatepass_id):
     # ================= GENERATE QR =================
     payload = {
         "gatepass_id": gp.id,
-        "exp": datetime.utcnow() + timedelta(hours=6)
+        "exp": datetime.utcnow() + timedelta(minutes=10)
     }
 
     try:

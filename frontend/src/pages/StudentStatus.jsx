@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import API from "../api"; //  FIXED (use axios instance)
+import API from "../api";
 
 export default function StudentStatus() {
   const [pass, setPass] = useState(null);
   const [now, setNow] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(0);
 
-  // ================= TIMER =================
+  // ================= CURRENT TIME =================
   useEffect(() => {
     const updateTime = () => {
       setNow(Math.floor(Date.now() / 1000));
@@ -23,19 +24,20 @@ export default function StudentStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await API.get("/student/status");
+        const res = await API.get("/gatepass/my_gatepass");
 
-        console.log("STATUS RESPONSE:", res.data); //  debug
+        console.log("API RESPONSE:", res.data);
 
-        //  HANDLE BOTH CASES
-        if (res.data?.gatepass) {
-          setPass(res.data.gatepass);
-        } else if (res.data) {
-          setPass(res.data);
+        if (res.data.success) {
+          setPass({
+            status: "Approved",
+            reason: "Gatepass Approved",
+            qr_token: res.data.qr_token,
+            is_used: false,
+          });
         } else {
           setPass(null);
         }
-
       } catch (err) {
         console.error("Fetch error:", err);
         setPass(null);
@@ -46,6 +48,31 @@ export default function StudentStatus() {
 
     fetchStatus();
   }, []);
+
+  // ================= QR COUNTDOWN =================
+  useEffect(() => {
+    if (!pass?.qr_token) return;
+
+    const interval = setInterval(() => {
+      try {
+        const decoded = jwtDecode(pass.qr_token);
+        const remaining = decoded.exp - Math.floor(Date.now() / 1000);
+
+        setTimeLeft(remaining > 0 ? remaining : 0);
+      } catch {
+        setTimeLeft(0);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [pass]);
+
+  // ================= FORMAT TIME =================
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
   // ================= QR VALIDATION =================
   const isQrValid = (qrToken) => {
@@ -65,7 +92,7 @@ export default function StudentStatus() {
         {loading && <p style={styles.info}>Loading...</p>}
 
         {!loading && !pass && (
-          <p style={styles.error}>No gatepass found</p>
+          <p style={styles.error}>No approved gatepass found</p>
         )}
 
         {pass && (
@@ -78,13 +105,6 @@ export default function StudentStatus() {
                 {pass.status}
               </span>
             </p>
-
-            {/* REJECTED */}
-            {pass.status === "Rejected" && pass.rejection_reason && (
-              <p style={styles.rejection}>
-                <b>Rejection Reason:</b> {pass.rejection_reason}
-              </p>
-            )}
 
             {/* QR CODE */}
             {pass.status === "Approved" &&
@@ -100,6 +120,11 @@ export default function StudentStatus() {
 
                     <p style={styles.valid}>
                       Show this QR at Security Gate
+                    </p>
+
+                    {/* 🔥 TIMER */}
+                    <p style={styles.timer}>
+                      ⏳ Expires in: {formatTime(timeLeft)}
                     </p>
                   </div>
                 ) : (
@@ -169,9 +194,9 @@ const styles = {
     marginTop: "10px",
   },
 
-  rejection: {
-    marginTop: "10px",
-    color: "#f87171",
+  timer: {
+    marginTop: "8px",
+    color: "#facc15",
     fontWeight: "bold",
   },
 
