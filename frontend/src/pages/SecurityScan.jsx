@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
-import API_BASE_URL from "../config";
 
 export default function SecurityScan() {
   const [student, setStudent] = useState(null);
@@ -11,6 +10,9 @@ export default function SecurityScan() {
 
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
+
+  // 🔥 BACKEND BASE URL
+  const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
 
   // ================= LOAD EXIT COUNT =================
   useEffect(() => {
@@ -53,7 +55,6 @@ export default function SecurityScan() {
       setGatepass({ id: data.gatepass_id });
       setMessage("Gatepass Verified");
 
-      //  STOP CAMERA + CLEAR UI
       await qrRef.current.stop();
       await qrRef.current.clear();
 
@@ -74,7 +75,7 @@ export default function SecurityScan() {
         const devices = await Html5Qrcode.getCameras();
 
         if (!devices || devices.length === 0) {
-          setMessage("No camera found ");
+          setMessage("No camera found");
           return;
         }
 
@@ -84,19 +85,17 @@ export default function SecurityScan() {
           ) || devices[0];
 
         await html5QrCode.start(
-          { deviceId: { exact: backCamera.id } }, //  FIXED
+          { deviceId: { exact: backCamera.id } },
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.777,
           },
           (decodedText) => {
             if (scannedRef.current) return;
 
             scannedRef.current = true;
             verifyQR(decodedText);
-          },
-          () => {}
+          }
         );
 
         setMessage("Camera started 📷");
@@ -131,7 +130,6 @@ export default function SecurityScan() {
         const res2 = await API.get("/security/exit-count");
         setExitCount(res2.data?.total_exits || 0);
 
-        // RESTART CAMERA WITHOUT RELOAD
         window.location.reload();
       }
     } catch (err) {
@@ -140,28 +138,38 @@ export default function SecurityScan() {
     }
   };
 
+  // 🔥 IMAGE FIX FUNCTION
+  const getImageUrl = (img) => {
+    if (!img) return "https://via.placeholder.com/120";
+
+    if (img.startsWith("/uploads")) {
+      return `${BACKEND_URL}${img}`;
+    }
+
+    return `${BACKEND_URL}/uploads/student_images/${img}`;
+  };
+
   return (
     <div style={styles.container}>
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {/*  ONLY CAMERA */}
       {!student && (
         <div id="qr-reader" style={styles.camera}></div>
       )}
 
       {message && <p>{message}</p>}
 
-      {/* STUDENT DATA */}
       {student && (
         <div style={styles.card}>
-          {student.profile_image && (
-            <img
-              src={`${API_BASE_URL}/uploads/student_images/${student.profile_image}`}
-              alt="student"
-              style={styles.image}
-            />
-          )}
+          <img
+            src={getImageUrl(student.profile_image)}
+            alt="student"
+            style={styles.image}
+            onError={(e) => {
+              e.target.src = "https://via.placeholder.com/120";
+            }}
+          />
 
           <h3>{student.name}</h3>
           <p><b>Roll:</b> {student.roll_no}</p>
@@ -196,7 +204,7 @@ const styles = {
 
   camera: {
     width: "100%",
-    height: "300px", //  IMPORTANT
+    height: "300px",
     marginTop: "20px",
     borderRadius: "10px",
     overflow: "hidden",
@@ -213,6 +221,7 @@ const styles = {
     width: "200px",
     height: "200px",
     borderRadius: "10px",
+    objectFit: "cover",
   },
 
   btn: {
