@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import os
 
 db = SQLAlchemy()
 
@@ -27,8 +26,8 @@ class User(db.Model):
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(10), nullable=True)
 
-    # ================= IMAGES =================
-    #  STORE ONLY FILE NAME (IMPORTANT)
+    # ================= IMAGE =================
+    # Store filename OR path
     profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
@@ -62,19 +61,27 @@ class User(db.Model):
     )
 
     # =====================================================
-    #  HELPER: GET FULL IMAGE URL (VERY IMPORTANT)
+    # 🔥 FIXED IMAGE URL HANDLER (VERY IMPORTANT)
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
 
-        filename = os.path.basename(self.profile_image)
+        img = self.profile_image
 
-        return f"{base_url}/uploads/student_images/{filename}"
+        # Case 1: Already full URL
+        if img.startswith("http"):
+            return img
+
+        # Case 2: Starts with /uploads
+        if img.startswith("/uploads"):
+            return f"{base_url}{img}"
+
+        # Case 3: Only filename
+        return f"{base_url}/uploads/student_images/{img}"
 
     def __repr__(self):
         return f"<User {self.id} | {self.role} | {self.name}>"
-
 
 
 # =====================================================
