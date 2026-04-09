@@ -27,7 +27,6 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGE =================
-    # Store filename OR path
     profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
@@ -61,7 +60,7 @@ class User(db.Model):
     )
 
     # =====================================================
-    # 🔥 FIXED IMAGE URL HANDLER (VERY IMPORTANT)
+    # 🔥 FINAL FIXED IMAGE URL HANDLER
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
@@ -69,15 +68,20 @@ class User(db.Model):
 
         img = self.profile_image
 
-        # Case 1: Already full URL
+        # ✅ Case 1: Already full URL
         if img.startswith("http"):
             return img
 
-        # Case 2: Starts with /uploads
+        # 🔥 Case 2: OLD FULL SYSTEM PATH FIX (IMPORTANT)
+        if "uploads/student_images/" in img:
+            filename = img.split("uploads/student_images/")[-1]
+            return f"{base_url}/uploads/student_images/{filename}"
+
+        # ✅ Case 3: Starts with /uploads
         if img.startswith("/uploads"):
             return f"{base_url}{img}"
 
-        # Case 3: Only filename
+        # ✅ Case 4: Only filename
         return f"{base_url}/uploads/student_images/{img}"
 
     def __repr__(self):
