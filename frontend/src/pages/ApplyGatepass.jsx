@@ -6,6 +6,7 @@ export default function ApplyGatepass() {
     reason: "",
     out_time: "",
     in_time: "",
+    parent_mobile: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -27,6 +28,12 @@ export default function ApplyGatepass() {
     }));
   };
 
+  // ================= FORMAT DATE =================
+  const formatDateTime = (value) => {
+    if (!value) return "";
+    return value + ":00"; // add seconds
+  };
+
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,13 +41,22 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // Required validation
-    if (!form.reason.trim() || !form.out_time || !form.in_time) {
+    if (
+      !form.reason.trim() ||
+      !form.out_time ||
+      !form.in_time ||
+      !form.parent_mobile
+    ) {
       setMessage("All fields are required");
       return;
     }
 
-    // Token check
+    // mobile validation
+    if (!/^\d{10}$/.test(form.parent_mobile)) {
+      setMessage("Enter valid 10-digit mobile number");
+      return;
+    }
+
     if (!token) {
       setMessage("Session expired. Please login again");
       return;
@@ -50,11 +66,12 @@ export default function ApplyGatepass() {
       setLoading(true);
 
       const res = await API.post(
-        "/student/apply_gatepass", // ✅ Correct route
+        "/student/apply_gatepass",
         {
           reason: form.reason.trim(),
-          out_time: form.out_time,
-          in_time: form.in_time,
+          out_time: formatDateTime(form.out_time),
+          in_time: formatDateTime(form.in_time),
+          parent_mobile: form.parent_mobile,
         },
         {
           headers: {
@@ -66,17 +83,19 @@ export default function ApplyGatepass() {
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // Reset form
       setForm({
         reason: "",
         out_time: "",
         in_time: "",
+        parent_mobile: "",
       });
 
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later"
+        err.response?.data?.message ||
+        err.message ||
+        "Server error. Try again later"
       );
     } finally {
       setLoading(false);
@@ -93,6 +112,16 @@ export default function ApplyGatepass() {
             name="reason"
             placeholder="Reason for leaving"
             value={form.reason}
+            onChange={handleChange}
+            required
+            style={styles.input}
+          />
+
+          <input
+            type="text"
+            name="parent_mobile"
+            placeholder="Parent Mobile Number"
+            value={form.parent_mobile}
             onChange={handleChange}
             required
             style={styles.input}

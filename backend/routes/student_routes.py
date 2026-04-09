@@ -40,6 +40,9 @@ def profile():
     if error:
         return error, code
 
+    # 🔥 include image also (important for scan/debug)
+    base_url = request.host_url.rstrip("/")
+
     return jsonify({
         "success": True,
         "user": {
@@ -47,13 +50,14 @@ def profile():
             "college_id": student.college_id,
             "department": student.department,
             "year": student.year,
-            "section": student.section
+            "section": student.section,
+            "profile_image": student.get_image_url(base_url)
         }
     }), 200
 
 
 # =================================================
-# APPLY GATEPASS ( MAIN FIX HERE)
+# APPLY GATEPASS (FIXED)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -66,17 +70,30 @@ def apply_gatepass():
     data = request.get_json()
 
     reason = data.get("reason")
-    out_time = data.get("out_time")
-    in_time = data.get("in_time")
+    out_time_str = data.get("out_time")
+    in_time_str = data.get("in_time")
+    parent_mobile = data.get("parent_mobile")
 
-    if not reason or not out_time or not in_time:
+    if not reason or not out_time_str or not in_time_str or not parent_mobile:
         return jsonify({
             "success": False,
             "message": "All fields are required"
         }), 400
 
     # ==============================
-    #  CHECK: ONE GATEPASS PER DAY
+    # 🔥 CONVERT STRING → DATETIME
+    # ==============================
+    try:
+        out_time = datetime.fromisoformat(out_time_str)
+        in_time = datetime.fromisoformat(in_time_str)
+    except:
+        return jsonify({
+            "success": False,
+            "message": "Invalid date format"
+        }), 400
+
+    # ==============================
+    # CHECK: ONE GATEPASS PER DAY
     # ==============================
     today = date.today()
 
@@ -97,9 +114,10 @@ def apply_gatepass():
     new_gatepass = GatePass(
         student_id=student.id,
         reason=reason,
+        parent_mobile=parent_mobile,
         out_time=out_time,
         in_time=in_time,
-        status="Pending",
+        status="PendingFaculty",
         created_at=datetime.utcnow()
     )
 

@@ -2,11 +2,37 @@ import { useState } from "react";
 import API from "../api";
 
 export default function StudentDashboard() {
-  const [reason, setReason] = useState("");
-  const [parentMobile, setParentMobile] = useState("");
+  const [form, setForm] = useState({
+    reason: "",
+    parent_mobile: "",
+    out_time: "",
+    in_time: "",
+  });
+
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
+
+  // ================= HANDLE INPUT =================
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // ================= FORMAT DATE =================
+  const formatDateTime = (value) => {
+    if (!value) return "";
+    return value + ":00";
+  };
 
   // ================= APPLY GATEPASS =================
   const applyGatePass = async () => {
@@ -15,40 +41,58 @@ export default function StudentDashboard() {
     setMessage("");
     setSuccess(false);
 
-    const cleanReason = reason.trim();
-    const cleanMobile = parentMobile.trim();
+    const { reason, parent_mobile, out_time, in_time } = form;
 
-    // VALIDATIONS
-    if (!cleanReason || !cleanMobile) {
-      setMessage("Reason and parent mobile are required");
+    if (!reason.trim() || !parent_mobile || !out_time || !in_time) {
+      setMessage("All fields are required");
       return;
     }
 
-    if (!/^\d{10}$/.test(cleanMobile)) {
+    if (!/^\d{10}$/.test(parent_mobile)) {
       setMessage("Enter valid 10-digit mobile number");
+      return;
+    }
+
+    if (!token) {
+      setMessage("Session expired. Please login again");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await API.post("/gatepass/apply", {
-        reason: cleanReason,
-        parent_mobile: cleanMobile,
-      });
+      const res = await API.post(
+        "/student/apply_gatepass", // ✅ consistent route
+        {
+          reason: reason.trim(),
+          parent_mobile: parent_mobile,
+          out_time: formatDateTime(out_time),
+          in_time: formatDateTime(in_time),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
       // RESET
-      setReason("");
-      setParentMobile("");
+      setForm({
+        reason: "",
+        parent_mobile: "",
+        out_time: "",
+        in_time: "",
+      });
 
-      setTimeout(() => setMessage(""), 3000);
     } catch (err) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message || "Server error. Try again later"
+        err.response?.data?.message ||
+        err.message ||
+        "Server error. Try again later"
       );
     } finally {
       setLoading(false);
@@ -60,23 +104,39 @@ export default function StudentDashboard() {
       <div style={styles.card}>
         <h2 style={styles.title}>Student Dashboard</h2>
 
-        {/* ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
-
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 
         <input
           type="text"
+          name="reason"
           placeholder="Enter reason"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
+          value={form.reason}
+          onChange={handleChange}
           style={styles.input}
         />
 
         <input
           type="tel"
+          name="parent_mobile"
           placeholder="Enter parent mobile number"
-          value={parentMobile}
-          onChange={(e) => setParentMobile(e.target.value)}
+          value={form.parent_mobile}
+          onChange={handleChange}
+          style={styles.input}
+        />
+
+        <input
+          type="datetime-local"
+          name="out_time"
+          value={form.out_time}
+          onChange={handleChange}
+          style={styles.input}
+        />
+
+        <input
+          type="datetime-local"
+          name="in_time"
+          value={form.in_time}
+          onChange={handleChange}
           style={styles.input}
         />
 
@@ -160,4 +220,4 @@ const styles = {
     textAlign: "center",
     fontWeight: "500",
   },
-}; 
+};

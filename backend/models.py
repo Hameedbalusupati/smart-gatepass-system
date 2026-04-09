@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import os
 
 db = SQLAlchemy()
 
@@ -27,7 +28,7 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGE =================
-    profile_image = db.Column(db.String(255), nullable=True)
+    profile_image = db.Column(db.String(500), nullable=True)
 
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
@@ -60,29 +61,41 @@ class User(db.Model):
     )
 
     # =====================================================
-    # 🔥 FINAL FIXED IMAGE URL HANDLER
+    # 🔥 FINAL UNIVERSAL IMAGE URL HANDLER (FIXED)
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
 
-        img = self.profile_image
+        img = self.profile_image.strip()
 
-        # ✅ Case 1: Already full URL
-        if img.startswith("http"):
-            return img
+        try:
+            # ✅ Case 1: Already full URL (Cloudinary / external)
+            if img.startswith("http://") or img.startswith("https://"):
+                return img
 
-        # 🔥 Case 2: OLD FULL SYSTEM PATH FIX (IMPORTANT)
-        if "uploads/student_images/" in img:
-            filename = img.split("uploads/student_images/")[-1]
-            return f"{base_url}/uploads/student_images/{filename}"
+            # 🔥 Normalize path (Windows → Linux safe)
+            img = img.replace("\\", "/")
 
-        # ✅ Case 3: Starts with /uploads
-        if img.startswith("/uploads"):
-            return f"{base_url}{img}"
+            # 🔥 Case 2: If full system path exists
+            if "uploads" in img:
+                if "uploads/student_images/" in img:
+                    filename = img.split("uploads/student_images/")[-1]
+                else:
+                    filename = os.path.basename(img)
 
-        # ✅ Case 4: Only filename
-        return f"{base_url}/uploads/student_images/{img}"
+                return f"{base_url}/uploads/student_images/{filename}"
+
+            # ✅ Case 3: Starts with /uploads
+            if img.startswith("/uploads"):
+                return f"{base_url}{img}"
+
+            # ✅ Case 4: Only filename
+            return f"{base_url}/uploads/student_images/{img}"
+
+        except Exception as e:
+            print("Image URL Error:", e)
+            return None
 
     def __repr__(self):
         return f"<User {self.id} | {self.role} | {self.name}>"
