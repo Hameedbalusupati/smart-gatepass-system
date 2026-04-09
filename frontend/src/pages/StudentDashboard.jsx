@@ -5,8 +5,6 @@ export default function StudentDashboard() {
   const [form, setForm] = useState({
     reason: "",
     parent_mobile: "",
-    out_time: "",
-    in_time: "",
   });
 
   const [message, setMessage] = useState("");
@@ -28,12 +26,6 @@ export default function StudentDashboard() {
     }));
   };
 
-  // ================= FORMAT DATE =================
-  const formatDateTime = (value) => {
-    if (!value) return "";
-    return value + ":00";
-  };
-
   // ================= APPLY GATEPASS =================
   const applyGatePass = async () => {
     if (loading) return;
@@ -41,18 +33,21 @@ export default function StudentDashboard() {
     setMessage("");
     setSuccess(false);
 
-    const { reason, parent_mobile, out_time, in_time } = form;
+    const { reason, parent_mobile } = form;
 
-    if (!reason.trim() || !parent_mobile || !out_time || !in_time) {
-      setMessage("All fields are required");
+    // ✅ SIMPLE VALIDATION
+    if (!reason.trim() || !parent_mobile) {
+      setMessage("Reason and parent mobile are required");
       return;
     }
 
+    // ✅ MOBILE VALIDATION
     if (!/^\d{10}$/.test(parent_mobile)) {
       setMessage("Enter valid 10-digit mobile number");
       return;
     }
 
+    // ✅ TOKEN CHECK
     if (!token) {
       setMessage("Session expired. Please login again");
       return;
@@ -62,12 +57,10 @@ export default function StudentDashboard() {
       setLoading(true);
 
       const res = await API.post(
-        "/student/apply_gatepass", // ✅ consistent route
+        "/student/apply_gatepass",
         {
           reason: reason.trim(),
           parent_mobile: parent_mobile,
-          out_time: formatDateTime(out_time),
-          in_time: formatDateTime(in_time),
         },
         {
           headers: {
@@ -83,8 +76,6 @@ export default function StudentDashboard() {
       setForm({
         reason: "",
         parent_mobile: "",
-        out_time: "",
-        in_time: "",
       });
 
     } catch (err) {
@@ -120,22 +111,6 @@ export default function StudentDashboard() {
           name="parent_mobile"
           placeholder="Enter parent mobile number"
           value={form.parent_mobile}
-          onChange={handleChange}
-          style={styles.input}
-        />
-
-        <input
-          type="datetime-local"
-          name="out_time"
-          value={form.out_time}
-          onChange={handleChange}
-          style={styles.input}
-        />
-
-        <input
-          type="datetime-local"
-          name="in_time"
-          value={form.in_time}
           onChange={handleChange}
           style={styles.input}
         />

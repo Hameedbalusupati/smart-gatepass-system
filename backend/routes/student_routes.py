@@ -40,7 +40,6 @@ def profile():
     if error:
         return error, code
 
-    # 🔥 include image also (important for scan/debug)
     base_url = request.host_url.rstrip("/")
 
     return jsonify({
@@ -57,7 +56,7 @@ def profile():
 
 
 # =================================================
-# APPLY GATEPASS (FIXED)
+# APPLY GATEPASS (FINAL FIXED)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -70,26 +69,20 @@ def apply_gatepass():
     data = request.get_json()
 
     reason = data.get("reason")
-    out_time_str = data.get("out_time")
-    in_time_str = data.get("in_time")
     parent_mobile = data.get("parent_mobile")
 
-    if not reason or not out_time_str or not in_time_str or not parent_mobile:
+    # ✅ SIMPLE VALIDATION
+    if not reason or not parent_mobile:
         return jsonify({
             "success": False,
-            "message": "All fields are required"
+            "message": "Reason and parent mobile are required"
         }), 400
 
-    # ==============================
-    # 🔥 CONVERT STRING → DATETIME
-    # ==============================
-    try:
-        out_time = datetime.fromisoformat(out_time_str)
-        in_time = datetime.fromisoformat(in_time_str)
-    except:
+    # ✅ MOBILE VALIDATION
+    if not parent_mobile.isdigit() or len(parent_mobile) != 10:
         return jsonify({
             "success": False,
-            "message": "Invalid date format"
+            "message": "Invalid mobile number"
         }), 400
 
     # ==============================
@@ -115,8 +108,6 @@ def apply_gatepass():
         student_id=student.id,
         reason=reason,
         parent_mobile=parent_mobile,
-        out_time=out_time,
-        in_time=in_time,
         status="PendingFaculty",
         created_at=datetime.utcnow()
     )
