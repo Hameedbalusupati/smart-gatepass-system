@@ -2,11 +2,8 @@ import { useState } from "react";
 import API from "../api";
 
 export default function ApplyGatepass() {
-  const [form, setForm] = useState({
-    reason: "",
-    out_time: "",
-    in_time: "",
-  });
+  const [reason, setReason] = useState("");
+  const [parentMobile, setParentMobile] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -17,16 +14,6 @@ export default function ApplyGatepass() {
       ? localStorage.getItem("access_token")
       : null;
 
-  // ================= HANDLE INPUT =================
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,13 +21,20 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // Required validation
-    if (!form.reason.trim() || !form.out_time || !form.in_time) {
+    const cleanReason = reason.trim();
+    const cleanMobile = parentMobile.trim();
+
+    // ✅ VALIDATION
+    if (!cleanReason || !cleanMobile) {
       setMessage("All fields are required");
       return;
     }
 
-    // Token check
+    if (!/^\d{10}$/.test(cleanMobile)) {
+      setMessage("Enter valid 10-digit mobile number");
+      return;
+    }
+
     if (!token) {
       setMessage("Session expired. Please login again");
       return;
@@ -49,12 +43,12 @@ export default function ApplyGatepass() {
     try {
       setLoading(true);
 
+      // ✅ JSON REQUEST (NO IMAGE, NO TIME)
       const res = await API.post(
-        "/student/apply_gatepass", // ✅ Correct route
+        "/student/apply_gatepass",
         {
-          reason: form.reason.trim(),
-          out_time: form.out_time,
-          in_time: form.in_time,
+          reason: cleanReason,
+          parent_mobile: cleanMobile,
         },
         {
           headers: {
@@ -66,12 +60,9 @@ export default function ApplyGatepass() {
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // Reset form
-      setForm({
-        reason: "",
-        out_time: "",
-        in_time: "",
-      });
+      // RESET
+      setReason("");
+      setParentMobile("");
 
     } catch (err) {
       setSuccess(false);
@@ -89,29 +80,21 @@ export default function ApplyGatepass() {
         <h2 style={styles.title}>Apply Gatepass</h2>
 
         <form onSubmit={handleSubmit} style={styles.form}>
+          {/* Reason */}
           <textarea
-            name="reason"
             placeholder="Reason for leaving"
-            value={form.reason}
-            onChange={handleChange}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
             required
             style={styles.input}
           />
 
+          {/* Parent Mobile */}
           <input
-            type="datetime-local"
-            name="out_time"
-            value={form.out_time}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-
-          <input
-            type="datetime-local"
-            name="in_time"
-            value={form.in_time}
-            onChange={handleChange}
+            type="tel"
+            placeholder="Parent Mobile Number"
+            value={parentMobile}
+            onChange={(e) => setParentMobile(e.target.value)}
             required
             style={styles.input}
           />

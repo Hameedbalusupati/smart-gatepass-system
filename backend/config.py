@@ -2,12 +2,13 @@ import os
 from datetime import timedelta
 from dotenv import load_dotenv
 
-# Load environment variables
+# ==============================
+# LOAD ENV VARIABLES
+# ==============================
 load_dotenv()
 
 
 class Config:
-
     # ==============================
     # SECRET KEYS
     # ==============================
@@ -21,15 +22,15 @@ class Config:
     db_url = os.getenv("DATABASE_URL")
 
     if not db_url:
-        raise ValueError("DATABASE_URL not found. Check your .env file.")
+        raise ValueError("❌ DATABASE_URL not found. Check your .env file.")
 
-    #  FIX: use psycopg (v3)
+    # ✅ Fix PostgreSQL driver (Render compatible)
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
     elif db_url.startswith("postgresql://"):
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    # Ensure SSL mode for Render
+    # ✅ Ensure SSL mode (required for Render)
     if "sslmode" not in db_url:
         if "?" in db_url:
             db_url += "&sslmode=require"
@@ -43,3 +44,19 @@ class Config:
     # JWT CONFIG
     # ==============================
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=12)
+
+    # ==============================
+    # CLOUDINARY CONFIG (IMPORTANT)
+    # ==============================
+    CLOUD_NAME = os.getenv("CLOUD_NAME")
+    API_KEY = os.getenv("API_KEY")
+    API_SECRET = os.getenv("API_SECRET")
+
+    # ==============================
+    # VALIDATION CHECKS (DEBUG)
+    # ==============================
+    if not CLOUD_NAME or not API_KEY or not API_SECRET:
+        print("⚠️ Cloudinary config missing. Check your .env file.")
+
+    if not SECRET_KEY or not JWT_SECRET_KEY:
+        print("⚠️ Secret keys missing. Using default values (not recommended).")

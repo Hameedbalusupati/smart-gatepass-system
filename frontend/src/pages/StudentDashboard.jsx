@@ -4,9 +4,15 @@ import API from "../api";
 export default function StudentDashboard() {
   const [reason, setReason] = useState("");
   const [parentMobile, setParentMobile] = useState("");
+
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
   // ================= APPLY GATEPASS =================
   const applyGatePass = async () => {
@@ -18,7 +24,7 @@ export default function StudentDashboard() {
     const cleanReason = reason.trim();
     const cleanMobile = parentMobile.trim();
 
-    // VALIDATIONS
+    // ✅ VALIDATIONS
     if (!cleanReason || !cleanMobile) {
       setMessage("Reason and parent mobile are required");
       return;
@@ -29,13 +35,27 @@ export default function StudentDashboard() {
       return;
     }
 
+    if (!token) {
+      setMessage("Session expired. Please login again");
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const res = await API.post("/gatepass/apply", {
-        reason: cleanReason,
-        parent_mobile: cleanMobile,
-      });
+      // ✅ NORMAL JSON (NO IMAGE)
+      const res = await API.post(
+        "/student/apply_gatepass",
+        {
+          reason: cleanReason,
+          parent_mobile: cleanMobile,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
@@ -45,6 +65,7 @@ export default function StudentDashboard() {
       setParentMobile("");
 
       setTimeout(() => setMessage(""), 3000);
+
     } catch (err) {
       setSuccess(false);
       setMessage(
@@ -60,10 +81,9 @@ export default function StudentDashboard() {
       <div style={styles.card}>
         <h2 style={styles.title}>Student Dashboard</h2>
 
-        {/* ONLY MAIN FUNCTIONALITY (NO DUPLICATE NAV BUTTONS) */}
-
         <h3 style={styles.subTitle}>Apply Gatepass</h3>
 
+        {/* Reason */}
         <input
           type="text"
           placeholder="Enter reason"
@@ -72,6 +92,7 @@ export default function StudentDashboard() {
           style={styles.input}
         />
 
+        {/* Parent Mobile */}
         <input
           type="tel"
           placeholder="Enter parent mobile number"
@@ -160,4 +181,4 @@ const styles = {
     textAlign: "center",
     fontWeight: "500",
   },
-}; 
+};

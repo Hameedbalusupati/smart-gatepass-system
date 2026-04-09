@@ -13,7 +13,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =================================================
-# APPLY GATEPASS
+# APPLY GATEPASS (FINAL - NO IMAGE)
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
@@ -25,17 +25,20 @@ def apply_gatepass():
         if not student or student.role.lower() != "student":
             return jsonify({"message": "Only students allowed"}), 403
 
+        # ✅ JSON DATA
         data = request.get_json() or {}
 
         reason = (data.get("reason") or "").strip()
         parent_mobile = (data.get("parent_mobile") or "").strip()
 
+        # ================= VALIDATION =================
         if not reason:
             return jsonify({"message": "Reason required"}), 400
 
         if not re.fullmatch(r"\d{10}", parent_mobile):
             return jsonify({"message": "Invalid mobile number"}), 400
 
+        # ================= CHECK ONE PER DAY =================
         today = date.today()
 
         existing = GatePass.query.filter(
@@ -46,6 +49,7 @@ def apply_gatepass():
         if existing:
             return jsonify({"message": "Already applied today"}), 400
 
+        # ================= SAVE =================
         gp = GatePass(
             student_id=student.id,
             reason=reason,
@@ -118,7 +122,8 @@ def faculty_pending():
                 "student_name": student.name,
                 "reason": g.reason,
                 "parent_mobile": g.parent_mobile,
-                "status": g.status
+                "status": g.status,
+                "profile_image": student.get_image_url()  # ✅ USE USER IMAGE
             })
 
         return jsonify({"gatepasses": result})
@@ -147,7 +152,8 @@ def faculty_history():
                 "id": g.id,
                 "student_name": student.name,
                 "parent_mobile": g.parent_mobile,
-                "status": g.status
+                "status": g.status,
+                "profile_image": student.get_image_url()
             })
 
         return jsonify({"gatepasses": result})
