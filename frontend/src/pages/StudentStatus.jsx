@@ -4,18 +4,20 @@ import API from "../api";
 
 export default function StudentStatus() {
   const [pass, setPass] = useState(null);
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(0);
 
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
+
   // ================= CURRENT TIME =================
   useEffect(() => {
-    const updateTime = () => {
+    const timer = setInterval(() => {
       setNow(Math.floor(Date.now() / 1000));
-    };
-
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
+    }, 1000);
 
     return () => clearInterval(timer);
   }, []);
@@ -24,7 +26,11 @@ export default function StudentStatus() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await API.get("/gatepass/my_gatepass");
+        const res = await API.get("/gatepass/my_gatepass", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         console.log("API RESPONSE:", res.data);
 
@@ -47,25 +53,20 @@ export default function StudentStatus() {
     };
 
     fetchStatus();
-  }, []);
+  }, [token]);
 
   // ================= QR COUNTDOWN =================
   useEffect(() => {
     if (!pass?.qr_token) return;
 
-    const interval = setInterval(() => {
-      try {
-        const decoded = jwtDecode(pass.qr_token);
-        const remaining = decoded.exp - Math.floor(Date.now() / 1000);
-
-        setTimeLeft(remaining > 0 ? remaining : 0);
-      } catch {
-        setTimeLeft(0);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [pass]);
+    try {
+      const decoded = jwtDecode(pass.qr_token);
+      const remaining = decoded.exp - now;
+      setTimeLeft(remaining > 0 ? remaining : 0);
+    } catch {
+      setTimeLeft(0);
+    }
+  }, [pass, now]);
 
   // ================= FORMAT TIME =================
   const formatTime = (seconds) => {
@@ -122,7 +123,6 @@ export default function StudentStatus() {
                       Show this QR at Security Gate
                     </p>
 
-                    {/* 🔥 TIMER */}
                     <p style={styles.timer}>
                       ⏳ Expires in: {formatTime(timeLeft)}
                     </p>

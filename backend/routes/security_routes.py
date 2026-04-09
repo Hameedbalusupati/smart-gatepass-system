@@ -1,6 +1,8 @@
 import jwt
 from datetime import datetime
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy import func
 
 from config import Config
 from models import db, GatePass
@@ -11,12 +13,13 @@ QR_ALGORITHM = "HS256"
 
 
 # =========================================
-# VERIFY QR (FINAL FIXED VERSION)
+# VERIFY QR
 # =========================================
 @security_bp.route("/verify_qr", methods=["POST"])
+@jwt_required()   # 🔥 SECURITY FIX
 def verify_qr():
     try:
-        data = request.get_json()
+        data = request.get_json() or {}   # 🔥 FIX
         qr_token = data.get("qr_token")
 
         if not qr_token:
@@ -25,7 +28,6 @@ def verify_qr():
                 "message": "QR token missing"
             }), 400
 
-        # ================= DECODE QR =================
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -40,7 +42,6 @@ def verify_qr():
                 "message": "Invalid QR data"
             }), 400
 
-        # ================= GET GATEPASS =================
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -57,14 +58,15 @@ def verify_qr():
 
         student = gatepass.student
 
-        # ================= IMAGE URL (FINAL FIX) =================
+        if not student:
+            return jsonify({
+                "success": False,
+                "message": "Student not found"
+            }), 404
+
         base_url = request.host_url.rstrip("/")
+        image_url = student.get_image_url(base_url)
 
-        image_url = None
-        if student:
-            image_url = student.get_image_url(base_url)
-
-        # ================= RESPONSE =================
         return jsonify({
             "success": True,
             "message": "Gatepass Verified",
@@ -78,11 +80,9 @@ def verify_qr():
             "section": student.section,
             "parent_mobile": gatepass.parent_mobile,
 
-            # 🔥 FINAL FIXED IMAGE
             "profile_image": image_url
         })
 
-    # ================= ERRORS =================
     except jwt.ExpiredSignatureError:
         return jsonify({
             "success": False,
@@ -107,6 +107,7 @@ def verify_qr():
 # CONFIRM EXIT
 # =========================================
 @security_bp.route("/confirm_exit/<int:gatepass_id>", methods=["POST"])
+@jwt_required()   # 🔥 SECURITY FIX
 def confirm_exit(gatepass_id):
     try:
         gatepass = db.session.get(GatePass, gatepass_id)
@@ -123,7 +124,6 @@ def confirm_exit(gatepass_id):
                 "message": "Already exited"
             }), 400
 
-        # ================= UPDATE =================
         gatepass.is_used = True
         gatepass.status = "Completed"
         gatepass.out_time = datetime.utcnow()
@@ -147,17 +147,21 @@ def confirm_exit(gatepass_id):
 # EXIT HISTORY
 # =========================================
 @security_bp.route("/exit-history", methods=["GET"])
+@jwt_required()
 def exit_history():
     try:
         exits = GatePass.query.filter_by(status="Completed").all()
 
         data = []
         for g in exits:
+            if not g.student:
+                continue
+
             data.append({
                 "name": g.student.name,
                 "roll": g.student.college_id,
                 "department": g.student.department,
-                "time": g.out_time
+                "time": g.out_time.isoformat() if g.out_time else None
             })
 
         return jsonify(data)
@@ -168,25 +172,22 @@ def exit_history():
 
 
 # =========================================
-# DAILY EXIT COUNT
+# DAILY EXIT COUNT (FAST FIX)
 # =========================================
 @security_bp.route("/exit-count", methods=["GET"])
+@jwt_required()
 def exit_count():
     try:
         today = datetime.utcnow().date()
 
-        exits = GatePass.query.filter(
-            GatePass.status == "Completed"
-        ).all()
-
-        count = 0
-        for g in exits:
-            if g.out_time and g.out_time.date() == today:
-                count += 1
+        count = db.session.query(func.count(GatePass.id)).filter(
+            GatePass.status == "Completed",
+            func.date(GatePass.out_time) == today
+        ).scalar()
 
         return jsonify({
             "date": str(today),
-            "total_exits": count
+            "total_exits": count or 0
         })
 
     except Exception as e:

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import API from "../api";
 
@@ -11,85 +11,98 @@ export default function SecurityScan() {
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
-  // 🔥 BACKEND BASE URL
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
+
   const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
 
   // ================= LOAD EXIT COUNT =================
-  useEffect(() => {
-    const loadExitCount = async () => {
-      try {
-        const res = await API.get("/security/exit-count");
-        setExitCount(res.data?.total_exits || 0);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadExitCount();
-  }, []);
-
-  // ================= VERIFY QR =================
-  const verifyQR = async (token) => {
+  const loadExitCount = useCallback(async () => {
     try {
-      const res = await API.post("/gatepass/verify_qr", {
-        qr_token: token,
+      const res = await API.get("/security/exit-count", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      const data = res.data;
-
-      if (!data?.success) {
-        setMessage("Invalid QR");
-        scannedRef.current = false;
-        return;
-      }
-
-      setStudent({
-        name: data.student_name,
-        roll_no: data.college_id,
-        year: data.year,
-        section: data.section,
-        department: data.department,
-        profile_image: data.profile_image,
-        parent_mobile: data.parent_mobile,
-      });
-
-      setGatepass({ id: data.gatepass_id });
-      setMessage("Gatepass Verified");
-
-      await qrRef.current.stop();
-      await qrRef.current.clear();
-
+      setExitCount(res.data?.total_exits || 0);
     } catch (err) {
       console.error(err);
-      setMessage("Verification failed");
-      scannedRef.current = false;
     }
-  };
+  }, [token]);
+
+  // ✅ FIXED EFFECT (NO WARNING)
+  useEffect(() => {
+    const fetchData = async () => {
+      await loadExitCount();
+    };
+    fetchData();
+  }, [loadExitCount]);
+
+  // ================= VERIFY QR =================
+  const verifyQR = useCallback(
+    async (qrToken) => {
+      try {
+        const res = await API.post(
+          "/security/verify_qr",
+          { qr_token: qrToken },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        const data = res.data;
+
+        if (!data?.success) {
+          setMessage(data?.message || "Invalid QR");
+          scannedRef.current = false;
+          return;
+        }
+
+        setStudent({
+          name: data.student_name,
+          roll_no: data.college_id,
+          year: data.year,
+          section: data.section,
+          department: data.department,
+          profile_image: data.profile_image,
+          parent_mobile: data.parent_mobile,
+        });
+
+        setGatepass({ id: data.gatepass_id });
+        setMessage("Gatepass Verified ✅");
+
+        await qrRef.current?.stop();
+      } catch (err) {
+        console.error(err);
+        setMessage("Verification failed");
+        scannedRef.current = false;
+      }
+    },
+    [token]
+  );
 
   // ================= START CAMERA =================
   useEffect(() => {
     const startCamera = async () => {
       try {
-        const html5QrCode = new Html5Qrcode("qr-reader");
-        qrRef.current = html5QrCode;
+        const qr = new Html5Qrcode("qr-reader");
+        qrRef.current = qr;
 
         const devices = await Html5Qrcode.getCameras();
 
-        if (!devices || devices.length === 0) {
+        if (!devices.length) {
           setMessage("No camera found");
           return;
         }
 
-        const backCamera =
+        const cam =
           devices.find((d) =>
             d.label.toLowerCase().includes("back")
           ) || devices[0];
 
-        await html5QrCode.start(
-          { deviceId: { exact: backCamera.id } },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-          },
+        await qr.start(
+          cam.id,
+          { fps: 10, qrbox: 250 },
           (decodedText) => {
             if (scannedRef.current) return;
 
@@ -98,11 +111,10 @@ export default function SecurityScan() {
           }
         );
 
-        setMessage("Camera started 📷");
-
+        setMessage("Scanning... 📷");
       } catch (err) {
         console.error(err);
-        setMessage("Camera permission denied");
+        setMessage("Camera error");
       }
     };
 
@@ -111,26 +123,27 @@ export default function SecurityScan() {
     return () => {
       qrRef.current?.stop().catch(() => {});
     };
-  }, []);
+  }, [verifyQR]);
 
   // ================= CONFIRM EXIT =================
   const confirmExit = async () => {
     try {
       const res = await API.post(
-        `/gatepass/confirm_exit/${gatepass?.id}`
+        `/security/confirm_exit/${gatepass?.id}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
       );
 
       if (res.data?.success) {
-        setMessage("Exit recorded");
+        setMessage("Exit recorded ✅");
 
         setStudent(null);
         setGatepass(null);
         scannedRef.current = false;
 
-        const res2 = await API.get("/security/exit-count");
-        setExitCount(res2.data?.total_exits || 0);
-
-        window.location.reload();
+        loadExitCount(); // safe
       }
     } catch (err) {
       console.error(err);
@@ -138,15 +151,14 @@ export default function SecurityScan() {
     }
   };
 
-  // 🔥 IMAGE FIX FUNCTION
+  // ================= IMAGE FIX =================
   const getImageUrl = (img) => {
     if (!img) return "https://via.placeholder.com/120";
 
-    if (img.startsWith("/uploads")) {
-      return `${BACKEND_URL}${img}`;
-    }
+    if (img.startsWith("http")) return img;
 
-    return `${BACKEND_URL}/uploads/student_images/${img}`;
+    const clean = img.replace(/^\/+/, "");
+    return `${BACKEND_URL}/${clean}`;
   };
 
   return (
@@ -154,9 +166,7 @@ export default function SecurityScan() {
       <h2>Security Dashboard</h2>
       <h4>Today's Exits: {exitCount}</h4>
 
-      {!student && (
-        <div id="qr-reader" style={styles.camera}></div>
-      )}
+      {!student && <div id="qr-reader" style={styles.camera}></div>}
 
       {message && <p>{message}</p>}
 
@@ -193,7 +203,7 @@ export default function SecurityScan() {
   );
 }
 
-// ================= STYLES =================
+/* STYLES */
 const styles = {
   container: {
     maxWidth: "350px",
@@ -201,7 +211,6 @@ const styles = {
     textAlign: "center",
     color: "white",
   },
-
   camera: {
     width: "100%",
     height: "300px",
@@ -209,21 +218,18 @@ const styles = {
     borderRadius: "10px",
     overflow: "hidden",
   },
-
   card: {
     marginTop: "20px",
     background: "#111",
     padding: "15px",
     borderRadius: "10px",
   },
-
   image: {
     width: "200px",
     height: "200px",
     borderRadius: "10px",
     objectFit: "cover",
   },
-
   btn: {
     marginTop: "10px",
     padding: "10px",
@@ -232,7 +238,6 @@ const styles = {
     border: "none",
     borderRadius: "5px",
   },
-
   link: {
     color: "#3b82f6",
   },

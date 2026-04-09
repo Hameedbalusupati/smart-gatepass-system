@@ -12,7 +12,7 @@ export default function SecurityDashboard() {
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
-  // 🔥 BACKEND BASE URL (IMPORTANT)
+  // 🔥 BACKEND BASE URL
   const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
 
   // ================= FETCH EXIT COUNT =================
@@ -161,6 +161,20 @@ export default function SecurityDashboard() {
     }
   };
 
+  // ================= IMAGE FIX FUNCTION =================
+  const getImageUrl = (img) => {
+    if (!img) return "https://via.placeholder.com/120";
+
+    // ✅ Already full URL (cloudinary / hosted)
+    if (img.startsWith("http")) return img;
+
+    // ✅ Remove leading slash if exists
+    const cleanPath = img.replace(/^\/+/, "");
+
+    // ✅ Build correct backend URL
+    return `${BACKEND_URL}/${cleanPath}`;
+  };
+
   return (
     <div style={container}>
       <div style={card}>
@@ -196,11 +210,7 @@ export default function SecurityDashboard() {
 
             {/* 🔥 FIXED IMAGE */}
             <img
-              src={
-                data.profile_image
-                  ? `${BACKEND_URL}${data.profile_image}`
-                  : "https://via.placeholder.com/120"
-              }
+              src={getImageUrl(data.profile_image)}
               alt="student"
               style={image}
               onError={(e) => {
