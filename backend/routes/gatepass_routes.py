@@ -6,6 +6,7 @@ import re
 
 from models import db, GatePass, User
 from config import Config
+from sqlalchemy import func
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
@@ -40,7 +41,7 @@ def apply_gatepass():
 
         existing = GatePass.query.filter(
             GatePass.student_id == student.id,
-            db.func.date(GatePass.created_at) == today
+            func.date(GatePass.created_at) == today
         ).first()
 
         if existing:
@@ -58,7 +59,10 @@ def apply_gatepass():
         db.session.add(gp)
         db.session.commit()
 
-        return jsonify({"success": True, "message": "Gatepass applied successfully"}), 201
+        return jsonify({
+            "success": True,
+            "message": "Gatepass applied successfully"
+        }), 201
 
     except Exception as e:
         print("APPLY ERROR:", e)
@@ -66,7 +70,7 @@ def apply_gatepass():
 
 
 # =================================================
-# STUDENT QR FETCH
+# GET STUDENT GATEPASS STATUS (🔥 FIXED)
 # =================================================
 @gatepass_bp.route("/my_gatepass", methods=["GET"])
 @jwt_required()
@@ -74,19 +78,31 @@ def my_gatepass():
     try:
         student_id = int(get_jwt_identity())
 
-        gp = GatePass.query.filter_by(
-            student_id=student_id,
-            status="Approved",
-            is_used=False
-        ).order_by(GatePass.id.desc()).first()
+        gp = (
+            GatePass.query
+            .filter(GatePass.student_id == student_id)
+            .order_by(GatePass.created_at.desc())
+            .first()
+        )
 
         if not gp:
-            return jsonify({"success": False, "message": "No approved gatepass"}), 404
+            return jsonify({
+                "success": False,
+                "message": "No gatepass found"
+            }), 404
 
         return jsonify({
             "success": True,
-            "qr_token": gp.qr_token,
-            "gatepass_id": gp.id
+            "gatepass": {
+                "id": gp.id,
+                "reason": gp.reason,
+                "status": gp.status,
+                "created_at": gp.created_at.isoformat(),
+                "is_used": gp.is_used or False,
+                "rejected_by": gp.rejected_by,
+                "rejection_reason": gp.rejection_reason,
+                "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
+            }
         })
 
     except Exception as e:
@@ -95,7 +111,7 @@ def my_gatepass():
 
 
 # =================================================
-# FACULTY PENDING
+# FACULTY PENDING LIST
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -127,7 +143,7 @@ def faculty_pending():
         return jsonify({"success": True, "gatepasses": result})
 
     except Exception as e:
-        print("FACULTY PENDING ERROR:", e)
+        print("FACULTY ERROR:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
 
@@ -179,7 +195,7 @@ def faculty_action(id):
 
 
 # =================================================
-# HOD ACTION (FINAL)
+# HOD ACTION
 # =================================================
 @gatepass_bp.route("/hod_action/<int:id>", methods=["POST"])
 @jwt_required()
@@ -215,7 +231,6 @@ def hod_action(id):
                 algorithm=QR_ALGORITHM
             )
 
-            # 🔥 FIX: handle bytes/string
             if isinstance(token, bytes):
                 token = token.decode("utf-8")
 
@@ -237,5 +252,5 @@ def hod_action(id):
         return jsonify({"success": True, "message": "Updated successfully"})
 
     except Exception as e:
-        print("HOD ACTION ERROR:", e)
+        print("HOD ERROR:", e)
         return jsonify({"success": False, "message": "Server error"}), 500

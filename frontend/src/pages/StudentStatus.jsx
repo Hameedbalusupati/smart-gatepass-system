@@ -35,12 +35,7 @@ export default function StudentStatus() {
         console.log("API RESPONSE:", res.data);
 
         if (res.data.success) {
-          setPass({
-            status: "Approved",
-            reason: "Gatepass Approved",
-            qr_token: res.data.qr_token,
-            is_used: false,
-          });
+          setPass(res.data.gatepass);   // ✅ FIX
         } else {
           setPass(null);
         }
@@ -75,7 +70,6 @@ export default function StudentStatus() {
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
-  // ================= QR VALIDATION =================
   const isQrValid = (qrToken) => {
     try {
       const decoded = jwtDecode(qrToken);
@@ -93,7 +87,7 @@ export default function StudentStatus() {
         {loading && <p style={styles.info}>Loading...</p>}
 
         {!loading && !pass && (
-          <p style={styles.error}>No approved gatepass found</p>
+          <p style={styles.error}>No gatepass found</p>
         )}
 
         {pass && (
@@ -106,6 +100,13 @@ export default function StudentStatus() {
                 {pass.status}
               </span>
             </p>
+
+            {/* REJECTED MESSAGE */}
+            {pass.status === "Rejected" && (
+              <p style={styles.expired}>
+                Rejected by {pass.rejected_by}: {pass.rejection_reason}
+              </p>
+            )}
 
             {/* QR CODE */}
             {pass.status === "Approved" &&
@@ -140,8 +141,7 @@ export default function StudentStatus() {
   );
 }
 
-/* ================= STYLES ================= */
-
+/* STYLES SAME */
 const styles = {
   page: {
     minHeight: "100vh",
@@ -151,7 +151,6 @@ const styles = {
     alignItems: "center",
     color: "#f8fafc",
   },
-
   container: {
     width: "95%",
     maxWidth: "600px",
@@ -159,52 +158,43 @@ const styles = {
     padding: "25px",
     borderRadius: "12px",
   },
-
   title: {
     textAlign: "center",
     marginBottom: "20px",
   },
-
   card: {
     background: "#020617",
     border: "1px solid #334155",
     borderRadius: "10px",
     padding: "15px",
   },
-
   qrBox: {
     marginTop: "15px",
     textAlign: "center",
   },
-
   qrImage: {
     border: "4px solid #22c55e",
     borderRadius: "8px",
   },
-
   valid: {
     color: "#22c55e",
     marginTop: "8px",
     fontWeight: "bold",
   },
-
   expired: {
     color: "#ef4444",
     fontWeight: "bold",
     marginTop: "10px",
   },
-
   timer: {
     marginTop: "8px",
     color: "#facc15",
     fontWeight: "bold",
   },
-
   error: {
     textAlign: "center",
     color: "#eab308",
   },
-
   info: {
     textAlign: "center",
     color: "#38bdf8",
