@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import API from "../api";
 
 export default function FacultyDashboard() {
@@ -6,34 +6,51 @@ export default function FacultyDashboard() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
+
   // ================= FETCH DATA =================
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
-      const res1 = await API.get("/faculty/gatepasses/pending");
-      const res2 = await API.get("/faculty/gatepasses/history");
+      const res1 = await API.get("/gatepass/faculty/gatepasses/pending", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const res2 = await API.get("/gatepass/faculty/gatepasses/history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       setPending(res1.data.gatepasses || []);
       setHistory(res2.data.gatepasses || []);
 
     } catch (err) {
       console.error("Fetch error:", err);
+      alert("Failed to load data");
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
+  // ✅ FIXED (no warning)
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (token) {
+      fetchData();
+    }
+  }, [fetchData, token]);
 
-  // ================= HANDLE APPROVE / REJECT =================
+  // ================= HANDLE ACTION =================
   const handleAction = async (id, action) => {
     try {
       let payload = { action };
 
-      //  ask reason for reject
       if (action === "reject") {
         const reason = prompt("Enter rejection reason:");
         if (!reason) return;
@@ -41,9 +58,17 @@ export default function FacultyDashboard() {
         payload.rejection_reason = reason;
       }
 
-      await API.post(`/faculty/gatepass/faculty_action/${id}`, payload);
+      await API.post(
+        `/gatepass/faculty_action/${id}`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-      fetchData(); // refresh data
+      fetchData();
 
     } catch (err) {
       console.error("Action error:", err);
@@ -81,7 +106,6 @@ export default function FacultyDashboard() {
               <p><b>Reason:</b> {p.reason}</p>
               <p><b>Parent Mobile:</b> {p.parent_mobile}</p>
 
-              {/* 📞 CALL BUTTON */}
               <a href={`tel:${p.parent_mobile}`} style={styles.callBtn}>
                 📞 Call Parent
               </a>
@@ -128,7 +152,6 @@ export default function FacultyDashboard() {
   );
 }
 
-
 /* ================= STYLES ================= */
 
 const styles = {
@@ -139,7 +162,6 @@ const styles = {
     justifyContent: "center",
     paddingTop: "30px"
   },
-
   container: {
     width: "450px",
     background: "#111827",
@@ -148,12 +170,10 @@ const styles = {
     color: "white",
     boxShadow: "0 10px 25px rgba(0,0,0,0.6)"
   },
-
   title: {
     textAlign: "center",
     marginBottom: "10px"
   },
-
   refreshBtn: {
     background: "#3b82f6",
     color: "white",
@@ -163,32 +183,27 @@ const styles = {
     cursor: "pointer",
     marginBottom: "15px"
   },
-
   section: {
     marginTop: "15px",
     marginBottom: "10px"
   },
-
   card: {
     background: "#1f2937",
     padding: "15px",
     borderRadius: "8px",
     marginBottom: "10px"
   },
-
   historyCard: {
     background: "#374151",
     padding: "12px",
     borderRadius: "8px",
     marginBottom: "10px"
   },
-
   btnRow: {
     marginTop: "10px",
     display: "flex",
     gap: "10px"
   },
-
   approve: {
     background: "#22c55e",
     border: "none",
@@ -197,7 +212,6 @@ const styles = {
     borderRadius: "5px",
     cursor: "pointer"
   },
-
   reject: {
     background: "#ef4444",
     border: "none",
@@ -206,7 +220,6 @@ const styles = {
     borderRadius: "5px",
     cursor: "pointer"
   },
-
   callBtn: {
     display: "inline-block",
     marginTop: "5px",
