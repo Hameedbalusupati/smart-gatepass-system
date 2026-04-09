@@ -10,7 +10,6 @@ db = SQLAlchemy()
 class User(db.Model):
     __tablename__ = "users"
 
-    # ================= PRIMARY KEY =================
     id = db.Column(db.Integer, primary_key=True)
 
     # ================= BASIC INFO =================
@@ -28,8 +27,8 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= IMAGE =================
-    # 🔥 Store Cloudinary URL directly
-    profile_image = db.Column(db.String(500), nullable=True)
+    # Store filename OR path
+    profile_image = db.Column(db.String(255), nullable=True)
 
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
@@ -61,12 +60,25 @@ class User(db.Model):
         nullable=False
     )
 
-    # ================= HELPER =================
-    def get_image_url(self):
-        """
-        Returns profile image URL directly (Cloudinary)
-        """
-        return self.profile_image
+    # =====================================================
+    # 🔥 FIXED IMAGE URL HANDLER (VERY IMPORTANT)
+    # =====================================================
+    def get_image_url(self, base_url):
+        if not self.profile_image:
+            return None
+
+        img = self.profile_image
+
+        # Case 1: Already full URL
+        if img.startswith("http"):
+            return img
+
+        # Case 2: Starts with /uploads
+        if img.startswith("/uploads"):
+            return f"{base_url}{img}"
+
+        # Case 3: Only filename
+        return f"{base_url}/uploads/student_images/{img}"
 
     def __repr__(self):
         return f"<User {self.id} | {self.role} | {self.name}>"
@@ -78,37 +90,16 @@ class User(db.Model):
 class GatePass(db.Model):
     __tablename__ = "gate_passes"
 
-    # ================= PRIMARY KEY =================
     id = db.Column(db.Integer, primary_key=True)
 
     # ================= FOREIGN KEYS =================
-    student_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=False,
-        index=True
-    )
-
-    faculty_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=True,
-        index=True
-    )
-
-    hod_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=True,
-        index=True
-    )
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    faculty_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    hod_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
 
     # ================= CORE DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
-
-    # 🔥 IMPORTANT: Store Cloudinary image URL
-    image_url = db.Column(db.String(500), nullable=True)
 
     status = db.Column(
         db.String(30),

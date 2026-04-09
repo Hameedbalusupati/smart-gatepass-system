@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
-
 from models import db, User, GatePass
 
 student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
@@ -48,14 +47,13 @@ def profile():
             "college_id": student.college_id,
             "department": student.department,
             "year": student.year,
-            "section": student.section,
-            "profile_image": student.get_image_url()
+            "section": student.section
         }
     }), 200
 
 
 # =================================================
-# APPLY GATEPASS (FINAL VERSION - NO IMAGE, NO TIME)
+# APPLY GATEPASS ( MAIN FIX HERE)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -65,29 +63,20 @@ def apply_gatepass():
     if error:
         return error, code
 
-    # ✅ JSON DATA ONLY
     data = request.get_json()
 
-    reason = (data.get("reason") or "").strip()
-    parent_mobile = (data.get("parent_mobile") or "").strip()
+    reason = data.get("reason")
+    out_time = data.get("out_time")
+    in_time = data.get("in_time")
 
-    # ==============================
-    # VALIDATION
-    # ==============================
-    if not reason or not parent_mobile:
+    if not reason or not out_time or not in_time:
         return jsonify({
             "success": False,
             "message": "All fields are required"
         }), 400
 
-    if not parent_mobile.isdigit() or len(parent_mobile) != 10:
-        return jsonify({
-            "success": False,
-            "message": "Invalid mobile number"
-        }), 400
-
     # ==============================
-    # CHECK: ONE GATEPASS PER DAY
+    #  CHECK: ONE GATEPASS PER DAY
     # ==============================
     today = date.today()
 
@@ -108,10 +97,10 @@ def apply_gatepass():
     new_gatepass = GatePass(
         student_id=student.id,
         reason=reason,
-        parent_mobile=parent_mobile,
-        status="PendingFaculty",
-        created_at=datetime.utcnow(),
-        is_used=False
+        out_time=out_time,
+        in_time=in_time,
+        status="Pending",
+        created_at=datetime.utcnow()
     )
 
     db.session.add(new_gatepass)
