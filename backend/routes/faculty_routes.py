@@ -1,7 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, User, GatePass
-from utils.face_utils import compare_faces
 import os
 
 faculty_bp = Blueprint("faculty_bp", __name__)
@@ -12,7 +11,7 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 
 
 # =====================================================
-#  PENDING GATEPASSES (FIXED)
+#  PENDING GATEPASSES
 # =====================================================
 @faculty_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -29,8 +28,7 @@ def pending_gatepasses():
             .join(User, GatePass.student_id == User.id)
             .filter(GatePass.status == "PendingFaculty")
             .filter(User.department == faculty.department)
-            .filter(User.year == faculty.year)
-            .filter(User.section == faculty.section)
+            .order_by(GatePass.created_at.desc())
             .all()
         )
 
@@ -40,7 +38,7 @@ def pending_gatepasses():
                     "id": gp.id,
                     "student_name": gp.student.name,
                     "reason": gp.reason,
-                    "parent_mobile": gp.parent_mobile,   # ✅ FIX
+                    "parent_mobile": gp.parent_mobile,
                     "status": gp.status
                 }
                 for gp in gatepasses
@@ -53,7 +51,7 @@ def pending_gatepasses():
 
 
 # =====================================================
-#  APPROVE / REJECT (FIXED JSON SUPPORT)
+#  APPROVE / REJECT
 # =====================================================
 @faculty_bp.route("/gatepass/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -70,18 +68,15 @@ def faculty_action(gatepass_id):
         if not gp or gp.status != "PendingFaculty":
             return jsonify({"message": "Invalid gatepass"}), 400
 
-        #  SUPPORT BOTH JSON + FORM
         data = request.get_json() or request.form
 
         action = data.get("action")
         rejection_reason = data.get("rejection_reason")
 
-        # ================= APPROVE =================
         if action == "approve":
             gp.status = "PendingHOD"
             gp.faculty_id = faculty.id
 
-        # ================= REJECT =================
         elif action == "reject":
             if not rejection_reason:
                 return jsonify({"message": "Reason required"}), 400
@@ -104,7 +99,7 @@ def faculty_action(gatepass_id):
 
 
 # =====================================================
-# HISTORY (FIXED)
+#  HISTORY (🔥 FINAL FIX)
 # =====================================================
 @faculty_bp.route("/gatepasses/history", methods=["GET"])
 @jwt_required()
@@ -119,23 +114,28 @@ def faculty_history():
         gatepasses = (
             GatePass.query
             .join(User, GatePass.student_id == User.id)
-            .filter(User.department == faculty.department)
-            .filter(User.year == faculty.year)
-            .filter(User.section == faculty.section)
+            .filter(User.department == faculty.department)   # ✅ only department
+            .order_by(GatePass.created_at.desc())
             .all()
         )
 
-        return jsonify({
-            "gatepasses": [
-                {
-                    "id": gp.id,
-                    "student_name": gp.student.name,
-                    "parent_mobile": gp.parent_mobile,   # ✅ FIX
-                    "status": gp.status
-                }
-                for gp in gatepasses
-            ]
-        }), 200
+        result = []
+        for gp in gatepasses:
+            student = gp.student
+            if not student:
+                continue
+
+            result.append({
+                "id": gp.id,
+                "student_name": student.name,
+                "reason": gp.reason,                # ✅ ADDED
+                "parent_mobile": gp.parent_mobile,
+                "status": gp.status,
+                "date": gp.created_at.strftime("%Y-%m-%d"),
+                "time": gp.created_at.strftime("%H:%M")
+            })
+
+        return jsonify({"gatepasses": result}), 200
 
     except Exception as e:
         print("HISTORY ERROR:", e)

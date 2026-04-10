@@ -20,13 +20,12 @@ export default function FacultyDashboard() {
       setHistory(res2.data?.gatepasses || []);
 
     } catch (err) {
-      console.error("FULL ERROR:", err);
+      console.error("ERROR:", err);
 
-      // 🔥 SHOW REAL ERROR (IMPORTANT)
       if (err.response) {
-        alert(err.response.data?.message || "Server Error");
+        alert(err.response.data?.message || "Server error");
       } else {
-        alert("Backend not reachable. Check Render server.");
+        alert("Backend not reachable");
       }
 
     } finally {
@@ -65,6 +64,7 @@ export default function FacultyDashboard() {
     if (status === "Approved") return "#22c55e";
     if (status === "Rejected") return "#ef4444";
     if (status === "PendingHOD") return "#f59e0b";
+    if (status === "PendingFaculty") return "#3b82f6";
     return "#94a3b8";
   };
 
@@ -90,7 +90,6 @@ export default function FacultyDashboard() {
               <p><b>Reason:</b> {p.reason}</p>
               <p><b>Parent:</b> {p.parent_mobile}</p>
 
-              {/* 🔥 IMAGE SUPPORT */}
               {p.student_image && (
                 <img
                   src={p.student_image}
@@ -122,7 +121,7 @@ export default function FacultyDashboard() {
         )}
 
         {/* ================= HISTORY ================= */}
-        <h3 style={styles.section}>History</h3>
+        <h3 style={styles.section}>History (All Students)</h3>
 
         {history.length === 0 ? (
           <p>No history available</p>
@@ -131,6 +130,10 @@ export default function FacultyDashboard() {
             <div key={h.id} style={styles.historyCard}>
               <p><b>{h.student_name}</b></p>
               <p><b>Parent:</b> {h.parent_mobile}</p>
+
+              {/* 🔥 IMPORTANT ADDITIONS */}
+              <p><b>Date:</b> {h.date}</p>
+              <p><b>Time:</b> {h.time}</p>
 
               <p style={{ color: getStatusColor(h.status) }}>
                 Status: {h.status}
