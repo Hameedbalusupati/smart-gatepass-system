@@ -59,10 +59,7 @@ def apply_gatepass():
         db.session.add(gp)
         db.session.commit()
 
-        return jsonify({
-            "success": True,
-            "message": "Gatepass applied successfully"
-        }), 201
+        return jsonify({"success": True, "message": "Gatepass applied successfully"}), 201
 
     except Exception as e:
         print("APPLY ERROR:", e)
@@ -70,7 +67,7 @@ def apply_gatepass():
 
 
 # =================================================
-# GET STUDENT GATEPASS STATUS (🔥 FIXED)
+# STUDENT GATEPASS
 # =================================================
 @gatepass_bp.route("/my_gatepass", methods=["GET"])
 @jwt_required()
@@ -78,18 +75,12 @@ def my_gatepass():
     try:
         student_id = int(get_jwt_identity())
 
-        gp = (
-            GatePass.query
-            .filter(GatePass.student_id == student_id)
-            .order_by(GatePass.created_at.desc())
-            .first()
-        )
+        gp = GatePass.query.filter(
+            GatePass.student_id == student_id
+        ).order_by(GatePass.created_at.desc()).first()
 
         if not gp:
-            return jsonify({
-                "success": False,
-                "message": "No gatepass found"
-            }), 404
+            return jsonify({"success": False, "message": "No gatepass found"}), 404
 
         return jsonify({
             "success": True,
@@ -99,8 +90,6 @@ def my_gatepass():
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat(),
                 "is_used": gp.is_used or False,
-                "rejected_by": gp.rejected_by,
-                "rejection_reason": gp.rejection_reason,
                 "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
             }
         })
@@ -111,13 +100,14 @@ def my_gatepass():
 
 
 # =================================================
-# FACULTY PENDING LIST
+# FACULTY PENDING (🔥 FIXED)
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
 @jwt_required()
 def faculty_pending():
     try:
         faculty = db.session.get(User, int(get_jwt_identity()))
+
         if not faculty or faculty.role.lower() != "faculty":
             return jsonify({"success": False, "message": "Only faculty allowed"}), 403
 
@@ -131,10 +121,15 @@ def faculty_pending():
             if not student:
                 continue
 
+            # ✅ FIXED IMAGE
+            image_url = None
+            if student.profile_image:
+                image_url = f"{base_url}/{student.profile_image}"
+
             result.append({
                 "id": g.id,
                 "student_name": student.name,
-                "student_image": student.get_image_url(base_url),
+                "student_image": image_url,
                 "reason": g.reason,
                 "parent_mobile": g.parent_mobile,
                 "status": g.status
@@ -144,6 +139,42 @@ def faculty_pending():
 
     except Exception as e:
         print("FACULTY ERROR:", e)
+        return jsonify({"success": False, "message": "Server error"}), 500
+
+
+# =================================================
+# FACULTY HISTORY (🔥 ADDED)
+# =================================================
+@gatepass_bp.route("/faculty/gatepasses/history", methods=["GET"])
+@jwt_required()
+def faculty_history():
+    try:
+        faculty = db.session.get(User, int(get_jwt_identity()))
+
+        if not faculty or faculty.role.lower() != "faculty":
+            return jsonify({"success": False, "message": "Only faculty allowed"}), 403
+
+        gatepasses = GatePass.query.filter(
+            GatePass.status.in_(["Approved", "Rejected", "PendingHOD"])
+        ).order_by(GatePass.created_at.desc()).all()
+
+        result = []
+        for g in gatepasses:
+            student = db.session.get(User, g.student_id)
+            if not student:
+                continue
+
+            result.append({
+                "id": g.id,
+                "student_name": student.name,
+                "parent_mobile": g.parent_mobile,
+                "status": g.status
+            })
+
+        return jsonify({"success": True, "gatepasses": result})
+
+    except Exception as e:
+        print("HISTORY ERROR:", e)
         return jsonify({"success": False, "message": "Server error"}), 500
 
 
@@ -165,7 +196,6 @@ def faculty_action(id):
             return jsonify({"success": False, "message": "Invalid gatepass"}), 400
 
         data = request.get_json() or {}
-
         action = data.get("action")
         rejection_reason = data.get("rejection_reason")
 
@@ -190,67 +220,5 @@ def faculty_action(id):
         return jsonify({"success": True, "message": "Updated successfully"})
 
     except Exception as e:
-        print("FACULTY ACTION ERROR:", e)
-        return jsonify({"success": False, "message": "Server error"}), 500
-
-
-# =================================================
-# HOD ACTION
-# =================================================
-@gatepass_bp.route("/hod_action/<int:id>", methods=["POST"])
-@jwt_required()
-def hod_action(id):
-    try:
-        hod = db.session.get(User, int(get_jwt_identity()))
-
-        if not hod or hod.role.lower() != "hod":
-            return jsonify({"success": False, "message": "Only HOD allowed"}), 403
-
-        gp = db.session.get(GatePass, id)
-
-        if not gp or gp.status != "PendingHOD":
-            return jsonify({"success": False, "message": "Invalid gatepass"}), 400
-
-        data = request.get_json() or {}
-        action = data.get("action")
-        rejection_reason = data.get("rejection_reason")
-
-        gp.hod_id = hod.id
-
-        if action == "approve":
-            gp.status = "Approved"
-
-            qr_payload = {
-                "gatepass_id": gp.id,
-                "exp": datetime.utcnow() + timedelta(minutes=10)
-            }
-
-            token = jwt.encode(
-                qr_payload,
-                Config.QR_SECRET_KEY,
-                algorithm=QR_ALGORITHM
-            )
-
-            if isinstance(token, bytes):
-                token = token.decode("utf-8")
-
-            gp.qr_token = token
-
-        elif action == "reject":
-            if not rejection_reason:
-                return jsonify({"success": False, "message": "Reason required"}), 400
-
-            gp.status = "Rejected"
-            gp.rejected_by = "HOD"
-            gp.rejection_reason = rejection_reason
-
-        else:
-            return jsonify({"success": False, "message": "Invalid action"}), 400
-
-        db.session.commit()
-
-        return jsonify({"success": True, "message": "Updated successfully"})
-
-    except Exception as e:
-        print("HOD ERROR:", e)
+        print("ACTION ERROR:", e)
         return jsonify({"success": False, "message": "Server error"}), 500

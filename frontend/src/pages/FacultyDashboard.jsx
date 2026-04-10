@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import API from "../api";
 
 export default function FacultyDashboard() {
@@ -6,45 +6,38 @@ export default function FacultyDashboard() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
-      : null;
-
   // ================= FETCH DATA =================
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
 
-      const res1 = await API.get("/gatepass/faculty/gatepasses/pending", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const [res1, res2] = await Promise.all([
+        API.get("/gatepass/faculty/gatepasses/pending"),
+        API.get("/gatepass/faculty/gatepasses/history"),
+      ]);
 
-      const res2 = await API.get("/gatepass/faculty/gatepasses/history", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      setPending(res1.data.gatepasses || []);
-      setHistory(res2.data.gatepasses || []);
+      setPending(res1.data?.gatepasses || []);
+      setHistory(res2.data?.gatepasses || []);
 
     } catch (err) {
-      console.error("Fetch error:", err);
-      alert("Failed to load data");
+      console.error("FULL ERROR:", err);
+
+      // 🔥 SHOW REAL ERROR (IMPORTANT)
+      if (err.response) {
+        alert(err.response.data?.message || "Server Error");
+      } else {
+        alert("Backend not reachable. Check Render server.");
+      }
+
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  };
 
-  // ✅ FIXED (no warning)
+  // ================= LOAD =================
   useEffect(() => {
-    if (token) {
-      fetchData();
-    }
-  }, [fetchData, token]);
+    fetchData();
+  }, []);
 
   // ================= HANDLE ACTION =================
   const handleAction = async (id, action) => {
@@ -54,19 +47,10 @@ export default function FacultyDashboard() {
       if (action === "reject") {
         const reason = prompt("Enter rejection reason:");
         if (!reason) return;
-
         payload.rejection_reason = reason;
       }
 
-      await API.post(
-        `/gatepass/faculty_action/${id}`,
-        payload,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await API.post(`/gatepass/faculty_action/${id}`, payload);
 
       fetchData();
 
@@ -104,11 +88,19 @@ export default function FacultyDashboard() {
             <div key={p.id} style={styles.card}>
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
-              <p><b>Parent Mobile:</b> {p.parent_mobile}</p>
+              <p><b>Parent:</b> {p.parent_mobile}</p>
 
-              <a href={`tel:${p.parent_mobile}`} style={styles.callBtn}>
-                📞 Call Parent
-              </a>
+              {/* 🔥 IMAGE SUPPORT */}
+              {p.student_image && (
+                <img
+                  src={p.student_image}
+                  alt="student"
+                  style={styles.image}
+                  onError={(e) => {
+                    e.target.src = "https://via.placeholder.com/100";
+                  }}
+                />
+              )}
 
               <div style={styles.btnRow}>
                 <button
@@ -138,7 +130,7 @@ export default function FacultyDashboard() {
           history.map((h) => (
             <div key={h.id} style={styles.historyCard}>
               <p><b>{h.student_name}</b></p>
-              <p><b>Parent Mobile:</b> {h.parent_mobile}</p>
+              <p><b>Parent:</b> {h.parent_mobile}</p>
 
               <p style={{ color: getStatusColor(h.status) }}>
                 Status: {h.status}
@@ -152,7 +144,7 @@ export default function FacultyDashboard() {
   );
 }
 
-/* ================= STYLES ================= */
+// ================= STYLES =================
 
 const styles = {
   page: {
@@ -220,10 +212,11 @@ const styles = {
     borderRadius: "5px",
     cursor: "pointer"
   },
-  callBtn: {
-    display: "inline-block",
+  image: {
+    width: "100px",
+    height: "100px",
+    borderRadius: "8px",
     marginTop: "5px",
-    color: "#38bdf8",
-    textDecoration: "none"
+    objectFit: "cover"
   }
 };
