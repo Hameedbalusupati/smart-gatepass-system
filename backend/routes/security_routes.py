@@ -1,7 +1,7 @@
 import jwt
 from datetime import datetime
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from sqlalchemy import func
 
 from config import Config
@@ -13,13 +13,13 @@ QR_ALGORITHM = "HS256"
 
 
 # =========================================
-# VERIFY QR
+# VERIFY QR (FIXED + IMPROVED)
 # =========================================
 @security_bp.route("/verify_qr", methods=["POST"])
-@jwt_required()   # 🔥 SECURITY FIX
+@jwt_required()
 def verify_qr():
     try:
-        data = request.get_json() or {}   # 🔥 FIX
+        data = request.get_json() or {}
         qr_token = data.get("qr_token")
 
         if not qr_token:
@@ -28,6 +28,7 @@ def verify_qr():
                 "message": "QR token missing"
             }), 400
 
+        # ✅ Decode QR token
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -42,6 +43,7 @@ def verify_qr():
                 "message": "Invalid QR data"
             }), 400
 
+        # ✅ Fetch gatepass
         gatepass = db.session.get(GatePass, gatepass_id)
 
         if not gatepass:
@@ -64,8 +66,12 @@ def verify_qr():
                 "message": "Student not found"
             }), 404
 
+        # ✅ FIXED IMAGE URL (NO DEPENDENCY ON MODEL)
         base_url = request.host_url.rstrip("/")
-        image_url = student.get_image_url(base_url)
+
+        profile_image = None
+        if student.profile_image:
+            profile_image = f"{base_url}/{student.profile_image}"
 
         return jsonify({
             "success": True,
@@ -80,7 +86,7 @@ def verify_qr():
             "section": student.section,
             "parent_mobile": gatepass.parent_mobile,
 
-            "profile_image": image_url
+            "profile_image": profile_image   # ✅ FIXED
         })
 
     except jwt.ExpiredSignatureError:
@@ -104,10 +110,10 @@ def verify_qr():
 
 
 # =========================================
-# CONFIRM EXIT
+# CONFIRM EXIT (NO CHANGE NEEDED)
 # =========================================
 @security_bp.route("/confirm_exit/<int:gatepass_id>", methods=["POST"])
-@jwt_required()   # 🔥 SECURITY FIX
+@jwt_required()
 def confirm_exit(gatepass_id):
     try:
         gatepass = db.session.get(GatePass, gatepass_id)
@@ -144,7 +150,7 @@ def confirm_exit(gatepass_id):
 
 
 # =========================================
-# EXIT HISTORY
+# EXIT HISTORY (NO CHANGE)
 # =========================================
 @security_bp.route("/exit-history", methods=["GET"])
 @jwt_required()
@@ -172,7 +178,7 @@ def exit_history():
 
 
 # =========================================
-# DAILY EXIT COUNT (FAST FIX)
+# EXIT COUNT (NO CHANGE)
 # =========================================
 @security_bp.route("/exit-count", methods=["GET"])
 @jwt_required()

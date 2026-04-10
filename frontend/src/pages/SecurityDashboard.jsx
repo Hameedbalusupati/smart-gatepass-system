@@ -12,7 +12,6 @@ export default function SecurityDashboard() {
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
-  // 🔥 BACKEND BASE URL
   const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
 
   // ================= FETCH EXIT COUNT =================
@@ -41,7 +40,9 @@ export default function SecurityDashboard() {
   // ================= CLEANUP =================
   useEffect(() => {
     return () => {
-      qrRef.current?.stop().catch(() => {});
+      if (qrRef.current) {
+        qrRef.current.stop().catch(() => {});
+      }
     };
   }, []);
 
@@ -90,7 +91,9 @@ export default function SecurityDashboard() {
   // ================= STOP =================
   const stopScanner = async () => {
     try {
-      await qrRef.current?.stop();
+      if (qrRef.current) {
+        await qrRef.current.stop();
+      }
       setIsScanning(false);
       setMessage("Scanner stopped");
     } catch (err) {
@@ -123,7 +126,7 @@ export default function SecurityDashboard() {
       }
 
       setData(res.data);
-      setMessage("QR Verified");
+      setMessage("QR Verified ✅");
     } catch (err) {
       console.error(err);
       setMessage("Verification failed");
@@ -149,11 +152,17 @@ export default function SecurityDashboard() {
       );
 
       if (res.data?.success) {
-        setMessage("Exit Confirmed");
+        setMessage("Exit Confirmed ✅");
+
         setData(null);
         scannedRef.current = false;
 
         fetchExitCount();
+
+        // 🔥 AUTO RESTART SCANNER
+        setTimeout(() => {
+          startScanner();
+        }, 1000);
       }
     } catch (err) {
       console.error(err);
@@ -161,17 +170,14 @@ export default function SecurityDashboard() {
     }
   };
 
-  // ================= IMAGE FIX FUNCTION =================
+  // ================= IMAGE FIX =================
   const getImageUrl = (img) => {
     if (!img) return "https://via.placeholder.com/120";
 
-    // ✅ Already full URL (cloudinary / hosted)
     if (img.startsWith("http")) return img;
 
-    // ✅ Remove leading slash if exists
     const cleanPath = img.replace(/^\/+/, "");
 
-    // ✅ Build correct backend URL
     return `${BACKEND_URL}/${cleanPath}`;
   };
 
@@ -208,7 +214,6 @@ export default function SecurityDashboard() {
           <div style={resultBox}>
             <h3>Student Details</h3>
 
-            {/* 🔥 FIXED IMAGE */}
             <img
               src={getImageUrl(data.profile_image)}
               alt="student"

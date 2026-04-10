@@ -1,7 +1,9 @@
 import os
 import sys
 
-#  IMPORTANT: Fix module imports for Render
+# ==============================
+# FIX MODULE PATH (Render Safe)
+# ==============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
@@ -12,7 +14,9 @@ from flask_jwt_extended import JWTManager
 from config import Config
 from models import db
 
-#  ROUTES
+# ==============================
+# ROUTES IMPORT
+# ==============================
 from routes.auth_routes import auth_bp
 from routes.gatepass_routes import gatepass_bp
 from routes.student_routes import student_bp
@@ -27,10 +31,11 @@ def create_app():
     app.config.from_object(Config)
 
     # ==============================
-    # FOLDERS (Render Safe)
+    # FOLDER SETUP
     # ==============================
-    STUDENT_FOLDER = os.path.join(BASE_DIR, "uploads", "student_images")
-    FACULTY_FOLDER = os.path.join(BASE_DIR, "uploads", "faculty_faces")
+    UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+    STUDENT_FOLDER = os.path.join(UPLOAD_FOLDER, "student_images")
+    FACULTY_FOLDER = os.path.join(UPLOAD_FOLDER, "faculty_faces")
     TEMP_FOLDER = os.path.join(BASE_DIR, "temp")
 
     os.makedirs(STUDENT_FOLDER, exist_ok=True)
@@ -38,11 +43,11 @@ def create_app():
     os.makedirs(TEMP_FOLDER, exist_ok=True)
 
     # ==============================
-    #  FULL CORS FIX (IMPORTANT)
+    # CORS (ALLOW ALL)
     # ==============================
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},   # 🔥 allow all routes
+        resources={r"/*": {"origins": "*"}},
         supports_credentials=True
     )
 
@@ -53,7 +58,7 @@ def create_app():
     JWTManager(app)
 
     # ==============================
-    # DB CREATE
+    # CREATE DB
     # ==============================
     with app.app_context():
         try:
@@ -63,7 +68,7 @@ def create_app():
             print("Database Error:", e)
 
     # ==============================
-    # REGISTER ROUTES
+    # REGISTER BLUEPRINTS
     # ==============================
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(gatepass_bp, url_prefix="/api/gatepass")
@@ -74,15 +79,11 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
     # ==============================
-    # STATIC FILE ROUTES
+    # 🔥 UNIVERSAL IMAGE SERVING (FIXED)
     # ==============================
-    @app.route("/uploads/student_images/<filename>")
-    def student_image(filename):
-        return send_from_directory(STUDENT_FOLDER, filename)
-
-    @app.route("/uploads/faculty_faces/<filename>")
-    def faculty_face(filename):
-        return send_from_directory(FACULTY_FOLDER, filename)
+    @app.route("/uploads/<path:filename>")
+    def serve_uploaded_file(filename):
+        return send_from_directory(UPLOAD_FOLDER, filename)
 
     # ==============================
     # HEALTH CHECK

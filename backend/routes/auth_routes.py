@@ -2,11 +2,24 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
+from werkzeug.utils import secure_filename
 import os
+import time
 
 from models import db, User
 
 auth_bp = Blueprint("auth_bp", __name__)
+
+# =================================================
+# BASE PATHS
+# =================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "student_images")
+FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "faculty_faces")
+
+os.makedirs(STUDENT_FOLDER, exist_ok=True)
+os.makedirs(FACULTY_FOLDER, exist_ok=True)
 
 
 # =================================================
@@ -30,13 +43,13 @@ def register():
 
         image = request.files.get("profile_image")
 
+        # ================= VALIDATIONS =================
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # EMAIL VALIDATION
         parts = email.split("@")
         if len(parts) != 2 or parts[1] != "pace.ac.in":
             return jsonify({"message": "Use college email"}), 400
@@ -58,26 +71,28 @@ def register():
         except:
             return jsonify({"message": "Invalid year"}), 400
 
-        # IMAGE SAVE
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        STUDENT_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "student_images")
-        FACULTY_FOLDER = os.path.join(BASE_DIR, "..", "uploads", "faculty_images")
-
-        os.makedirs(STUDENT_FOLDER, exist_ok=True)
-        os.makedirs(FACULTY_FOLDER, exist_ok=True)
-
+        # ================= IMAGE SAVE =================
         profile_path = None
 
-        if role == "student" and image:
-            path = os.path.join(STUDENT_FOLDER, f"{college_id}.jpg")
-            image.save(path)
-            profile_path = path
+        if image:
+            # unique filename (prevents overwrite)
+            filename = str(int(time.time())) + "_" + secure_filename(image.filename)
 
-        if role == "faculty" and image:
-            path = os.path.join(FACULTY_FOLDER, f"faculty_{college_id}.jpg")
-            image.save(path)
-            profile_path = path
+            if role == "student":
+                save_path = os.path.join(STUDENT_FOLDER, filename)
+                image.save(save_path)
 
+                # ✅ store relative path
+                profile_path = f"uploads/student_images/{filename}"
+
+            elif role == "faculty":
+                save_path = os.path.join(FACULTY_FOLDER, filename)
+                image.save(save_path)
+
+                # ✅ store relative path
+                profile_path = f"uploads/faculty_faces/{filename}"
+
+        # ================= SAVE USER =================
         user = User(
             college_id=college_id,
             name=name,
@@ -134,7 +149,8 @@ def login():
             "role": user.role,
             "name": user.name,
             "id": user.id,
-            "department": user.department
+            "department": user.department,
+            "profile_image": user.profile_image   # ✅ important for frontend
         }), 200
 
     except Exception as e:
