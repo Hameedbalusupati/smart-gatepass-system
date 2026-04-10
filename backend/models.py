@@ -13,21 +13,17 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    # ================= BASIC INFO =================
     college_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password = db.Column(db.String(255), nullable=False)
 
-    # Roles → student | faculty | hod | security
     role = db.Column(db.String(20), nullable=False, index=True)
 
-    # ================= ACADEMIC =================
     department = db.Column(db.String(50), nullable=True, index=True)
     year = db.Column(db.Integer, nullable=True)
     section = db.Column(db.String(10), nullable=True)
 
-    # ================= IMAGE =================
     profile_image = db.Column(db.String(500), nullable=True)
 
     # ================= RELATIONSHIPS =================
@@ -53,45 +49,29 @@ class User(db.Model):
         lazy=True
     )
 
-    # ================= TIMESTAMP =================
-    created_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        nullable=False
-    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # =====================================================
-    # 🔥 FINAL UNIVERSAL IMAGE URL HANDLER (FIXED)
+    # IMAGE URL (🔥 SIMPLIFIED & SAFE)
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
 
-        img = self.profile_image.strip()
+        img = self.profile_image.strip().replace("\\", "/")
 
         try:
-            # ✅ Case 1: Already full URL (Cloudinary / external)
-            if img.startswith("http://") or img.startswith("https://"):
+            # External URL
+            if img.startswith("http"):
                 return img
 
-            # 🔥 Normalize path (Windows → Linux safe)
-            img = img.replace("\\", "/")
+            # If already contains uploads
+            if "uploads/" in img:
+                filename = img.split("uploads/")[-1]
+                return f"{base_url}/uploads/{filename}"
 
-            # 🔥 Case 2: If full system path exists
-            if "uploads" in img:
-                if "uploads/student_images/" in img:
-                    filename = img.split("uploads/student_images/")[-1]
-                else:
-                    filename = os.path.basename(img)
-
-                return f"{base_url}/uploads/student_images/{filename}"
-
-            # ✅ Case 3: Starts with /uploads
-            if img.startswith("/uploads"):
-                return f"{base_url}{img}"
-
-            # ✅ Case 4: Only filename
-            return f"{base_url}/uploads/student_images/{img}"
+            # Default
+            return f"{base_url}/uploads/{img}"
 
         except Exception as e:
             print("Image URL Error:", e)
@@ -110,20 +90,15 @@ class GatePass(db.Model):
     id = db.Column(db.Integer, primary_key=True)
 
     # ================= FOREIGN KEYS =================
-    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    faculty_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
-    hod_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    faculty_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    hod_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    # ================= CORE DETAILS =================
+    # ================= DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
     parent_mobile = db.Column(db.String(15), nullable=False)
 
-    status = db.Column(
-        db.String(30),
-        default="PendingFaculty",
-        nullable=False,
-        index=True
-    )
+    status = db.Column(db.String(30), default="PendingFaculty", nullable=False)
 
     # ================= APPROVAL =================
     faculty_approved_at = db.Column(db.DateTime, nullable=True)
@@ -136,20 +111,43 @@ class GatePass(db.Model):
     # ================= QR =================
     qr_token = db.Column(db.Text, nullable=True)
 
+    # ================= USAGE =================
     is_used = db.Column(db.Boolean, default=False)
     used_at = db.Column(db.DateTime, nullable=True)
 
-    # ================= IN / OUT =================
+    # ================= ENTRY =================
     out_time = db.Column(db.DateTime, nullable=True)
     in_time = db.Column(db.DateTime, nullable=True)
 
-    # ================= TIMESTAMP =================
+    # ================= CREATED =================
     created_at = db.Column(
         db.DateTime,
         default=datetime.utcnow,
         nullable=False,
         index=True
     )
+
+    # =====================================================
+    # 🔥 HELPER METHODS (VERY IMPORTANT)
+    # =====================================================
+    def approve_by_faculty(self, faculty_id):
+        self.status = "PendingHOD"
+        self.faculty_id = faculty_id
+        self.faculty_approved_at = datetime.utcnow()
+
+    def approve_by_hod(self, hod_id):
+        self.status = "Approved"
+        self.hod_id = hod_id
+        self.hod_approved_at = datetime.utcnow()
+
+    def reject(self, role, reason):
+        self.status = "Rejected"
+        self.rejected_by = role
+        self.rejection_reason = reason
+
+    def mark_used(self):
+        self.is_used = True
+        self.used_at = datetime.utcnow()
 
     def __repr__(self):
         return f"<GatePass {self.id} | {self.status}>"
