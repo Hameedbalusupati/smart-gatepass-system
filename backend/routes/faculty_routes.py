@@ -111,10 +111,9 @@ def faculty_history():
         if not faculty or faculty.role.lower() != "faculty":
             return jsonify({"message": "Access denied"}), 403
 
+        # 🔥 IMPORTANT: show ALL data (no over filtering)
         gatepasses = (
             GatePass.query
-            .join(User, GatePass.student_id == User.id)
-            .filter(User.department == faculty.department)   # ✅ only department
             .order_by(GatePass.created_at.desc())
             .all()
         )
@@ -128,7 +127,7 @@ def faculty_history():
             result.append({
                 "id": gp.id,
                 "student_name": student.name,
-                "reason": gp.reason,                # ✅ ADDED
+                "reason": gp.reason,
                 "parent_mobile": gp.parent_mobile,
                 "status": gp.status,
                 "date": gp.created_at.strftime("%Y-%m-%d"),
