@@ -13,25 +13,25 @@ export default function ApplyGatepass() {
 
   const token =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token") // ✅ FIXED
+      ? localStorage.getItem("access_token")
       : null;
 
-  // ================= FETCH PROFILE =================
+  // ================= FETCH PROFILE FUNCTION =================
+  const fetchProfile = async () => {
+    try {
+      const res = await API.get("/student/profile");
+
+      console.log("PROFILE DATA:", res.data);
+
+      setParentMobile(res.data.user?.parent_mobile || "");
+
+    } catch (err) {
+      console.error("Profile error:", err);
+    }
+  };
+
+  // ================= FETCH ON PAGE LOAD =================
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const res = await API.get("/student/profile");
-
-        console.log("PROFILE DATA:", res.data);
-
-        // 🔥 IMPORTANT FIX
-        setParentMobile(res.data.user?.parent_mobile || "");
-
-      } catch (err) {
-        console.error("Profile error:", err);
-      }
-    };
-
     fetchProfile();
   }, []);
 
@@ -43,6 +43,11 @@ export default function ApplyGatepass() {
       ...prev,
       [name]: value,
     }));
+
+    // 🔥 FETCH WHEN USER STARTS TYPING
+    if (name === "reason" && value.length === 1) {
+      fetchProfile();
+    }
   };
 
   // ================= SUBMIT =================
@@ -113,7 +118,7 @@ export default function ApplyGatepass() {
           {/* 🔥 AUTO FETCHED PARENT MOBILE */}
           <input
             type="text"
-            value={parentMobile || "Loading..."}
+            value={parentMobile || "Fetching number..."}
             readOnly
             style={styles.input}
           />

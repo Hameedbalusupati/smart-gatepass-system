@@ -8,11 +8,12 @@ student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 
 
 # =================================================
-# HELPER FUNCTION (CHECK STUDENT)
+# HELPER FUNCTION
 # =================================================
 def get_student():
     try:
         student_id = int(get_jwt_identity())
+        print("🔥 LOGGED IN STUDENT ID:", student_id)  # DEBUG
     except:
         return None, jsonify({
             "success": False,
@@ -27,11 +28,13 @@ def get_student():
             "message": "Access denied"
         }), 403
 
+    print("🔥 STUDENT:", student.name, student.parent_mobile)  # DEBUG
+
     return student, None, None
 
 
 # =================================================
-# STUDENT PROFILE (🔥 SAFE VERSION)
+# PROFILE API
 # =================================================
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
@@ -51,7 +54,7 @@ def profile():
                 "department": student.department or "",
                 "year": student.year or "",
                 "section": student.section or "",
-                "parent_mobile": student.parent_mobile or "",  # 🔥 SAFE
+                "parent_mobile": student.parent_mobile or "Not Available",  # 🔥 SAFE
                 "profile_image": student.get_image_url(base_url)
             }
         }), 200
@@ -65,7 +68,7 @@ def profile():
 
 
 # =================================================
-# APPLY GATEPASS (🔥 FINAL FIXED)
+# APPLY GATEPASS
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -76,7 +79,6 @@ def apply_gatepass():
             return error, code
 
         data = request.get_json() or {}
-
         reason = data.get("reason")
 
         if not reason or not reason.strip():
@@ -85,14 +87,14 @@ def apply_gatepass():
                 "message": "Reason is required"
             }), 400
 
-        # 🔥 AUTO FETCH PARENT MOBILE
+        # 🔥 AUTO FETCH FROM DB
         parent_mobile = student.parent_mobile
 
+        print("🔥 USING PARENT MOBILE:", parent_mobile)  # DEBUG
+
+        # ❌ REMOVE HARD ERROR (IMPORTANT FIX)
         if not parent_mobile:
-            return jsonify({
-                "success": False,
-                "message": "Parent mobile not found. Contact admin."
-            }), 400
+            parent_mobile = "Not Available"
 
         today = date.today()
 
@@ -132,7 +134,7 @@ def apply_gatepass():
 
 
 # =================================================
-# STUDENT CURRENT GATEPASS STATUS
+# STATUS
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
