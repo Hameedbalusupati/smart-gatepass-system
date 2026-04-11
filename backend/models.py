@@ -1,6 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-import os
 
 db = SQLAlchemy()
 
@@ -15,18 +14,21 @@ class User(db.Model):
 
     college_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
+
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password = db.Column(db.String(255), nullable=False)
 
-    role = db.Column(db.String(20), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False, default="student", index=True)
 
     department = db.Column(db.String(50), nullable=True, index=True)
-    year = db.Column(db.Integer, nullable=True)
+    year = db.Column(db.String(10), nullable=True)  # 🔥 FIXED (string)
     section = db.Column(db.String(10), nullable=True)
 
     profile_image = db.Column(db.String(500), nullable=True)
 
-    parent_mobile = db.Column(db.String(15), nullable=True)
+    parent_mobile = db.Column(db.String(15), nullable=False)  # 🔥 FIXED
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
@@ -51,10 +53,8 @@ class User(db.Model):
         lazy=True
     )
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
     # =====================================================
-    # IMAGE URL (🔥 SIMPLIFIED & SAFE)
+    # IMAGE URL
     # =====================================================
     def get_image_url(self, base_url):
         if not self.profile_image:
@@ -63,16 +63,13 @@ class User(db.Model):
         img = self.profile_image.strip().replace("\\", "/")
 
         try:
-            # External URL
             if img.startswith("http"):
                 return img
 
-            # If already contains uploads
             if "uploads/" in img:
                 filename = img.split("uploads/")[-1]
                 return f"{base_url}/uploads/{filename}"
 
-            # Default
             return f"{base_url}/uploads/{img}"
 
         except Exception as e:
@@ -98,7 +95,8 @@ class GatePass(db.Model):
 
     # ================= DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
-    parent_mobile = db.Column(db.String(15), nullable=False)
+
+    parent_mobile = db.Column(db.String(15), nullable=False)  # 🔥 ALWAYS REQUIRED
 
     status = db.Column(db.String(30), default="PendingFaculty", nullable=False)
 
@@ -130,7 +128,7 @@ class GatePass(db.Model):
     )
 
     # =====================================================
-    # 🔥 HELPER METHODS (VERY IMPORTANT)
+    # HELPER METHODS
     # =====================================================
     def approve_by_faculty(self, faculty_id):
         self.status = "PendingHOD"
