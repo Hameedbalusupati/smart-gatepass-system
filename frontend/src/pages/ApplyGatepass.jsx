@@ -4,7 +4,6 @@ import API from "../api";
 export default function ApplyGatepass() {
   const [form, setForm] = useState({
     reason: "",
-    parent_mobile: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -13,7 +12,7 @@ export default function ApplyGatepass() {
 
   const token =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
+      ? sessionStorage.getItem("access_token") // 🔥 FIXED
       : null;
 
   // ================= HANDLE INPUT =================
@@ -33,15 +32,9 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // ✅ SIMPLE VALIDATION
-    if (!form.reason.trim() || !form.parent_mobile) {
-      setMessage("Reason and parent mobile are required");
-      return;
-    }
-
-    // ✅ MOBILE VALIDATION
-    if (!/^\d{10}$/.test(form.parent_mobile)) {
-      setMessage("Enter valid 10-digit mobile number");
+    // ✅ VALIDATION
+    if (!form.reason.trim()) {
+      setMessage("Reason is required");
       return;
     }
 
@@ -58,7 +51,6 @@ export default function ApplyGatepass() {
         "/student/apply_gatepass",
         {
           reason: form.reason.trim(),
-          parent_mobile: form.parent_mobile,
         },
         {
           headers: {
@@ -73,7 +65,6 @@ export default function ApplyGatepass() {
       // RESET
       setForm({
         reason: "",
-        parent_mobile: "",
       });
 
     } catch (err) {
@@ -98,16 +89,6 @@ export default function ApplyGatepass() {
             name="reason"
             placeholder="Reason for leaving"
             value={form.reason}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-
-          <input
-            type="text"
-            name="parent_mobile"
-            placeholder="Parent Mobile Number"
-            value={form.parent_mobile}
             onChange={handleChange}
             required
             style={styles.input}

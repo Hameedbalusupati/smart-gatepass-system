@@ -18,14 +18,25 @@ export default function FacultyDashboard() {
 
       setPending(res1.data?.gatepasses || []);
       setHistory(res2.data?.gatepasses || []);
+
     } catch (err) {
       console.error("ERROR:", err);
 
-      if (err.response) {
+      // 🔥 Better error handling
+      if (err.response?.status === 401) {
+        alert("Session expired. Please login again.");
+        sessionStorage.clear();
+        window.location.href = "/login";
+      } else if (err.response) {
         alert(err.response.data?.message || "Server error");
       } else {
         alert("Backend not reachable");
       }
+
+      // 🔥 Prevent UI crash
+      setPending([]);
+      setHistory([]);
+
     } finally {
       setLoading(false);
     }
@@ -50,6 +61,7 @@ export default function FacultyDashboard() {
       await API.post(`/gatepass/faculty_action/${id}`, payload);
 
       fetchData();
+
     } catch (err) {
       console.error("Action error:", err);
       alert(err.response?.data?.message || "Action failed");
@@ -68,6 +80,7 @@ export default function FacultyDashboard() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
+
         <h2 style={styles.title}>Faculty Dashboard</h2>
 
         <button onClick={fetchData} style={styles.refreshBtn}>
@@ -77,7 +90,9 @@ export default function FacultyDashboard() {
         {/* ================= PENDING ================= */}
         <h3 style={styles.section}>Pending Gatepasses</h3>
 
-        {pending.length === 0 ? (
+        {loading ? (
+          <p>Loading data...</p>
+        ) : pending.length === 0 ? (
           <p>No pending requests</p>
         ) : (
           pending.map((p) => (
@@ -85,14 +100,11 @@ export default function FacultyDashboard() {
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
 
-              {/* 🔥 FIXED CLICKABLE PHONE */}
+              {/* 📞 CLICKABLE PHONE */}
               <p>
                 <b>Parent:</b>{" "}
                 {p.parent_mobile ? (
-                  <a
-                    href={`tel:${p.parent_mobile}`}
-                    style={styles.phoneLink}
-                  >
+                  <a href={`tel:${p.parent_mobile}`} style={styles.phoneLink}>
                     📞 {p.parent_mobile}
                   </a>
                 ) : (
@@ -101,7 +113,7 @@ export default function FacultyDashboard() {
               </p>
 
               {/* IMAGE */}
-              {p.student_image && (
+              {p.student_image ? (
                 <img
                   src={p.student_image}
                   alt="student"
@@ -110,6 +122,10 @@ export default function FacultyDashboard() {
                     e.target.src = "https://via.placeholder.com/100";
                   }}
                 />
+              ) : (
+                <p style={{ fontSize: "12px", color: "#9ca3af" }}>
+                  No image available
+                </p>
               )}
 
               <div style={styles.btnRow}>
@@ -134,21 +150,19 @@ export default function FacultyDashboard() {
         {/* ================= HISTORY ================= */}
         <h3 style={styles.section}>History (All Students)</h3>
 
-        {history.length === 0 ? (
+        {loading ? (
+          <p>Loading history...</p>
+        ) : history.length === 0 ? (
           <p>No history available</p>
         ) : (
           history.map((h) => (
             <div key={h.id} style={styles.historyCard}>
               <p><b>{h.student_name}</b></p>
 
-              {/* 🔥 FIXED CLICKABLE PHONE */}
               <p>
                 <b>Parent:</b>{" "}
                 {h.parent_mobile ? (
-                  <a
-                    href={`tel:${h.parent_mobile}`}
-                    style={styles.phoneLink}
-                  >
+                  <a href={`tel:${h.parent_mobile}`} style={styles.phoneLink}>
                     📞 {h.parent_mobile}
                   </a>
                 ) : (
@@ -165,6 +179,7 @@ export default function FacultyDashboard() {
             </div>
           ))
         )}
+
       </div>
     </div>
   );

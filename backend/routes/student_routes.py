@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
 from models import db, User, GatePass
-from sqlalchemy import func   # ✅ IMPORTANT FIX
+from sqlalchemy import func
 
 student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 
@@ -31,7 +31,7 @@ def get_student():
 
 
 # =================================================
-# STUDENT PROFILE
+# STUDENT PROFILE (🔥 ADDED parent_mobile)
 # =================================================
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
@@ -51,6 +51,7 @@ def profile():
                 "department": student.department,
                 "year": student.year,
                 "section": student.section,
+                "parent_mobile": student.parent_mobile,  # 🔥 IMPORTANT
                 "profile_image": student.get_image_url(base_url)
             }
         }), 200
@@ -64,7 +65,7 @@ def profile():
 
 
 # =================================================
-# APPLY GATEPASS (FINAL FIXED)
+# APPLY GATEPASS (🔥 AUTO PARENT MOBILE)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -74,28 +75,30 @@ def apply_gatepass():
         if error:
             return error, code
 
-        data = request.get_json() or {}   # ✅ FIX
+        data = request.get_json() or {}
 
         reason = data.get("reason")
-        parent_mobile = data.get("parent_mobile")
 
-        if not reason or not parent_mobile:
+        if not reason:
             return jsonify({
                 "success": False,
-                "message": "Reason and parent mobile are required"
+                "message": "Reason is required"
             }), 400
 
-        if not parent_mobile.isdigit() or len(parent_mobile) != 10:
+        # 🔥 GET parent_mobile FROM USER (NOT FRONTEND)
+        parent_mobile = student.parent_mobile
+
+        if not parent_mobile:
             return jsonify({
                 "success": False,
-                "message": "Invalid mobile number"
+                "message": "Parent mobile not found. Contact admin."
             }), 400
 
         today = date.today()
 
         existing_gatepass = GatePass.query.filter(
             GatePass.student_id == student.id,
-            func.date(GatePass.created_at) == today   # ✅ FIX
+            func.date(GatePass.created_at) == today
         ).first()
 
         if existing_gatepass:
@@ -107,7 +110,7 @@ def apply_gatepass():
         new_gatepass = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=parent_mobile,
+            parent_mobile=parent_mobile,  # 🔥 AUTO FILLED
             status="PendingFaculty",
             created_at=datetime.utcnow()
         )
@@ -121,7 +124,7 @@ def apply_gatepass():
         }), 201
 
     except Exception as e:
-        print("🔥 APPLY ERROR:", e)   # VERY IMPORTANT
+        print("🔥 APPLY ERROR:", e)
         return jsonify({
             "success": False,
             "message": "Internal server error"

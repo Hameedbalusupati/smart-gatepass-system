@@ -26,6 +26,8 @@ class User(db.Model):
 
     profile_image = db.Column(db.String(500), nullable=True)
 
+    parent_mobile = db.Column(db.String(15), nullable=True)
+
     # ================= RELATIONSHIPS =================
     student_gatepasses = db.relationship(
         "GatePass",
