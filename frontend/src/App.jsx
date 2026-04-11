@@ -17,22 +17,23 @@ import NotificationsPage from "./pages/NotificationsPage";
 /* ================= PROTECTED ROUTE ================= */
 
 function ProtectedRoute({ children, role }) {
-  let token = null;
-  let userRole = null;
+  const token =
+    typeof window !== "undefined"
+      ? localStorage.getItem("access_token")
+      : null;
 
-  if (typeof window !== "undefined") {
-    // 🔥 FIXED → localStorage (NO AUTO LOGOUT)
-    token = localStorage.getItem("access_token");
-    userRole = localStorage.getItem("role")?.toLowerCase().trim();
-  }
+  const userRole =
+    typeof window !== "undefined"
+      ? localStorage.getItem("role")?.toLowerCase().trim()
+      : null;
 
   // ❌ Not logged in
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  // ❌ Wrong role
-  if (role && userRole !== role) {
+  // ❌ Role mismatch
+  if (role && userRole && userRole !== role) {
     return <Navigate to="/" replace />;
   }
 
