@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import API from "../api";
 
 export default function ApplyGatepass() {
@@ -6,14 +6,34 @@ export default function ApplyGatepass() {
     reason: "",
   });
 
+  const [parentMobile, setParentMobile] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
 
   const token =
     typeof window !== "undefined"
-      ? sessionStorage.getItem("access_token") // 🔥 FIXED
+      ? localStorage.getItem("access_token") // ✅ FIXED
       : null;
+
+  // ================= FETCH PROFILE =================
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await API.get("/student/profile");
+
+        console.log("PROFILE DATA:", res.data);
+
+        // 🔥 IMPORTANT FIX
+        setParentMobile(res.data.user?.parent_mobile || "");
+
+      } catch (err) {
+        console.error("Profile error:", err);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // ================= HANDLE INPUT =================
   const handleChange = (e) => {
@@ -32,15 +52,13 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // ✅ VALIDATION
     if (!form.reason.trim()) {
       setMessage("Reason is required");
       return;
     }
 
-    // ✅ TOKEN CHECK
     if (!token) {
-      setMessage("Session expired. Please login again");
+      setMessage("Please login again");
       return;
     }
 
@@ -62,17 +80,14 @@ export default function ApplyGatepass() {
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // RESET
-      setForm({
-        reason: "",
-      });
+      setForm({ reason: "" });
 
     } catch (err) {
       setSuccess(false);
       setMessage(
         err.response?.data?.message ||
         err.message ||
-        "Server error. Try again later"
+        "Server error"
       );
     } finally {
       setLoading(false);
@@ -85,12 +100,21 @@ export default function ApplyGatepass() {
         <h2 style={styles.title}>Apply Gatepass</h2>
 
         <form onSubmit={handleSubmit} style={styles.form}>
+          
           <textarea
             name="reason"
             placeholder="Reason for leaving"
             value={form.reason}
             onChange={handleChange}
             required
+            style={styles.input}
+          />
+
+          {/* 🔥 AUTO FETCHED PARENT MOBILE */}
+          <input
+            type="text"
+            value={parentMobile || "Loading..."}
+            readOnly
             style={styles.input}
           />
 

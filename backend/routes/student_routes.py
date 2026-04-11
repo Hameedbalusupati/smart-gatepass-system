@@ -31,7 +31,7 @@ def get_student():
 
 
 # =================================================
-# STUDENT PROFILE (🔥 ADDED parent_mobile)
+# STUDENT PROFILE (🔥 SAFE VERSION)
 # =================================================
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
@@ -46,12 +46,12 @@ def profile():
         return jsonify({
             "success": True,
             "user": {
-                "name": student.name,
-                "college_id": student.college_id,
-                "department": student.department,
-                "year": student.year,
-                "section": student.section,
-                "parent_mobile": student.parent_mobile,  # 🔥 IMPORTANT
+                "name": student.name or "",
+                "college_id": student.college_id or "",
+                "department": student.department or "",
+                "year": student.year or "",
+                "section": student.section or "",
+                "parent_mobile": student.parent_mobile or "",  # 🔥 SAFE
                 "profile_image": student.get_image_url(base_url)
             }
         }), 200
@@ -65,7 +65,7 @@ def profile():
 
 
 # =================================================
-# APPLY GATEPASS (🔥 AUTO PARENT MOBILE)
+# APPLY GATEPASS (🔥 FINAL FIXED)
 # =================================================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
@@ -79,13 +79,13 @@ def apply_gatepass():
 
         reason = data.get("reason")
 
-        if not reason:
+        if not reason or not reason.strip():
             return jsonify({
                 "success": False,
                 "message": "Reason is required"
             }), 400
 
-        # 🔥 GET parent_mobile FROM USER (NOT FRONTEND)
+        # 🔥 AUTO FETCH PARENT MOBILE
         parent_mobile = student.parent_mobile
 
         if not parent_mobile:
@@ -104,13 +104,13 @@ def apply_gatepass():
         if existing_gatepass:
             return jsonify({
                 "success": False,
-                "message": "You have already applied for a gatepass today"
+                "message": "You already applied for today"
             }), 400
 
         new_gatepass = GatePass(
             student_id=student.id,
-            reason=reason,
-            parent_mobile=parent_mobile,  # 🔥 AUTO FILLED
+            reason=reason.strip(),
+            parent_mobile=parent_mobile,
             status="PendingFaculty",
             created_at=datetime.utcnow()
         )

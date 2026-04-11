@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 
 import Login from "./pages/Login";
@@ -22,9 +21,9 @@ function ProtectedRoute({ children, role }) {
   let userRole = null;
 
   if (typeof window !== "undefined") {
-    // 🔥 FIXED → sessionStorage
-    token = sessionStorage.getItem("access_token");
-    userRole = sessionStorage.getItem("role");
+    // 🔥 FIXED → localStorage (NO AUTO LOGOUT)
+    token = localStorage.getItem("access_token");
+    userRole = localStorage.getItem("role")?.toLowerCase().trim();
   }
 
   // ❌ Not logged in
@@ -43,20 +42,6 @@ function ProtectedRoute({ children, role }) {
 /* ================= APP ================= */
 
 export default function App() {
-
-  // 🔥 AUTO LOGOUT WHEN TAB CLOSE
-  useEffect(() => {
-    const handleClose = () => {
-      sessionStorage.clear();
-    };
-
-    window.addEventListener("beforeunload", handleClose);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleClose);
-    };
-  }, []);
-
   return (
     <BrowserRouter>
       {/* NAVBAR */}
