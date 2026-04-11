@@ -53,24 +53,27 @@ export default function Login() {
 
       console.log("LOGIN RESPONSE:", data);
 
-      // 🔥 ✅ FIXED HERE (sessionStorage)
-      sessionStorage.setItem("access_token", data.access_token);
-      sessionStorage.setItem("role", data.role);
-      sessionStorage.setItem("name", data.name || "");
-      sessionStorage.setItem("user_id", data.id || "");
-      sessionStorage.setItem("email", email);
+      // 🔥 FIX ROLE (IMPORTANT)
+      const role = data.role?.toLowerCase().trim();
 
-      //  IMPORTANT → UPDATE NAVBAR
+      // 🔥 STORE IN localStorage (NO AUTO LOGOUT)
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("role", role);
+      localStorage.setItem("name", data.name || "");
+      localStorage.setItem("user_id", data.id || "");
+      localStorage.setItem("email", email);
+
+      // UPDATE NAVBAR
       window.dispatchEvent(new Event("authChanged"));
 
       // ================= NAVIGATE =================
-      if (data.role === "student") {
+      if (role === "student") {
         navigate("/student");
-      } else if (data.role === "faculty") {
+      } else if (role === "faculty") {
         navigate("/faculty");
-      } else if (data.role === "hod") {
+      } else if (role === "hod") {
         navigate("/hod");
-      } else if (data.role === "security") {
+      } else if (role === "security") {
         navigate("/security");
       } else {
         navigate("/");
