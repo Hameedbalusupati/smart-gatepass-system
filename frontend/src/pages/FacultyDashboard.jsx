@@ -18,7 +18,6 @@ export default function FacultyDashboard() {
 
       setPending(res1.data?.gatepasses || []);
       setHistory(res2.data?.gatepasses || []);
-
     } catch (err) {
       console.error("ERROR:", err);
 
@@ -27,7 +26,6 @@ export default function FacultyDashboard() {
       } else {
         alert("Backend not reachable");
       }
-
     } finally {
       setLoading(false);
     }
@@ -52,7 +50,6 @@ export default function FacultyDashboard() {
       await API.post(`/gatepass/faculty_action/${id}`, payload);
 
       fetchData();
-
     } catch (err) {
       console.error("Action error:", err);
       alert(err.response?.data?.message || "Action failed");
@@ -71,7 +68,6 @@ export default function FacultyDashboard() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-
         <h2 style={styles.title}>Faculty Dashboard</h2>
 
         <button onClick={fetchData} style={styles.refreshBtn}>
@@ -88,8 +84,23 @@ export default function FacultyDashboard() {
             <div key={p.id} style={styles.card}>
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
-              <p><b>Parent:</b> {p.parent_mobile}</p>
 
+              {/* 🔥 FIXED CLICKABLE PHONE */}
+              <p>
+                <b>Parent:</b>{" "}
+                {p.parent_mobile ? (
+                  <a
+                    href={`tel:${p.parent_mobile}`}
+                    style={styles.phoneLink}
+                  >
+                    📞 {p.parent_mobile}
+                  </a>
+                ) : (
+                  "Not available"
+                )}
+              </p>
+
+              {/* IMAGE */}
               {p.student_image && (
                 <img
                   src={p.student_image}
@@ -129,9 +140,22 @@ export default function FacultyDashboard() {
           history.map((h) => (
             <div key={h.id} style={styles.historyCard}>
               <p><b>{h.student_name}</b></p>
-              <p><b>Parent:</b> {h.parent_mobile}</p>
 
-              {/* 🔥 IMPORTANT ADDITIONS */}
+              {/* 🔥 FIXED CLICKABLE PHONE */}
+              <p>
+                <b>Parent:</b>{" "}
+                {h.parent_mobile ? (
+                  <a
+                    href={`tel:${h.parent_mobile}`}
+                    style={styles.phoneLink}
+                  >
+                    📞 {h.parent_mobile}
+                  </a>
+                ) : (
+                  "Not available"
+                )}
+              </p>
+
               <p><b>Date:</b> {h.date}</p>
               <p><b>Time:</b> {h.time}</p>
 
@@ -141,7 +165,6 @@ export default function FacultyDashboard() {
             </div>
           ))
         )}
-
       </div>
     </div>
   );
@@ -221,5 +244,10 @@ const styles = {
     borderRadius: "8px",
     marginTop: "5px",
     objectFit: "cover"
+  },
+  phoneLink: {
+    color: "#60a5fa",
+    textDecoration: "none",
+    fontWeight: "bold"
   }
 };

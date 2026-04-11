@@ -53,12 +53,12 @@ export default function Login() {
 
       console.log("LOGIN RESPONSE:", data);
 
-      // ================= STORE DATA =================
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("role", data.role);
-      localStorage.setItem("name", data.name || "");
-      localStorage.setItem("user_id", data.id || "");
-      localStorage.setItem("email", email);
+      // 🔥 ✅ FIXED HERE (sessionStorage)
+      sessionStorage.setItem("access_token", data.access_token);
+      sessionStorage.setItem("role", data.role);
+      sessionStorage.setItem("name", data.name || "");
+      sessionStorage.setItem("user_id", data.id || "");
+      sessionStorage.setItem("email", email);
 
       //  IMPORTANT → UPDATE NAVBAR
       window.dispatchEvent(new Event("authChanged"));
