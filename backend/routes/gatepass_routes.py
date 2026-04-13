@@ -1,16 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timedelta, date
-import jwt
+from datetime import datetime, date
 import re
 
 from models import db, GatePass, User
-from config import Config
 from sqlalchemy import func
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
-
-QR_ALGORITHM = "HS256"
 
 
 # =================================================
@@ -100,7 +96,7 @@ def my_gatepass():
 
 
 # =================================================
-# FACULTY PENDING (🔥 FIXED)
+# FACULTY PENDING
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -113,7 +109,8 @@ def faculty_pending():
 
         base_url = request.host_url.rstrip("/")
 
-        gatepasses = GatePass.query.filter_by(status="PendingFaculty").all()
+        gatepasses = GatePass.query.filter_by(status="PendingFaculty") \
+            .order_by(GatePass.created_at.desc()).all()
 
         result = []
         for g in gatepasses:
@@ -121,7 +118,9 @@ def faculty_pending():
             if not student:
                 continue
 
-            # ✅ FIXED IMAGE
+            date_str = g.created_at.strftime("%Y-%m-%d") if g.created_at else ""
+            time_str = g.created_at.strftime("%I:%M %p") if g.created_at else ""
+
             image_url = None
             if student.profile_image:
                 image_url = f"{base_url}/{student.profile_image}"
@@ -132,7 +131,9 @@ def faculty_pending():
                 "student_image": image_url,
                 "reason": g.reason,
                 "parent_mobile": g.parent_mobile,
-                "status": g.status
+                "status": g.status,
+                "date": date_str,
+                "time": time_str
             })
 
         return jsonify({"success": True, "gatepasses": result})
@@ -143,7 +144,7 @@ def faculty_pending():
 
 
 # =================================================
-# FACULTY HISTORY (🔥 ADDED)
+# FACULTY HISTORY (FULL FIX)
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/history", methods=["GET"])
 @jwt_required()
@@ -153,6 +154,8 @@ def faculty_history():
 
         if not faculty or faculty.role.lower() != "faculty":
             return jsonify({"success": False, "message": "Only faculty allowed"}), 403
+
+        base_url = request.host_url.rstrip("/")
 
         gatepasses = GatePass.query.filter(
             GatePass.status.in_(["Approved", "Rejected", "PendingHOD"])
@@ -164,11 +167,21 @@ def faculty_history():
             if not student:
                 continue
 
+            date_str = g.created_at.strftime("%Y-%m-%d") if g.created_at else ""
+            time_str = g.created_at.strftime("%I:%M %p") if g.created_at else ""
+
+            image_url = None
+            if student.profile_image:
+                image_url = f"{base_url}/{student.profile_image}"
+
             result.append({
                 "id": g.id,
                 "student_name": student.name,
                 "parent_mobile": g.parent_mobile,
-                "status": g.status
+                "status": g.status,
+                "date": date_str,
+                "time": time_str,
+                "student_image": image_url
             })
 
         return jsonify({"success": True, "gatepasses": result})

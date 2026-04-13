@@ -1,19 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import API from "../api";
 
 export default function FacultyDashboard() {
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const token = localStorage.getItem("access_token");
 
   // ================= FETCH DATA =================
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorMsg("");
+
+      if (!token) {
+        setErrorMsg("Please login again");
+        return;
+      }
 
       const [res1, res2] = await Promise.all([
-        API.get("/gatepass/faculty/gatepasses/pending"),
-        API.get("/gatepass/faculty/gatepasses/history"),
+        API.get("/gatepass/faculty/gatepasses/pending", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        API.get("/gatepass/faculty/gatepasses/history", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       setPending(res1.data?.gatepasses || []);
@@ -22,30 +35,26 @@ export default function FacultyDashboard() {
     } catch (err) {
       console.error("ERROR:", err);
 
-      // 🔥 Better error handling
       if (err.response?.status === 401) {
-        alert("Session expired. Please login again.");
-        sessionStorage.clear();
-        window.location.href = "/login";
+        setErrorMsg("Session expired. Please login manually.");
       } else if (err.response) {
-        alert(err.response.data?.message || "Server error");
+        setErrorMsg(err.response.data?.message || "Server error");
       } else {
-        alert("Backend not reachable");
+        setErrorMsg("Backend not reachable");
       }
 
-      // 🔥 Prevent UI crash
       setPending([]);
       setHistory([]);
 
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]); // ✅ dependency added
 
   // ================= LOAD =================
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]); // ✅ no warning now
 
   // ================= HANDLE ACTION =================
   const handleAction = async (id, action) => {
@@ -58,7 +67,9 @@ export default function FacultyDashboard() {
         payload.rejection_reason = reason;
       }
 
-      await API.post(`/gatepass/faculty_action/${id}`, payload);
+      await API.post(`/gatepass/faculty_action/${id}`, payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       fetchData();
 
@@ -87,6 +98,12 @@ export default function FacultyDashboard() {
           {loading ? "Loading..." : "Refresh"}
         </button>
 
+        {errorMsg && (
+          <p style={{ color: "#ef4444", textAlign: "center" }}>
+            {errorMsg}
+          </p>
+        )}
+
         {/* ================= PENDING ================= */}
         <h3 style={styles.section}>Pending Gatepasses</h3>
 
@@ -100,7 +117,6 @@ export default function FacultyDashboard() {
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
 
-              {/* 📞 CLICKABLE PHONE */}
               <p>
                 <b>Parent:</b>{" "}
                 {p.parent_mobile ? (
@@ -112,7 +128,6 @@ export default function FacultyDashboard() {
                 )}
               </p>
 
-              {/* IMAGE */}
               {p.student_image ? (
                 <img
                   src={p.student_image}

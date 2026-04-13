@@ -13,7 +13,7 @@ export default function ApplyGatepass() {
 
   const token =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token") // ✅ FIXED
+      ? localStorage.getItem("access_token")
       : null;
 
   // ================= FETCH PROFILE =================
@@ -24,9 +24,7 @@ export default function ApplyGatepass() {
 
         console.log("PROFILE DATA:", res.data);
 
-        // 🔥 IMPORTANT FIX
         setParentMobile(res.data.user?.parent_mobile || "");
-
       } catch (err) {
         console.error("Profile error:", err);
       }
@@ -81,13 +79,12 @@ export default function ApplyGatepass() {
       setSuccess(true);
 
       setForm({ reason: "" });
-
     } catch (err) {
       setSuccess(false);
       setMessage(
         err.response?.data?.message ||
-        err.message ||
-        "Server error"
+          err.message ||
+          "Server error"
       );
     } finally {
       setLoading(false);
@@ -100,7 +97,6 @@ export default function ApplyGatepass() {
         <h2 style={styles.title}>Apply Gatepass</h2>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          
           <textarea
             name="reason"
             placeholder="Reason for leaving"
@@ -110,13 +106,22 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          {/* 🔥 AUTO FETCHED PARENT MOBILE */}
-          <input
-            type="text"
-            value={parentMobile || "Loading..."}
-            readOnly
-            style={styles.input}
-          />
+          {/* 🔥 CLICKABLE PHONE (DIAL PAD) */}
+          <a
+            href={parentMobile ? `tel:${parentMobile}` : "#"}
+            style={{
+              ...styles.input,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              textDecoration: "none",
+              cursor: parentMobile ? "pointer" : "not-allowed",
+              background: "#020617",
+              border: "1px solid #334155",
+            }}
+          >
+            📞 {parentMobile || "Loading..."}
+          </a>
 
           <button
             type="submit"
@@ -180,7 +185,6 @@ const styles = {
     padding: "10px",
     borderRadius: "5px",
     border: "1px solid #334155",
-    background: "#020617",
     color: "white",
   },
 
