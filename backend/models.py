@@ -12,6 +12,7 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    # ================= BASIC INFO =================
     college_id = db.Column(db.String(50), unique=True, nullable=False, index=True)
     name = db.Column(db.String(100), nullable=False)
 
@@ -20,13 +21,19 @@ class User(db.Model):
 
     role = db.Column(db.String(20), nullable=False, default="student", index=True)
 
+    # ================= ACADEMIC =================
     department = db.Column(db.String(50), nullable=True, index=True)
-    year = db.Column(db.String(10), nullable=True)  # 🔥 FIXED (string)
+
+    # 🔥 FIXED: INTEGER (IMPORTANT)
+    year = db.Column(db.Integer, nullable=True)
+
     section = db.Column(db.String(10), nullable=True)
 
+    # ================= EXTRA =================
     profile_image = db.Column(db.String(500), nullable=True)
 
-    parent_mobile = db.Column(db.String(15), nullable=False)  # 🔥 FIXED
+    # 🔥 FIXED: DEFAULT VALUE (prevents null error)
+    parent_mobile = db.Column(db.String(15), nullable=False, default="0000000000")
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -53,9 +60,7 @@ class User(db.Model):
         lazy=True
     )
 
-    # =====================================================
-    # IMAGE URL
-    # =====================================================
+    # ================= IMAGE URL HELPER =================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
@@ -96,7 +101,8 @@ class GatePass(db.Model):
     # ================= DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
 
-    parent_mobile = db.Column(db.String(15), nullable=False)  # 🔥 ALWAYS REQUIRED
+    # 🔥 FIXED: ALWAYS REQUIRED
+    parent_mobile = db.Column(db.String(15), nullable=False)
 
     status = db.Column(db.String(30), default="PendingFaculty", nullable=False)
 
@@ -127,9 +133,7 @@ class GatePass(db.Model):
         index=True
     )
 
-    # =====================================================
-    # HELPER METHODS
-    # =====================================================
+    # ================= METHODS =================
     def approve_by_faculty(self, faculty_id):
         self.status = "PendingHOD"
         self.faculty_id = faculty_id
