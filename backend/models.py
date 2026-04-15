@@ -27,9 +27,9 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
 
     # ================= EXTRA =================
+    # 🔥 Cloudinary URL stored directly
     profile_image = db.Column(db.String(500), nullable=True)
 
-    # 🔥 FIXED: REMOVE DEFAULT (IMPORTANT)
     parent_mobile = db.Column(db.String(15), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -57,27 +57,6 @@ class User(db.Model):
         lazy=True
     )
 
-    # ================= IMAGE URL =================
-    def get_image_url(self, base_url):
-        if not self.profile_image:
-            return None
-
-        img = self.profile_image.strip().replace("\\", "/")
-
-        try:
-            if img.startswith("http"):
-                return img
-
-            if "uploads/" in img:
-                filename = img.split("uploads/")[-1]
-                return f"{base_url}/uploads/{filename}"
-
-            return f"{base_url}/uploads/{img}"
-
-        except Exception as e:
-            print("Image URL Error:", e)
-            return None
-
     def __repr__(self):
         return f"<User {self.id} | {self.role} | {self.name}>"
 
@@ -98,11 +77,19 @@ class GatePass(db.Model):
     # ================= DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
 
-    # 🔥 FIXED: OPTIONAL (avoid forcing wrong data)
+    # 🔥 Store parent number snapshot
     parent_mobile = db.Column(db.String(15), nullable=True)
 
-    # 🔥 IMPROVED STATUS VALUES
-    status = db.Column(db.String(30), default="PendingFaculty", nullable=False, index=True)
+    # 🔥 NEW: store image at time of applying (VERY IMPORTANT)
+    image = db.Column(db.String(500), nullable=True)
+
+    # ================= STATUS =================
+    status = db.Column(
+        db.String(30),
+        default="PendingFaculty",
+        nullable=False,
+        index=True
+    )
 
     # ================= APPROVAL =================
     faculty_approved_at = db.Column(db.DateTime, nullable=True)

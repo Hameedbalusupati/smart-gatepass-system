@@ -7,7 +7,7 @@ import sys
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
@@ -31,23 +31,11 @@ def create_app():
     app.config.from_object(Config)
 
     # ==============================
-    # FOLDER SETUP
-    # ==============================
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-    STUDENT_FOLDER = os.path.join(UPLOAD_FOLDER, "student_images")
-    FACULTY_FOLDER = os.path.join(UPLOAD_FOLDER, "faculty_faces")
-    TEMP_FOLDER = os.path.join(BASE_DIR, "temp")
-
-    os.makedirs(STUDENT_FOLDER, exist_ok=True)
-    os.makedirs(FACULTY_FOLDER, exist_ok=True)
-    os.makedirs(TEMP_FOLDER, exist_ok=True)
-
-    # ==============================
-    # CORS (ALLOW ALL)
+    # CORS (Vercel + Production Safe)
     # ==============================
     CORS(
         app,
-        resources={r"/*": {"origins": "*"}},
+        resources={r"/api/*": {"origins": "*"}},
         supports_credentials=True
     )
 
@@ -58,14 +46,14 @@ def create_app():
     JWTManager(app)
 
     # ==============================
-    # CREATE DB
+    # DATABASE INIT
     # ==============================
     with app.app_context():
         try:
             db.create_all()
-            print("Database Connected Successfully")
+            print("✅ Database Connected Successfully")
         except Exception as e:
-            print("Database Error:", e)
+            print("❌ Database Error:", e)
 
     # ==============================
     # REGISTER BLUEPRINTS
@@ -77,13 +65,6 @@ def create_app():
     app.register_blueprint(hod_bp, url_prefix="/api/hod")
     app.register_blueprint(security_bp, url_prefix="/api/security")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
-
-    # ==============================
-    # 🔥 UNIVERSAL IMAGE SERVING (FIXED)
-    # ==============================
-    @app.route("/uploads/<path:filename>")
-    def serve_uploaded_file(filename):
-        return send_from_directory(UPLOAD_FOLDER, filename)
 
     # ==============================
     # HEALTH CHECK
@@ -100,7 +81,7 @@ def create_app():
 
 
 # ==============================
-# APP INSTANCE (REQUIRED FOR GUNICORN)
+# APP INSTANCE (REQUIRED FOR RENDER / GUNICORN)
 # ==============================
 app = create_app()
 

@@ -2,17 +2,18 @@ from flask import Blueprint, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import IntegrityError
-from werkzeug.utils import secure_filename
 from sqlalchemy import func
-import time
 
 from models import db, User
+
+# 🔥 Cloudinary import
+from utils.cloudinary_config import upload_image
 
 auth_bp = Blueprint("auth_bp", __name__)
 
 
 # =================================================
-# REGISTER
+# REGISTER (🔥 FULL FIXED)
 # =================================================
 @auth_bp.route("/register", methods=["POST", "OPTIONS"])
 def register():
@@ -31,7 +32,7 @@ def register():
         section = (request.form.get("section") or "C").strip().upper()
         year = request.form.get("year")
 
-        image = request.files.get("profile_image")
+        file = request.files.get("profile_image")
 
         # ================= VALIDATION =================
         if not college_id or not name or not email or not password or not role:
@@ -40,7 +41,7 @@ def register():
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # Email validation
+        # ================= EMAIL VALIDATION =================
         parts = email.split("@")
         if len(parts) != 2 or parts[1] != "pace.ac.in":
             return jsonify({"message": "Use college email"}), 400
@@ -63,11 +64,10 @@ def register():
         if existing_user:
             return jsonify({"message": "User already exists"}), 400
 
-        # ================= IMAGE HANDLE =================
-        profile_path = None
-        if image:
-            filename = str(int(time.time())) + "_" + secure_filename(image.filename)
-            profile_path = f"uploads/student_images/{filename}"
+        # ================= IMAGE UPLOAD (🔥 CLOUDINARY) =================
+        image_url = None
+        if file:
+            image_url = upload_image(file)
 
         # ================= CREATE USER =================
         user = User(
@@ -79,7 +79,7 @@ def register():
             department=department,
             year=year,
             section=section,
-            profile_image=profile_path
+            profile_image=image_url   # ✅ CLOUDINARY URL
         )
 
         db.session.add(user)
@@ -93,11 +93,12 @@ def register():
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        print("REGISTER ERROR:", e)
+        return jsonify({"message": "Server error"}), 500
 
 
 # =================================================
-# LOGIN
+# LOGIN (🔥 CLEANED)
 # =================================================
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
@@ -113,7 +114,7 @@ def login():
         if not email or not password:
             return jsonify({"message": "Email & password required"}), 400
 
-        # Case-insensitive email search
+        # ================= FIND USER =================
         user = User.query.filter(func.lower(User.email) == email).first()
 
         if not user:
@@ -122,6 +123,7 @@ def login():
         if not check_password_hash(user.password, password):
             return jsonify({"message": "Invalid credentials"}), 401
 
+        # ================= TOKEN =================
         token = create_access_token(identity=str(user.id))
 
         return jsonify({
@@ -130,8 +132,9 @@ def login():
             "name": user.name,
             "id": user.id,
             "department": user.department,
-            "profile_image": user.profile_image
+            "profile_image": user.profile_image  # ✅ CLOUDINARY URL
         }), 200
 
     except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        print("LOGIN ERROR:", e)
+        return jsonify({"message": "Server error"}), 500

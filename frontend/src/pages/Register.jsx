@@ -25,7 +25,10 @@ export default function Register() {
   // ================= INPUT =================
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   // ================= IMAGE =================
@@ -43,6 +46,8 @@ export default function Register() {
       return;
     }
 
+    setError("");
+
     setForm((prev) => ({
       ...prev,
       profile_image: file,
@@ -59,25 +64,26 @@ export default function Register() {
     setError("");
 
     if (!API_BASE_URL) {
-      setError("API not configured ");
+      setError("Backend URL not configured");
       return;
     }
 
-    const collegeId = form.college_id.trim();
+    const collegeId = form.college_id.trim().toUpperCase();
     const email = form.email.trim().toLowerCase();
 
+    // ================= VALIDATION =================
     if (!collegeId || !form.name || !email || !form.password) {
       setError("All fields are required");
       return;
     }
 
     if (!email.endsWith("@pace.ac.in")) {
-      setError("Email must be @pace.ac.in");
+      setError("Use college email (@pace.ac.in)");
       return;
     }
 
     if ((form.role === "student" || form.role === "faculty") && !form.profile_image) {
-      setError("Image is required");
+      setError("Profile image is required");
       return;
     }
 
@@ -100,8 +106,6 @@ export default function Register() {
         formData.append("profile_image", form.profile_image);
       }
 
-      console.log("API URL:", API_BASE_URL); //  DEBUG
-
       const res = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         body: formData,
@@ -110,16 +114,15 @@ export default function Register() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || "Registration failed");
-        return;
+        throw new Error(data.message || "Registration failed");
       }
 
-      alert("Registered Successfully ");
+      alert("Registered Successfully 🎉");
       navigate("/login");
 
     } catch (err) {
       console.error(err);
-      setError("Server not reachable ");
+      setError(err.message || "Server not reachable");
     } finally {
       setLoading(false);
     }
@@ -188,7 +191,11 @@ export default function Register() {
         )}
 
         {preview && (
-          <img src={preview} alt="Preview" style={{ width: "100px", marginTop: "10px" }} />
+          <img
+            src={preview}
+            alt="Preview"
+            style={{ width: "100px", marginTop: "10px", borderRadius: "8px" }}
+          />
         )}
 
         <button style={btn} disabled={loading}>
@@ -200,7 +207,7 @@ export default function Register() {
   );
 }
 
-// styles same
+// ================= STYLES =================
 const container = {
   minHeight: "100vh",
   display: "flex",
