@@ -8,7 +8,7 @@ faculty_bp = Blueprint("faculty_bp", __name__)
 
 
 # =====================================================
-#  PENDING GATEPASSES (🔥 FIXED WITH IMAGE)
+#  PENDING GATEPASSES
 # =====================================================
 @faculty_bp.route("/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -32,12 +32,14 @@ def pending_gatepasses():
         result = []
         for gp in gatepasses:
             student = gp.student
+            if not student:
+                continue  # 🔥 prevent crash
 
             result.append({
                 "id": gp.id,
                 "student_name": student.name,
-                "student_image": student.profile_image,   # ✅ Cloudinary URL
-                "gatepass_image": gp.image,               # ✅ Image at apply time
+                "student_image": student.profile_image,
+                "gatepass_image": gp.image,
                 "reason": gp.reason,
                 "parent_mobile": gp.parent_mobile,
                 "status": gp.status,
@@ -48,12 +50,12 @@ def pending_gatepasses():
         return jsonify({"gatepasses": result}), 200
 
     except Exception as e:
-        print("PENDING ERROR:", e)
+        print("PENDING ERROR:", str(e))
         return jsonify({"message": "Server error"}), 500
 
 
 # =====================================================
-#  APPROVE / REJECT (🔥 IMPROVED)
+#  APPROVE / REJECT (🔥 FIXED)
 # =====================================================
 @faculty_bp.route("/gatepass/faculty_action/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -70,15 +72,20 @@ def faculty_action(gatepass_id):
         if not gp or gp.status != "PendingFaculty":
             return jsonify({"message": "Invalid gatepass"}), 400
 
-        data = request.get_json() or request.form
+        # 🔥 SAFE DATA HANDLING
+        data = request.get_json(silent=True) or request.form or {}
+
         action = data.get("action")
         rejection_reason = data.get("rejection_reason")
+
+        if not action:
+            return jsonify({"message": "Action required"}), 400
 
         gp.faculty_id = faculty.id
 
         if action == "approve":
             gp.status = "PendingHOD"
-            gp.faculty_approved_at = datetime.utcnow()  # ✅ timestamp
+            gp.faculty_approved_at = datetime.utcnow()
 
         elif action == "reject":
             if not rejection_reason:
@@ -97,12 +104,12 @@ def faculty_action(gatepass_id):
         return jsonify({"message": "Updated successfully"}), 200
 
     except Exception as e:
-        print("FACULTY ACTION ERROR:", e)
+        print("FACULTY ACTION ERROR:", str(e))
         return jsonify({"message": "Server error"}), 500
 
 
 # =====================================================
-#  HISTORY (🔥 FULL FIX WITH IMAGE)
+#  HISTORY
 # =====================================================
 @faculty_bp.route("/gatepasses/history", methods=["GET"])
 @jwt_required()
@@ -124,13 +131,13 @@ def faculty_history():
         for gp in gatepasses:
             student = gp.student
             if not student:
-                continue
+                continue  # 🔥 prevent crash
 
             result.append({
                 "id": gp.id,
                 "student_name": student.name,
-                "student_image": student.profile_image,   # ✅ profile image
-                "gatepass_image": gp.image,               # ✅ apply-time image
+                "student_image": student.profile_image,
+                "gatepass_image": gp.image,
                 "reason": gp.reason,
                 "parent_mobile": gp.parent_mobile,
                 "status": gp.status,
@@ -141,5 +148,5 @@ def faculty_history():
         return jsonify({"gatepasses": result}), 200
 
     except Exception as e:
-        print("HISTORY ERROR:", e)
+        print("HISTORY ERROR:", str(e))
         return jsonify({"message": "Server error"}), 500
