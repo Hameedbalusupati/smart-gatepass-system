@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
-
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [preview, setPreview] = useState(null);
 
   const [form, setForm] = useState({
     college_id: "",
@@ -22,18 +17,18 @@ export default function Register() {
     profile_image: null,
   });
 
-  // ================= INPUT =================
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ================= IMAGE =================
   const handleImageChange = (e) => {
     const file = e.target.files[0];
+
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
@@ -47,54 +42,30 @@ export default function Register() {
     }
 
     setError("");
-
-    setForm((prev) => ({
-      ...prev,
-      profile_image: file,
-    }));
-
+    setForm((prev) => ({ ...prev, profile_image: file }));
     setPreview(URL.createObjectURL(file));
   };
 
-  // ================= REGISTER =================
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading) return;
-
-    setError("");
-
-    if (!API_BASE_URL) {
-      setError("Backend URL not configured");
-      return;
-    }
-
-    const collegeId = form.college_id.trim().toUpperCase();
-    const email = form.email.trim().toLowerCase();
-
-    // ================= VALIDATION =================
-    if (!collegeId || !form.name || !email || !form.password) {
-      setError("All fields are required");
-      return;
-    }
-
-    if (!email.endsWith("@pace.ac.in")) {
-      setError("Use college email (@pace.ac.in)");
-      return;
-    }
-
-    if ((form.role === "student" || form.role === "faculty") && !form.profile_image) {
-      setError("Profile image is required");
-      return;
-    }
 
     setLoading(true);
+    setError("");
 
     try {
+      if (!form.college_id || !form.name || !form.email || !form.password) {
+        throw new Error("All fields are required");
+      }
+
+      if (!form.email.endsWith("@pace.ac.in")) {
+        throw new Error("Use college email (@pace.ac.in)");
+      }
+
       const formData = new FormData();
 
-      formData.append("college_id", collegeId);
-      formData.append("name", form.name.trim());
-      formData.append("email", email);
+      formData.append("college_id", form.college_id.toUpperCase());
+      formData.append("name", form.name);
+      formData.append("email", form.email.toLowerCase());
       formData.append("password", form.password);
       formData.append("role", form.role);
 
@@ -106,99 +77,77 @@ export default function Register() {
         formData.append("profile_image", form.profile_image);
       }
 
-      const res = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: "POST",
-        body: formData,
+      // 🔥 FIXED (no unused variable)
+      await API.post("/auth/register", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Registration failed");
-      }
 
       alert("Registered Successfully 🎉");
       navigate("/login");
 
     } catch (err) {
-      console.error(err);
-      setError(err.message || "Server not reachable");
+      console.error("REGISTER ERROR:", err);
+
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        "Server error"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const showYearSection =
-    form.role === "student" || form.role === "faculty";
-
   return (
-    <div style={container}>
-      <form onSubmit={handleRegister} style={box}>
+    <div style={styles.page}>
+      <form onSubmit={handleSubmit} style={styles.box}>
 
-        <h2 style={title}>Smart Gatepass Register</h2>
+        <h2 style={styles.title}>Smart Gatepass Register</h2>
 
-        {error && <p style={{ color: "#ef4444" }}>{error}</p>}
+        {error && <p style={{ color: "red" }}>{error}</p>}
 
-        <input style={input} name="college_id" placeholder="College ID" onChange={handleChange} />
-        <input style={input} name="name" placeholder="Full Name" onChange={handleChange} />
-        <input style={input} name="email" placeholder="College Email" onChange={handleChange} />
-        <input style={input} type="password" name="password" placeholder="Password" onChange={handleChange} />
+        <input style={styles.input} name="college_id" placeholder="College ID" onChange={handleChange} />
+        <input style={styles.input} name="name" placeholder="Full Name" onChange={handleChange} />
+        <input style={styles.input} name="email" placeholder="College Email" onChange={handleChange} />
+        <input style={styles.input} type="password" name="password" placeholder="Password" onChange={handleChange} />
 
-        <select style={input} name="role" onChange={handleChange}>
+        <select style={styles.input} name="role" onChange={handleChange}>
           <option value="student">Student</option>
           <option value="faculty">Faculty</option>
           <option value="hod">HOD</option>
           <option value="security">Security</option>
         </select>
 
-        {form.role !== "security" && (
-          <select style={input} name="department" onChange={handleChange}>
-            <option value="">Select Department</option>
-            <option value="CSE">CSE</option>
-            <option value="AIDS">AIDS</option>
-            <option value="AIML">AIML</option>
-            <option value="CE">CE</option>
-            <option value="ME">ME</option>
-            <option value="CSIT">CSIT</option>
-            <option value="IOT">IOT</option>
-            <option value="IT">IT</option>
-            <option value="EEE">EEE</option>
-            <option value="ECE">ECE</option>
-          </select>
-        )}
+        <select style={styles.input} name="department" onChange={handleChange}>
+          <option value="">Department</option>
+          <option value="AIDS">AIDS</option>
+          <option value="CSE">CSE</option>
+          <option value="ECE">ECE</option>
+          <option value="EEE">EEE</option>
+        </select>
 
-        {showYearSection && (
-          <>
-            <select style={input} name="year" onChange={handleChange}>
-              <option value="">Year</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
+        <select style={styles.input} name="year" onChange={handleChange}>
+          <option value="">Year</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+        </select>
 
-            <select style={input} name="section" onChange={handleChange}>
-              <option value="">Section</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
-          </>
-        )}
+        <select style={styles.input} name="section" onChange={handleChange}>
+          <option value="">Section</option>
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+        </select>
 
-        {(form.role === "student" || form.role === "faculty") && (
-          <input type="file" accept="image/*" onChange={handleImageChange} />
-        )}
+        <input type="file" accept="image/*" onChange={handleImageChange} />
 
-        {preview && (
-          <img
-            src={preview}
-            alt="Preview"
-            style={{ width: "100px", marginTop: "10px", borderRadius: "8px" }}
-          />
-        )}
+        {preview && <img src={preview} alt="preview" style={styles.preview} />}
 
-        <button style={btn} disabled={loading}>
+        <button style={styles.button} disabled={loading}>
           {loading ? "Registering..." : "Register"}
         </button>
 
@@ -207,38 +156,30 @@ export default function Register() {
   );
 }
 
-// ================= STYLES =================
-const container = {
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "#0f172a",
-};
-
-const box = {
-  width: "400px",
-  background: "#020617",
-  padding: "20px",
-  borderRadius: "10px",
-};
-
-const title = {
-  color: "white",
-  textAlign: "center",
-};
-
-const input = {
-  width: "100%",
-  padding: "10px",
-  marginBottom: "10px",
-};
-
-const btn = {
-  width: "100%",
-  padding: "10px",
-  background: "#2563eb",
-  color: "white",
-  border: "none",
-  cursor: "pointer",
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#0f172a",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  box: {
+    width: "350px",
+    background: "#020617",
+    padding: "20px",
+    borderRadius: "10px",
+    color: "white",
+  },
+  title: { textAlign: "center" },
+  input: { width: "100%", padding: "10px", marginBottom: "10px" },
+  button: {
+    width: "100%",
+    padding: "10px",
+    background: "#2563eb",
+    color: "white",
+    border: "none",
+    cursor: "pointer",
+  },
+  preview: { width: "100px", marginTop: "10px", borderRadius: "8px" },
 };
