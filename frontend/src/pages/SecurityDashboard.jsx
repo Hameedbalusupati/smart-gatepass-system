@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import API from "../api";
+import API from "../api/api.js";
 
 export default function SecurityDashboard() {
   const [data, setData] = useState(null);

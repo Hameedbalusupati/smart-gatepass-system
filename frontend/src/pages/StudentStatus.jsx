@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import API from "../api";
+import API from "../api/api.js";
 
 export default function StudentStatus() {
   const [pass, setPass] = useState(null);

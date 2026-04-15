@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import API from "../api";
+import API from "../api/api.js";
 
 export default function FacultyDashboard() {
   const [pending, setPending] = useState([]);

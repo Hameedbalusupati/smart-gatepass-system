@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import API from "../api";
+import API from "../api/api.js";
 
 export default function SecurityScan() {
   const [student, setStudent] = useState(null);
