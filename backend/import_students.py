@@ -13,7 +13,7 @@ with app.app_context():
         print("📂 Excel Loaded Successfully")
 
         for _, row in df.iterrows():
-            roll = None  # for error printing
+            roll = None
 
             try:
                 # ================= CLEAN DATA =================
@@ -22,44 +22,52 @@ with app.app_context():
                 phone = str(row.get("parent_number", "")).strip()
                 image = str(row.get("image_path", "")).strip()
 
+                # 🔥 NEW: GET SECTION FROM EXCEL
+                section = str(row.get("section", "")).strip().upper()
+
                 if not roll or not name:
                     print("⚠️ Skipping invalid row")
                     continue
 
-                # ================= FORCE CORRECT TYPES =================
-                year = int(3)   # 🔥 ALWAYS INTEGER (CRITICAL)
+                # ================= FIX EMPTY VALUES =================
+                if not phone or phone == "nan":
+                    phone = None
 
-                # ================= REQUIRED FIELDS =================
+                if not section or section == "nan":
+                    section = None
+
+                # ================= FIXED DATA =================
+                year = 3
                 email = f"{roll.lower()}@pace.ac.in"
                 hashed_password = generate_password_hash("temp123")
 
                 role = "student"
                 department = "AIDS"
-                section = "C"
 
                 profile_path = f"uploads/student_images/{image}" if image else None
 
-                # ================= PREVENT AUTOFLUSH BUG =================
+                # ================= CHECK EXISTING =================
                 with db.session.no_autoflush:
                     existing = User.query.filter(
                         func.upper(User.college_id) == roll
                     ).first()
 
-                # ================= UPDATE / INSERT =================
+                # ================= UPDATE =================
                 if existing:
                     existing.name = name
                     existing.email = email
                     existing.parent_mobile = phone
                     existing.profile_image = profile_path
                     existing.department = department
-                    existing.year = int(year)   # 🔥 FORCE AGAIN
-                    existing.section = section
+                    existing.year = year
+                    existing.section = section   # ✅ UPDATED
 
                     if not existing.password:
                         existing.password = hashed_password
 
                     print(f"🔄 Updated: {roll}")
 
+                # ================= INSERT =================
                 else:
                     user = User(
                         college_id=roll,
@@ -68,8 +76,8 @@ with app.app_context():
                         password=hashed_password,
                         role=role,
                         department=department,
-                        year=int(year),   # 🔥 FORCE INTEGER
-                        section=section,
+                        year=year,
+                        section=section,   # ✅ INSERTED
                         profile_image=profile_path,
                         parent_mobile=phone
                     )
@@ -78,10 +86,10 @@ with app.app_context():
                     print(f"✅ Added: {roll}")
 
             except Exception as row_error:
-                db.session.rollback()   # 🔥 VERY IMPORTANT
+                db.session.rollback()
                 print(f"❌ Row Error ({roll}):", row_error)
 
-        # ================= FINAL COMMIT =================
+        # ================= COMMIT =================
         try:
             db.session.commit()
             print("🎉 ALL students imported successfully")

@@ -23,17 +23,14 @@ class User(db.Model):
 
     # ================= ACADEMIC =================
     department = db.Column(db.String(50), nullable=True, index=True)
-
-    # 🔥 FIXED: INTEGER (IMPORTANT)
     year = db.Column(db.Integer, nullable=True)
-
     section = db.Column(db.String(10), nullable=True)
 
     # ================= EXTRA =================
     profile_image = db.Column(db.String(500), nullable=True)
 
-    # 🔥 FIXED: DEFAULT VALUE (prevents null error)
-    parent_mobile = db.Column(db.String(15), nullable=False, default="0000000000")
+    # 🔥 FIXED: REMOVE DEFAULT (IMPORTANT)
+    parent_mobile = db.Column(db.String(15), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -60,7 +57,7 @@ class User(db.Model):
         lazy=True
     )
 
-    # ================= IMAGE URL HELPER =================
+    # ================= IMAGE URL =================
     def get_image_url(self, base_url):
         if not self.profile_image:
             return None
@@ -101,10 +98,11 @@ class GatePass(db.Model):
     # ================= DETAILS =================
     reason = db.Column(db.String(255), nullable=False)
 
-    # 🔥 FIXED: ALWAYS REQUIRED
-    parent_mobile = db.Column(db.String(15), nullable=False)
+    # 🔥 FIXED: OPTIONAL (avoid forcing wrong data)
+    parent_mobile = db.Column(db.String(15), nullable=True)
 
-    status = db.Column(db.String(30), default="PendingFaculty", nullable=False)
+    # 🔥 IMPROVED STATUS VALUES
+    status = db.Column(db.String(30), default="PendingFaculty", nullable=False, index=True)
 
     # ================= APPROVAL =================
     faculty_approved_at = db.Column(db.DateTime, nullable=True)
