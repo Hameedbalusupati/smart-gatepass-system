@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function ApplyGatepass() {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
     reason: "",
   });
@@ -11,9 +14,10 @@ export default function ApplyGatepass() {
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const token =
+  // ✅ Get user
+  const user =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
+      ? JSON.parse(localStorage.getItem("user"))
       : null;
 
   // ================= FETCH PROFILE =================
@@ -25,8 +29,8 @@ export default function ApplyGatepass() {
         console.log("PROFILE DATA:", res.data);
 
         setParentMobile(res.data.user?.parent_mobile || "");
-      } catch (err) {
-        console.error("Profile error:", err);
+      } catch (error) {
+        console.error("Profile error:", error);
       }
     };
 
@@ -50,41 +54,37 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    if (!form.reason.trim()) {
-      setMessage("Reason is required");
+    // 🔥 PROFILE IMAGE CHECK (MAIN FIX)
+    if (!user?.image) {
+      setMessage("Please upload profile image first");
+      navigate("/profile-upload");
       return;
     }
 
-    if (!token) {
-      setMessage("Please login again");
+    if (!form.reason.trim()) {
+      setMessage("Reason is required");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await API.post(
-        "/student/apply_gatepass",
-        {
-          reason: form.reason.trim(),
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // ✅ NO TOKEN NEEDED (interceptor handles it)
+      const res = await API.post("/student/apply_gatepass", {
+        reason: form.reason.trim(),
+      });
 
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
       setForm({ reason: "" });
-    } catch (err) {
+
+    } catch (error) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message ||
-          err.message ||
-          "Server error"
+        error.response?.data?.message ||
+        error.message ||
+        "Server error"
       );
     } finally {
       setLoading(false);
@@ -106,7 +106,7 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          {/* 🔥 CLICKABLE PHONE (DIAL PAD) */}
+          {/* 📞 CLICKABLE PHONE */}
           <a
             href={parentMobile ? `tel:${parentMobile}` : "#"}
             style={{
@@ -186,6 +186,7 @@ const styles = {
     borderRadius: "5px",
     border: "1px solid #334155",
     color: "white",
+    backgroundColor: "#020617",
   },
 
   button: {

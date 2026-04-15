@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api";
 
 export default function StudentDashboard() {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({
     reason: "",
     parent_mobile: "",
@@ -11,9 +14,10 @@ export default function StudentDashboard() {
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const token =
+  // ✅ Get user from localStorage
+  const user =
     typeof window !== "undefined"
-      ? localStorage.getItem("access_token")
+      ? JSON.parse(localStorage.getItem("user"))
       : null;
 
   // ================= HANDLE INPUT =================
@@ -33,9 +37,16 @@ export default function StudentDashboard() {
     setMessage("");
     setSuccess(false);
 
+    // 🔥 PROFILE IMAGE CHECK (MAIN FIX)
+    if (!user?.image) {
+      setMessage("Please upload profile image first");
+      navigate("/profile-upload");
+      return;
+    }
+
     const { reason, parent_mobile } = form;
 
-    // ✅ SIMPLE VALIDATION
+    // ✅ VALIDATION
     if (!reason.trim() || !parent_mobile) {
       setMessage("Reason and parent mobile are required");
       return;
@@ -47,42 +58,29 @@ export default function StudentDashboard() {
       return;
     }
 
-    // ✅ TOKEN CHECK
-    if (!token) {
-      setMessage("Session expired. Please login again");
-      return;
-    }
-
     try {
       setLoading(true);
 
-      const res = await API.post(
-        "/student/apply_gatepass",
-        {
-          reason: reason.trim(),
-          parent_mobile: parent_mobile,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // ✅ NO NEED TOKEN (handled by interceptor)
+      const res = await API.post("/student/apply_gatepass", {
+        reason: reason.trim(),
+        parent_mobile: parent_mobile,
+      });
 
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // RESET
+      // RESET FORM
       setForm({
         reason: "",
         parent_mobile: "",
       });
 
-    } catch (err) {
+    } catch (error) {
       setSuccess(false);
       setMessage(
-        err.response?.data?.message ||
-        err.message ||
+        error.response?.data?.message ||
+        error.message ||
         "Server error. Try again later"
       );
     } finally {

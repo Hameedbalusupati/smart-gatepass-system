@@ -14,8 +14,8 @@ import HodDashboard from "./pages/HodDashboard";
 import SecurityDashboard from "./pages/SecurityDashboard";
 import NotificationsPage from "./pages/NotificationsPage";
 
-// 🔥 NEW IMPORT
-import UploadImage from "./pages/UploadImage";
+// ✅ FIXED IMPORT
+import ProfileUpload from "./pages/ProfileUpload";
 
 /* ================= PROTECTED ROUTE ================= */
 
@@ -25,10 +25,12 @@ function ProtectedRoute({ children, role }) {
       ? localStorage.getItem("access_token")
       : null;
 
-  const userRole =
-    typeof window !== "undefined"
-      ? localStorage.getItem("role")?.toLowerCase().trim()
-      : null;
+  let userRole = null;
+
+  if (typeof window !== "undefined") {
+    const user = localStorage.getItem("user");
+    userRole = user ? JSON.parse(user)?.role?.toLowerCase().trim() : null;
+  }
 
   // ❌ Not logged in
   if (!token) {
@@ -57,12 +59,12 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* ---------- 🔥 UPLOAD IMAGE ---------- */}
+        {/* ---------- 🔥 PROFILE UPLOAD ---------- */}
         <Route
-          path="/upload-image"
+          path="/profile-upload"
           element={
             <ProtectedRoute role="student">
-              <UploadImage />
+              <ProfileUpload />
             </ProtectedRoute>
           }
         />

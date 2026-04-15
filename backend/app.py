@@ -25,13 +25,25 @@ from routes.hod_routes import hod_bp
 from routes.security_routes import security_bp
 from routes.notification_routes import notifications_bp
 
+# ✅ NEW IMPORT (IMPORTANT 🔥)
+from routes.upload_routes import upload_bp
+
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
     # ==============================
-    # CORS (Vercel + Production Safe)
+    # IMPORTANT CONFIGS
+    # ==============================
+    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
+
+    # Upload folder
+    app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "uploads")
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
+    # ==============================
+    # CORS (Production Safe)
     # ==============================
     CORS(
         app,
@@ -43,7 +55,7 @@ def create_app():
     # INIT DB & JWT
     # ==============================
     db.init_app(app)
-    JWTManager(app)
+    jwt = JWTManager(app)
 
     # ==============================
     # DATABASE INIT
@@ -66,6 +78,9 @@ def create_app():
     app.register_blueprint(security_bp, url_prefix="/api/security")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
+    # ✅ REGISTER UPLOAD ROUTE (MAIN FIX 🔥)
+    app.register_blueprint(upload_bp, url_prefix="/api")
+
     # ==============================
     # HEALTH CHECK
     # ==============================
@@ -77,11 +92,18 @@ def create_app():
             "jwt": "Active"
         }), 200
 
+    # ==============================
+    # TEST ROUTE (optional)
+    # ==============================
+    @app.route("/api/test")
+    def test():
+        return jsonify({"message": "API working"}), 200
+
     return app
 
 
 # ==============================
-# APP INSTANCE (REQUIRED FOR RENDER / GUNICORN)
+# APP INSTANCE (RENDER / GUNICORN)
 # ==============================
 app = create_app()
 
@@ -91,4 +113,4 @@ app = create_app()
 # ==============================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=True)

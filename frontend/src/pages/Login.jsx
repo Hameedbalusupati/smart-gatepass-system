@@ -53,22 +53,35 @@ export default function Login() {
 
       console.log("LOGIN RESPONSE:", data);
 
-      // 🔥 FIX ROLE (IMPORTANT)
+      // ✅ Normalize role
       const role = data.role?.toLowerCase().trim();
 
-      // 🔥 STORE IN localStorage (NO AUTO LOGOUT)
+      // ✅ CREATE USER OBJECT (IMPORTANT 🔥)
+      const user = {
+        id: data.id,
+        name: data.name,
+        email: email,
+        role: role,
+        image: data.image || null
+      };
+
+      // ✅ STORE EVERYTHING
       localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("role", role);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("role", role); // optional
       localStorage.setItem("name", data.name || "");
       localStorage.setItem("user_id", data.id || "");
-      localStorage.setItem("email", email);
 
-      // UPDATE NAVBAR
+      // ✅ NAVBAR UPDATE
       window.dispatchEvent(new Event("authChanged"));
 
-      // ================= NAVIGATE =================
+      // ================= 🔥 PROFILE CHECK =================
       if (role === "student") {
-        navigate("/student");
+        if (!user.image) {
+          navigate("/profile-upload"); // 🔥 MAIN FIX
+        } else {
+          navigate("/student");
+        }
       } else if (role === "faculty") {
         navigate("/faculty");
       } else if (role === "hod") {
@@ -79,11 +92,11 @@ export default function Login() {
         navigate("/");
       }
 
-    } catch (err) {
-      console.error("LOGIN ERROR:", err);
+    } catch (error) {
+      console.error("LOGIN ERROR:", error);
 
-      if (err.response) {
-        setError(err.response.data?.message || "Login failed");
+      if (error.response) {
+        setError(error.response.data?.message || "Login failed");
       } else {
         setError("Server not reachable");
       }
