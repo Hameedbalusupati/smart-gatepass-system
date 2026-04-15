@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-# ✅ USE SQLAlchemy (IMPORTANT)
+# ✅ SQLAlchemy
 from models import db, User
 
 upload_bp = Blueprint("upload", __name__)
@@ -22,10 +22,10 @@ def allowed_file(filename):
 @jwt_required()
 def upload_profile():
     try:
-        # 🔐 Get logged-in user id from token
+        # 🔐 Get logged-in user id
         user_id = get_jwt_identity()
 
-        # ✅ File check
+        # ✅ Validate file
         if "image" not in request.files:
             return jsonify({"error": "No file provided"}), 400
 
@@ -40,6 +40,9 @@ def upload_profile():
         # ✅ Secure filename
         filename = secure_filename(file.filename)
 
+        # 🔥 (Optional but better) unique filename
+        filename = f"{user_id}_{filename}"
+
         # ✅ Create uploads folder
         upload_folder = os.path.join(os.getcwd(), "uploads")
         os.makedirs(upload_folder, exist_ok=True)
@@ -48,16 +51,16 @@ def upload_profile():
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
 
-        # ✅ GET USER FROM DB (SQLAlchemy)
+        # ✅ Get user
         user = User.query.get(user_id)
 
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        # ✅ Update image field
-        user.image = filename
+        # 🔥 MAIN FIX (VERY IMPORTANT)
+        user.profile_image = filename
 
-        # ✅ Commit changes
+        # ✅ Save DB
         db.session.commit()
 
         # ✅ Response
@@ -68,7 +71,7 @@ def upload_profile():
                 "name": user.name,
                 "email": user.email,
                 "role": user.role,
-                "image": user.image
+                "image": user.profile_image   # 🔥 send correct field
             }
         }), 200
 
