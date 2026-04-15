@@ -9,7 +9,7 @@ function ProfileUpload() {
 
   const navigate = useNavigate();
 
-  // 📸 Handle file select
+  // ================= FILE SELECT =================
   const handleFileChange = (e) => {
     const file = e.target.files[0];
 
@@ -31,29 +31,27 @@ function ProfileUpload() {
     setPreview(URL.createObjectURL(file));
   };
 
-  // 🚀 Upload image
+  // ================= UPLOAD =================
   const handleUpload = async () => {
     if (!image) {
       alert("Please select an image first");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("image", image);
-
     try {
       setLoading(true);
 
-      const res = await uploadProfile(formData);
+      // 🔥 FIX: send FILE directly (NOT FormData)
+      const res = await uploadProfile(image);
 
       alert(res?.message || "Upload successful");
 
       // ✅ Redirect to dashboard
       navigate("/student");
+
     } catch (error) {
       alert(
-        error.response?.data?.error ||
-          "Upload failed. Please try again."
+        error.message || "Upload failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -74,7 +72,11 @@ function ProfileUpload() {
           />
         )}
 
-        <input type="file" onChange={handleFileChange} />
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+        />
 
         <br /><br />
 
@@ -94,19 +96,22 @@ function ProfileUpload() {
 
 export default ProfileUpload;
 
-// 🎨 Simple styles
+// ================= STYLES =================
 const styles = {
   container: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
     height: "100vh",
+    background: "#0f172a",
   },
   card: {
     padding: "30px",
-    border: "1px solid #ccc",
+    border: "1px solid #334155",
     borderRadius: "10px",
     textAlign: "center",
+    background: "#111827",
+    color: "white",
   },
   imagePreview: {
     width: "150px",

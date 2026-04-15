@@ -12,17 +12,13 @@ export const uploadProfile = async (file) => {
 
     // ================= CREATE FORM DATA =================
     const formData = new FormData();
-    formData.append("image", file); // 🔥 must match backend key
+    formData.append("image", file); // 🔥 MUST match backend
 
     // ================= API CALL =================
     const response = await API.post(
-      "/upload/upload-profile", // ✅ matches app.py route
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
+      "/upload/upload-profile",
+      formData
+      // ❌ DO NOT set Content-Type manually
     );
 
     console.log("✅ Upload Success:", response.data);
@@ -31,7 +27,7 @@ export const uploadProfile = async (file) => {
     if (response.data?.user) {
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      // 🔥 trigger UI update (navbar etc.)
+      // 🔥 trigger navbar update
       window.dispatchEvent(new Event("authChanged"));
     }
 
