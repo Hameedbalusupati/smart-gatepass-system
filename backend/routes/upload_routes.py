@@ -1,21 +1,12 @@
-import os
 from flask import Blueprint, request, jsonify
-from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-# ✅ SQLAlchemy
 from models import db, User
 
+# ✅ Import Cloudinary function
+from utils.cloudinary_config import upload_image
+
 upload_bp = Blueprint("upload", __name__)
-
-# ✅ Allowed extensions
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
-
-
-# ✅ Check file type
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 # ================= UPLOAD PROFILE IMAGE =================
 @upload_bp.route("/upload-profile", methods=["POST"])
@@ -26,30 +17,18 @@ def upload_profile():
         user_id = get_jwt_identity()
 
         # ✅ Validate file
-        if "image" not in request.files:
+        file = request.files.get("image")
+
+        if not file:
             return jsonify({"error": "No file provided"}), 400
 
-        file = request.files["image"]
+        # ☁️ Upload to Cloudinary
+        image_url = upload_image(file)
 
-        if file.filename == "":
-            return jsonify({"error": "No file selected"}), 400
+        if not image_url:
+            return jsonify({"error": "Cloudinary upload failed"}), 500
 
-        if not allowed_file(file.filename):
-            return jsonify({"error": "Invalid file type"}), 400
-
-        # ✅ Secure filename
-        filename = secure_filename(file.filename)
-
-        # 🔥 (Optional but better) unique filename
-        filename = f"{user_id}_{filename}"
-
-        # ✅ Create uploads folder
-        upload_folder = os.path.join(os.getcwd(), "uploads")
-        os.makedirs(upload_folder, exist_ok=True)
-
-        # ✅ Save file
-        file_path = os.path.join(upload_folder, filename)
-        file.save(file_path)
+        print("CLOUDINARY URL:", image_url)  # 🔥 debug
 
         # ✅ Get user
         user = User.query.get(user_id)
@@ -57,10 +36,8 @@ def upload_profile():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        # 🔥 MAIN FIX (VERY IMPORTANT)
-        user.profile_image = filename
-
-        # ✅ Save DB
+        # ✅ Save URL in DB
+        user.profile_image = image_url
         db.session.commit()
 
         # ✅ Response
@@ -71,7 +48,7 @@ def upload_profile():
                 "name": user.name,
                 "email": user.email,
                 "role": user.role,
-                "image": user.profile_image   # 🔥 send correct field
+                "image": user.profile_image
             }
         }), 200
 
