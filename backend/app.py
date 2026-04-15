@@ -24,9 +24,7 @@ from routes.faculty_routes import faculty_bp
 from routes.hod_routes import hod_bp
 from routes.security_routes import security_bp
 from routes.notification_routes import notifications_bp
-
-# ✅ NEW IMPORT (IMPORTANT 🔥)
-from routes.upload_routes import upload_bp
+from routes.upload_routes import upload_bp   # ✅ IMPORTANT
 
 
 def create_app():
@@ -34,16 +32,14 @@ def create_app():
     app.config.from_object(Config)
 
     # ==============================
-    # IMPORTANT CONFIGS
+    # JWT CONFIG
     # ==============================
-    app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
-
-    # Upload folder
-    app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "uploads")
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    app.config["JWT_SECRET_KEY"] = os.environ.get(
+        "JWT_SECRET_KEY", "super-secret-key"
+    )
 
     # ==============================
-    # CORS (Production Safe)
+    # CORS (VERY IMPORTANT FOR FRONTEND)
     # ==============================
     CORS(
         app,
@@ -78,8 +74,8 @@ def create_app():
     app.register_blueprint(security_bp, url_prefix="/api/security")
     app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
 
-    # ✅ REGISTER UPLOAD ROUTE (MAIN FIX 🔥)
-    app.register_blueprint(upload_bp, url_prefix="/api")
+    # 🔥 UPLOAD ROUTE (FINAL FIX)
+    app.register_blueprint(upload_bp, url_prefix="/api/upload")
 
     # ==============================
     # HEALTH CHECK
@@ -93,7 +89,7 @@ def create_app():
         }), 200
 
     # ==============================
-    # TEST ROUTE (optional)
+    # TEST ROUTE
     # ==============================
     @app.route("/api/test")
     def test():

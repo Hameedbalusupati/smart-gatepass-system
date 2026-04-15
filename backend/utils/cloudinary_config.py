@@ -10,34 +10,32 @@ cloudinary.config(
     secure=True
 )
 
-# 🔥 DEBUG (optional but useful)
-print("Cloudinary Config Loaded:")
+# ================= DEBUG =================
+print("===== CLOUDINARY CONFIG =====")
 print("CLOUD_NAME:", os.environ.get("CLOUDINARY_CLOUD_NAME"))
 print("API_KEY:", os.environ.get("CLOUDINARY_API_KEY"))
+print("=============================")
 
 
 # ================= UPLOAD FUNCTION =================
 def upload_image(file):
     try:
         if not file:
-            print("No file received")
+            print("❌ No file received")
             return None
 
-        # ☁️ Upload to Cloudinary
+        # 🔥 VERY IMPORTANT FIX
+        # use file.stream instead of file
         result = cloudinary.uploader.upload(
-            file,
+            file.stream,
             folder="gatepass_students",
-            resource_type="image",
-            transformation=[
-                {"width": 500, "height": 500, "crop": "limit"}
-            ]
+            resource_type="image"
         )
 
-        print("UPLOAD SUCCESS:", result)
+        print("✅ UPLOAD SUCCESS:", result.get("secure_url"))
 
-        # ✅ Return image URL
         return result.get("secure_url")
 
     except Exception as e:
-        print("Cloudinary Upload Error:", str(e))
+        print("❌ CLOUDINARY FULL ERROR:", repr(e))
         return None
