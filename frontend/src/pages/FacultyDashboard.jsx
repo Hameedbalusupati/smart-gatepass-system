@@ -5,6 +5,7 @@ export default function FacultyDashboard() {
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   const token = localStorage.getItem("access_token");
@@ -33,10 +34,10 @@ export default function FacultyDashboard() {
       setHistory(res2.data?.gatepasses || []);
 
     } catch (err) {
-      console.error("ERROR:", err);
+      console.error("FETCH ERROR:", err);
 
       if (err.response?.status === 401) {
-        setErrorMsg("Session expired. Please login manually.");
+        setErrorMsg("Session expired. Please login again.");
       } else if (err.response) {
         setErrorMsg(err.response.data?.message || "Server error");
       } else {
@@ -45,20 +46,20 @@ export default function FacultyDashboard() {
 
       setPending([]);
       setHistory([]);
-
     } finally {
       setLoading(false);
     }
-  }, [token]); // ✅ dependency added
+  }, [token]);
 
-  // ================= LOAD =================
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // ✅ no warning now
+  }, [fetchData]);
 
   // ================= HANDLE ACTION =================
   const handleAction = async (id, action) => {
     try {
+      setActionLoading(id);
+
       let payload = { action };
 
       if (action === "reject") {
@@ -67,15 +68,24 @@ export default function FacultyDashboard() {
         payload.rejection_reason = reason;
       }
 
-      await API.post(`/gatepass/faculty_action/${id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await API.post(
+        `/faculty/gatepass/faculty_action/${id}`, // ✅ CORRECT URL
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json", // ✅ IMPORTANT FIX
+          },
+        }
+      );
 
       fetchData();
 
     } catch (err) {
-      console.error("Action error:", err);
+      console.error("ACTION ERROR:", err);
       alert(err.response?.data?.message || "Action failed");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -108,12 +118,13 @@ export default function FacultyDashboard() {
         <h3 style={styles.section}>Pending Gatepasses</h3>
 
         {loading ? (
-          <p>Loading data...</p>
+          <p>Loading...</p>
         ) : pending.length === 0 ? (
           <p>No pending requests</p>
         ) : (
           pending.map((p) => (
             <div key={p.id} style={styles.card}>
+
               <p><b>Student:</b> {p.student_name}</p>
               <p><b>Reason:</b> {p.reason}</p>
 
@@ -128,7 +139,8 @@ export default function FacultyDashboard() {
                 )}
               </p>
 
-              {p.student_image ? (
+              {/* 🔥 STUDENT PROFILE IMAGE */}
+              {p.student_image && (
                 <img
                   src={p.student_image}
                   alt="student"
@@ -137,27 +149,35 @@ export default function FacultyDashboard() {
                     e.target.src = "https://via.placeholder.com/100";
                   }}
                 />
-              ) : (
-                <p style={{ fontSize: "12px", color: "#9ca3af" }}>
-                  No image available
-                </p>
+              )}
+
+              {/* 🔥 GATEPASS IMAGE */}
+              {p.gatepass_image && (
+                <img
+                  src={p.gatepass_image}
+                  alt="gatepass"
+                  style={styles.image}
+                />
               )}
 
               <div style={styles.btnRow}>
                 <button
                   style={styles.approve}
+                  disabled={actionLoading === p.id}
                   onClick={() => handleAction(p.id, "approve")}
                 >
-                  Approve
+                  {actionLoading === p.id ? "Processing..." : "Approve"}
                 </button>
 
                 <button
                   style={styles.reject}
+                  disabled={actionLoading === p.id}
                   onClick={() => handleAction(p.id, "reject")}
                 >
                   Reject
                 </button>
               </div>
+
             </div>
           ))
         )}
@@ -172,6 +192,7 @@ export default function FacultyDashboard() {
         ) : (
           history.map((h) => (
             <div key={h.id} style={styles.historyCard}>
+
               <p><b>{h.student_name}</b></p>
 
               <p>
@@ -191,6 +212,7 @@ export default function FacultyDashboard() {
               <p style={{ color: getStatusColor(h.status) }}>
                 Status: {h.status}
               </p>
+
             </div>
           ))
         )}
