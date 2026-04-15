@@ -6,7 +6,6 @@ import re
 from models import db, GatePass, User
 from sqlalchemy import func
 
-# 🔥 Cloudinary import
 from utils.cloudinary_config import upload_image
 
 gatepass_bp = Blueprint("gatepass_bp", __name__)
@@ -18,7 +17,7 @@ def clean_phone(p):
 
 
 # =================================================
-# APPLY GATEPASS (🔥 FULL FIXED)
+# APPLY GATEPASS
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
@@ -30,14 +29,13 @@ def apply_gatepass():
         if not student or student.role.lower() != "student":
             return jsonify({"success": False, "message": "Only students allowed"}), 403
 
-        # 🔥 SUPPORT FORM DATA (for image upload)
         reason = (request.form.get("reason") or "").strip()
         input_phone = (request.form.get("parent_mobile") or "").strip()
 
         if not reason or not input_phone:
             return jsonify({"success": False, "message": "All fields required"}), 400
 
-        # ================= VALIDATE PHONE =================
+        # ================= PHONE VALIDATION =================
         if not re.fullmatch(r"\d{10}", input_phone):
             return jsonify({"success": False, "message": "Invalid mobile number"}), 400
 
@@ -45,7 +43,10 @@ def apply_gatepass():
             return jsonify({"success": False, "message": "Parent number not in DB"}), 400
 
         if clean_phone(student.parent_mobile) != clean_phone(input_phone):
-            return jsonify({"success": False, "message": "Parent number mismatch"}), 400
+            return jsonify({
+                "success": False,
+                "message": "Entered parent number does not match our records"
+            }), 400
 
         # ================= PREVENT MULTIPLE =================
         today = date.today()
@@ -63,14 +64,17 @@ def apply_gatepass():
         image_url = None
 
         if file:
-            image_url = upload_image(file)
+            try:
+                image_url = upload_image(file)
+            except Exception as e:
+                print("IMAGE ERROR:", e)
 
-        # ================= CREATE GATEPASS =================
+        # ================= CREATE =================
         gp = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=student.parent_mobile,
-            image=image_url,  # 🔥 STORE IMAGE
+            parent_mobile=student.parent_mobile,  # 🔥 always DB value
+            image=image_url,
             status="PendingFaculty",
             created_at=datetime.utcnow(),
             is_used=False
@@ -90,7 +94,7 @@ def apply_gatepass():
 
 
 # =================================================
-# STUDENT GATEPASS
+# MY GATEPASS
 # =================================================
 @gatepass_bp.route("/my_gatepass", methods=["GET"])
 @jwt_required()
@@ -113,7 +117,7 @@ def my_gatepass():
                 "status": gp.status,
                 "created_at": gp.created_at.isoformat(),
                 "is_used": gp.is_used or False,
-                "image": gp.image,  # 🔥 INCLUDE IMAGE
+                "image": gp.image,
                 "qr_token": gp.qr_token if gp.status == "Approved" and not gp.is_used else None
             }
         })
@@ -124,7 +128,7 @@ def my_gatepass():
 
 
 # =================================================
-# FACULTY PENDING (🔥 FIXED IMAGE)
+# FACULTY PENDING
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/pending", methods=["GET"])
 @jwt_required()
@@ -147,8 +151,8 @@ def faculty_pending():
             result.append({
                 "id": g.id,
                 "student_name": student.name,
-                "student_image": student.profile_image,  # 🔥 DIRECT URL
-                "gatepass_image": g.image,               # 🔥 IMAGE AT APPLY TIME
+                "student_image": student.profile_image,
+                "gatepass_image": g.image,
                 "reason": g.reason,
                 "parent_mobile": g.parent_mobile,
                 "status": g.status,
@@ -220,9 +224,14 @@ def faculty_action(id):
         if not gp or gp.status != "PendingFaculty":
             return jsonify({"success": False, "message": "Invalid gatepass"}), 400
 
-        data = request.get_json() or {}
+        # 🔥 SAFE JSON
+        data = request.get_json(silent=True) or {}
+
         action = data.get("action")
         rejection_reason = data.get("rejection_reason")
+
+        if not action:
+            return jsonify({"success": False, "message": "Action required"}), 400
 
         gp.faculty_id = faculty.id
 
