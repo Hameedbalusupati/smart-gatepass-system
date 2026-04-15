@@ -1,13 +1,16 @@
 import os
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from database import get_db_connection
+
+# ✅ USE SQLAlchemy (IMPORTANT)
+from models import db, User
 
 upload_bp = Blueprint("upload", __name__)
 
 # ✅ Allowed extensions
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
+
 
 # ✅ Check file type
 def allowed_file(filename):
@@ -22,6 +25,7 @@ def upload_profile():
         # 🔐 Get logged-in user id from token
         user_id = get_jwt_identity()
 
+        # ✅ File check
         if "image" not in request.files:
             return jsonify({"error": "No file provided"}), 400
 
@@ -36,7 +40,7 @@ def upload_profile():
         # ✅ Secure filename
         filename = secure_filename(file.filename)
 
-        # ✅ Ensure uploads folder exists
+        # ✅ Create uploads folder
         upload_folder = os.path.join(os.getcwd(), "uploads")
         os.makedirs(upload_folder, exist_ok=True)
 
@@ -44,38 +48,27 @@ def upload_profile():
         file_path = os.path.join(upload_folder, filename)
         file.save(file_path)
 
-        # ✅ Save path to DB
-        conn = get_db_connection()
-        cur = conn.cursor()
+        # ✅ GET USER FROM DB (SQLAlchemy)
+        user = User.query.get(user_id)
 
-        cur.execute(
-            """
-            UPDATE users
-            SET image = %s
-            WHERE id = %s
-            RETURNING id, name, email, role, image
-            """,
-            (filename, user_id)
-        )
-
-        updated_user = cur.fetchone()
-        conn.commit()
-
-        cur.close()
-        conn.close()
-
-        if not updated_user:
+        if not user:
             return jsonify({"error": "User not found"}), 404
+
+        # ✅ Update image field
+        user.image = filename
+
+        # ✅ Commit changes
+        db.session.commit()
 
         # ✅ Response
         return jsonify({
             "message": "Profile image uploaded successfully",
             "user": {
-                "id": updated_user[0],
-                "name": updated_user[1],
-                "email": updated_user[2],
-                "role": updated_user[3],
-                "image": updated_user[4]
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+                "image": user.image
             }
         }), 200
 

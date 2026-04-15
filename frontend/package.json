@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/cli": "^2.5.0",
+    "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.1.0",
     "axios": "^1.13.2",
     "html5-qrcode": "^2.3.8",
