@@ -12,7 +12,6 @@ with app.app_context():
         df = pd.read_excel("Student_dataset_phone_numbers.xlsm")
         print("📂 Excel Loaded Successfully")
 
-        # 🔥 PRINT COLUMNS (for debugging once)
         print("🧾 Excel Columns:", df.columns.tolist())
 
         for _, row in df.iterrows():
@@ -27,7 +26,7 @@ with app.app_context():
                     print("⚠️ Skipping invalid row")
                     continue
 
-                # ================= AUTO DETECT PHONE =================
+                # ================= PHONE =================
                 phone = None
                 for col in df.columns:
                     if col.strip().lower() in ["parent_number", "phone number", "phone", "mobile"]:
@@ -36,7 +35,7 @@ with app.app_context():
                             phone = str(value).strip()
                         break
 
-                # ================= AUTO DETECT SECTION =================
+                # ================= SECTION =================
                 section = None
                 for col in df.columns:
                     if col.strip().lower() == "section":
@@ -45,20 +44,11 @@ with app.app_context():
                             section = str(value).strip().upper()
                         break
 
-                # ================= AUTO DETECT IMAGE =================
-                image = None
-                for col in df.columns:
-                    if col.strip().lower() in ["image_path", "image"]:
-                        value = row[col]
-                        if pd.notna(value):
-                            image = str(value).strip()
-                        break
-
-                # ================= CLEAN VALUES =================
-                if phone == "nan" or phone == "":
+                # ================= CLEAN =================
+                if phone in ["nan", "", None]:
                     phone = None
 
-                if section == "nan" or section == "":
+                if section in ["nan", "", None]:
                     section = None
 
                 # ================= FIXED DATA =================
@@ -68,7 +58,9 @@ with app.app_context():
 
                 role = "student"
                 department = "AIDS"
-                profile_path = f"uploads/student_images/{image}" if image else None
+
+                # 🔥 IMPORTANT: NO IMAGE FROM EXCEL
+                profile_path = None
 
                 # ================= CHECK EXISTING =================
                 with db.session.no_autoflush:
@@ -81,10 +73,13 @@ with app.app_context():
                     existing.name = name
                     existing.email = email
                     existing.parent_mobile = phone
-                    existing.profile_image = profile_path
                     existing.department = department
                     existing.year = year
                     existing.section = section
+
+                    # ❌ DO NOT overwrite existing Cloudinary image
+                    if not existing.profile_image:
+                        existing.profile_image = None
 
                     if not existing.password:
                         existing.password = hashed_password
@@ -102,7 +97,7 @@ with app.app_context():
                         department=department,
                         year=year,
                         section=section,
-                        profile_image=profile_path,
+                        profile_image=None,   # 🔥 IMPORTANT
                         parent_mobile=phone
                     )
 
