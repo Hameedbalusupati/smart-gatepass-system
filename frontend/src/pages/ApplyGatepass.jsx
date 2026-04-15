@@ -31,6 +31,7 @@ export default function ApplyGatepass() {
         setParentMobile(res.data.user?.parent_mobile || "");
       } catch (error) {
         console.error("Profile error:", error);
+        setMessage("Failed to load profile");
       }
     };
 
@@ -54,24 +55,31 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // 🔥 PROFILE IMAGE CHECK (MAIN FIX)
+    // 🔥 IMAGE CHECK
     if (!user?.image) {
       setMessage("Please upload profile image first");
       navigate("/profile-upload");
       return;
     }
 
+    // 🔥 VALIDATION
     if (!form.reason.trim()) {
       setMessage("Reason is required");
+      return;
+    }
+
+    if (!parentMobile) {
+      setMessage("Parent mobile not found");
       return;
     }
 
     try {
       setLoading(true);
 
-      // ✅ NO TOKEN NEEDED (interceptor handles it)
+      // ✅ FIXED: SEND parent_mobile
       const res = await API.post("/student/apply_gatepass", {
         reason: form.reason.trim(),
+        parent_mobile: parentMobile,
       });
 
       setMessage(res.data.message || "Gatepass applied successfully");
@@ -80,12 +88,16 @@ export default function ApplyGatepass() {
       setForm({ reason: "" });
 
     } catch (error) {
+      console.error("APPLY ERROR:", error);
+
       setSuccess(false);
-      setMessage(
-        error.response?.data?.message ||
-        error.message ||
-        "Server error"
-      );
+
+      if (error.response) {
+        setMessage(error.response.data?.message || "Request failed");
+      } else {
+        setMessage("Server not reachable");
+      }
+
     } finally {
       setLoading(false);
     }
@@ -106,22 +118,17 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          {/* 📞 CLICKABLE PHONE */}
-          <a
-            href={parentMobile ? `tel:${parentMobile}` : "#"}
+          {/* 📞 PHONE DISPLAY */}
+          <div
             style={{
               ...styles.input,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              textDecoration: "none",
-              cursor: parentMobile ? "pointer" : "not-allowed",
+              textAlign: "center",
               background: "#020617",
               border: "1px solid #334155",
             }}
           >
             📞 {parentMobile || "Loading..."}
-          </a>
+          </div>
 
           <button
             type="submit"
@@ -186,7 +193,6 @@ const styles = {
     borderRadius: "5px",
     border: "1px solid #334155",
     color: "white",
-    backgroundColor: "#020617",
   },
 
   button: {

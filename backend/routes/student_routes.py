@@ -14,9 +14,7 @@ def clean_phone(p):
     return str(p).strip().replace(" ", "").replace("-", "")
 
 
-# =================================================
-# CHECK STUDENT
-# =================================================
+# ================= GET STUDENT =================
 def get_student():
     try:
         student_id = int(get_jwt_identity())
@@ -31,9 +29,7 @@ def get_student():
     return student, None, None
 
 
-# =================================================
-# PROFILE
-# =================================================
+# ================= PROFILE =================
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
 def profile():
@@ -42,18 +38,17 @@ def profile():
         if error:
             return error, code
 
-        base_url = request.host_url.rstrip("/")
-
         return jsonify({
             "success": True,
             "user": {
+                "id": student.id,
                 "name": student.name or "",
                 "college_id": student.college_id or "",
                 "department": student.department or "",
                 "year": student.year or "",
                 "section": student.section or "",
                 "parent_mobile": student.parent_mobile or "",
-                "profile_image": student.profile_image
+                "image": student.profile_image   # ✅ IMPORTANT
             }
         }), 200
 
@@ -62,9 +57,7 @@ def profile():
         return jsonify({"success": False, "message": "Server error"}), 500
 
 
-# =================================================
-# APPLY GATEPASS (🔥 FINAL FIXED)
-# =================================================
+# ================= APPLY GATEPASS =================
 @student_bp.route("/apply_gatepass", methods=["POST"])
 @jwt_required()
 def apply_gatepass():
@@ -73,7 +66,7 @@ def apply_gatepass():
         if error:
             return error, code
 
-        # 🔥 IMAGE CHECK (IMPORTANT)
+        # 🔥 IMAGE CHECK
         if not student.profile_image:
             return jsonify({
                 "success": False,
@@ -85,31 +78,36 @@ def apply_gatepass():
         reason = (data.get("reason") or "").strip()
         input_phone = (data.get("parent_mobile") or "").strip()
 
-        if not reason or not input_phone:
+        # ================= VALIDATION =================
+        if not reason:
             return jsonify({
                 "success": False,
-                "message": "Reason and parent number required"
+                "message": "Reason is required"
             }), 400
 
-        # ================= PHONE FORMAT =================
+        if not input_phone:
+            return jsonify({
+                "success": False,
+                "message": "Parent mobile number required"
+            }), 400
+
         if not re.fullmatch(r"\d{10}", input_phone):
             return jsonify({
                 "success": False,
                 "message": "Invalid mobile number"
             }), 400
 
-        # ================= DB CHECK =================
         if not student.parent_mobile:
             return jsonify({
                 "success": False,
-                "message": "Parent number not found in DB"
+                "message": "Parent mobile not found in DB"
             }), 400
 
-        # 🔥 MAIN MATCH LOGIC
+        # 🔥 MATCH CHECK (YOUR REQUIREMENT)
         if clean_phone(input_phone) != clean_phone(student.parent_mobile):
             return jsonify({
                 "success": False,
-                "message": "Parent mobile number does not match our records"
+                "message": "Parent mobile mismatch"
             }), 400
 
         # ================= PREVENT MULTIPLE =================
@@ -130,7 +128,8 @@ def apply_gatepass():
         gp = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=input_phone,   # 🔥 use entered number after validation
+            parent_mobile=input_phone,         # ✅ user input
+            image=student.profile_image,       # ✅ Cloudinary image
             status="PendingFaculty",
             created_at=datetime.utcnow()
         )
@@ -151,9 +150,7 @@ def apply_gatepass():
         }), 500
 
 
-# =================================================
-# STATUS
-# =================================================
+# ================= STATUS =================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
 def student_status():
