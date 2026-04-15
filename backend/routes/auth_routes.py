@@ -6,14 +6,14 @@ from sqlalchemy import func
 
 from models import db, User
 
-# 🔥 Cloudinary import
+# 🔥 Cloudinary
 from utils.cloudinary_config import upload_image
 
 auth_bp = Blueprint("auth_bp", __name__)
 
 
 # =================================================
-# REGISTER (🔥 FULL FIXED)
+# REGISTER
 # =================================================
 @auth_bp.route("/register", methods=["POST", "OPTIONS"])
 def register():
@@ -21,7 +21,6 @@ def register():
         return jsonify({}), 200
 
     try:
-        # ================= GET DATA =================
         college_id = (request.form.get("college_id") or "").strip().upper()
         name = (request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip().lower()
@@ -41,7 +40,7 @@ def register():
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # ================= EMAIL VALIDATION =================
+        # ================= EMAIL =================
         parts = email.split("@")
         if len(parts) != 2 or parts[1] != "pace.ac.in":
             return jsonify({"message": "Use college email"}), 400
@@ -49,13 +48,13 @@ def register():
         if role == "student" and parts[0] != college_id.lower():
             return jsonify({"message": "Email must match roll number"}), 400
 
-        # ================= YEAR FIX =================
+        # ================= YEAR =================
         try:
             year = int(year) if year else 1
         except:
             return jsonify({"message": "Invalid year"}), 400
 
-        # ================= DUPLICATE CHECK =================
+        # ================= DUPLICATE =================
         existing_user = User.query.filter(
             (func.lower(User.email) == email) |
             (func.upper(User.college_id) == college_id)
@@ -64,12 +63,15 @@ def register():
         if existing_user:
             return jsonify({"message": "User already exists"}), 400
 
-        # ================= IMAGE UPLOAD (🔥 CLOUDINARY) =================
+        # ================= IMAGE =================
         image_url = None
         if file:
-            image_url = upload_image(file)
+            try:
+                image_url = upload_image(file)
+            except Exception as e:
+                print("IMAGE ERROR:", e)
 
-        # ================= CREATE USER =================
+        # ================= CREATE =================
         user = User(
             college_id=college_id,
             name=name,
@@ -79,7 +81,7 @@ def register():
             department=department,
             year=year,
             section=section,
-            profile_image=image_url   # ✅ CLOUDINARY URL
+            profile_image=image_url
         )
 
         db.session.add(user)
@@ -98,7 +100,7 @@ def register():
 
 
 # =================================================
-# LOGIN (🔥 CLEANED)
+# LOGIN (🔥 IMAGE CHECK ADDED)
 # =================================================
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
@@ -106,7 +108,7 @@ def login():
         return jsonify({}), 200
 
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
         email = (data.get("email") or "").strip().lower()
         password = data.get("password")
@@ -126,13 +128,19 @@ def login():
         # ================= TOKEN =================
         token = create_access_token(identity=str(user.id))
 
+        # 🔥 IMAGE CHECK (IMPORTANT)
+        require_image = False
+        if user.role == "student" and not user.profile_image:
+            require_image = True
+
         return jsonify({
             "access_token": token,
             "role": user.role,
             "name": user.name,
             "id": user.id,
             "department": user.department,
-            "profile_image": user.profile_image  # ✅ CLOUDINARY URL
+            "profile_image": user.profile_image,
+            "require_image": require_image   # 🔥 NEW FIELD
         }), 200
 
     except Exception as e:

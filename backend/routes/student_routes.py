@@ -1,37 +1,38 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, date
+import re
+
 from models import db, User, GatePass
 from sqlalchemy import func
 
 student_bp = Blueprint("student_bp", __name__, url_prefix="/student")
 
 
+# ================= HELPER =================
+def clean_phone(p):
+    return str(p).strip().replace(" ", "").replace("-", "")
+
+
 # =================================================
-# HELPER FUNCTION (CHECK STUDENT)
+# CHECK STUDENT
 # =================================================
 def get_student():
     try:
         student_id = int(get_jwt_identity())
     except:
-        return None, jsonify({
-            "success": False,
-            "message": "Invalid token"
-        }), 401
+        return None, jsonify({"success": False, "message": "Invalid token"}), 401
 
     student = db.session.get(User, student_id)
 
     if not student or student.role.lower() != "student":
-        return None, jsonify({
-            "success": False,
-            "message": "Access denied"
-        }), 403
+        return None, jsonify({"success": False, "message": "Access denied"}), 403
 
     return student, None, None
 
 
 # =================================================
-# STUDENT PROFILE (🔥 SAFE VERSION)
+# PROFILE
 # =================================================
 @student_bp.route("/profile", methods=["GET"])
 @jwt_required()
@@ -51,17 +52,14 @@ def profile():
                 "department": student.department or "",
                 "year": student.year or "",
                 "section": student.section or "",
-                "parent_mobile": student.parent_mobile or "",  # 🔥 SAFE
-                "profile_image": student.get_image_url(base_url)
+                "parent_mobile": student.parent_mobile or "",
+                "profile_image": student.profile_image
             }
         }), 200
 
     except Exception as e:
         print("PROFILE ERROR:", e)
-        return jsonify({
-            "success": False,
-            "message": "Server error"
-        }), 500
+        return jsonify({"success": False, "message": "Server error"}), 500
 
 
 # =================================================
@@ -75,47 +73,69 @@ def apply_gatepass():
         if error:
             return error, code
 
-        data = request.get_json() or {}
-
-        reason = data.get("reason")
-
-        if not reason or not reason.strip():
+        # 🔥 IMAGE CHECK (IMPORTANT)
+        if not student.profile_image:
             return jsonify({
                 "success": False,
-                "message": "Reason is required"
-            }), 400
+                "message": "Please upload profile image first"
+            }), 403
 
-        # 🔥 AUTO FETCH PARENT MOBILE
-        parent_mobile = student.parent_mobile
+        data = request.get_json(silent=True) or {}
 
-        if not parent_mobile:
+        reason = (data.get("reason") or "").strip()
+        input_phone = (data.get("parent_mobile") or "").strip()
+
+        if not reason or not input_phone:
             return jsonify({
                 "success": False,
-                "message": "Parent mobile not found. Contact admin."
+                "message": "Reason and parent number required"
             }), 400
 
+        # ================= PHONE FORMAT =================
+        if not re.fullmatch(r"\d{10}", input_phone):
+            return jsonify({
+                "success": False,
+                "message": "Invalid mobile number"
+            }), 400
+
+        # ================= DB CHECK =================
+        if not student.parent_mobile:
+            return jsonify({
+                "success": False,
+                "message": "Parent number not found in DB"
+            }), 400
+
+        # 🔥 MAIN MATCH LOGIC
+        if clean_phone(input_phone) != clean_phone(student.parent_mobile):
+            return jsonify({
+                "success": False,
+                "message": "Parent mobile number does not match our records"
+            }), 400
+
+        # ================= PREVENT MULTIPLE =================
         today = date.today()
 
-        existing_gatepass = GatePass.query.filter(
+        existing = GatePass.query.filter(
             GatePass.student_id == student.id,
             func.date(GatePass.created_at) == today
         ).first()
 
-        if existing_gatepass:
+        if existing:
             return jsonify({
                 "success": False,
-                "message": "You already applied for today"
+                "message": "Already applied today"
             }), 400
 
-        new_gatepass = GatePass(
+        # ================= CREATE =================
+        gp = GatePass(
             student_id=student.id,
-            reason=reason.strip(),
-            parent_mobile=parent_mobile,
+            reason=reason,
+            parent_mobile=input_phone,   # 🔥 use entered number after validation
             status="PendingFaculty",
             created_at=datetime.utcnow()
         )
 
-        db.session.add(new_gatepass)
+        db.session.add(gp)
         db.session.commit()
 
         return jsonify({
@@ -124,15 +144,15 @@ def apply_gatepass():
         }), 201
 
     except Exception as e:
-        print("🔥 APPLY ERROR:", e)
+        print("APPLY ERROR:", e)
         return jsonify({
             "success": False,
-            "message": "Internal server error"
+            "message": "Server error"
         }), 500
 
 
 # =================================================
-# STUDENT CURRENT GATEPASS STATUS
+# STATUS
 # =================================================
 @student_bp.route("/status", methods=["GET"])
 @jwt_required()
@@ -150,10 +170,7 @@ def student_status():
         )
 
         if not gp:
-            return jsonify({
-                "success": True,
-                "gatepass": None
-            }), 200
+            return jsonify({"success": True, "gatepass": None}), 200
 
         return jsonify({
             "success": True,

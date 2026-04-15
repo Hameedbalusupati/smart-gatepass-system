@@ -14,6 +14,9 @@ import HodDashboard from "./pages/HodDashboard";
 import SecurityDashboard from "./pages/SecurityDashboard";
 import NotificationsPage from "./pages/NotificationsPage";
 
+// 🔥 NEW IMPORT
+import UploadImage from "./pages/UploadImage";
+
 /* ================= PROTECTED ROUTE ================= */
 
 function ProtectedRoute({ children, role }) {
@@ -45,14 +48,24 @@ function ProtectedRoute({ children, role }) {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* NAVBAR */}
       <Navbar />
 
       <Routes>
+
         {/* ---------- PUBLIC ---------- */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* ---------- 🔥 UPLOAD IMAGE ---------- */}
+        <Route
+          path="/upload-image"
+          element={
+            <ProtectedRoute role="student">
+              <UploadImage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* ---------- STUDENT ---------- */}
         <Route
@@ -124,6 +137,7 @@ export default function App() {
 
         {/* ---------- FALLBACK ---------- */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
       </Routes>
     </BrowserRouter>
   );

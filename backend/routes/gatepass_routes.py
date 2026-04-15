@@ -29,26 +29,29 @@ def apply_gatepass():
         if not student or student.role.lower() != "student":
             return jsonify({"success": False, "message": "Only students allowed"}), 403
 
+        # ================= GET INPUT =================
         reason = (request.form.get("reason") or "").strip()
         input_phone = (request.form.get("parent_mobile") or "").strip()
 
         if not reason or not input_phone:
             return jsonify({"success": False, "message": "All fields required"}), 400
 
-        # ================= PHONE VALIDATION =================
+        # ================= PHONE FORMAT VALIDATION =================
         if not re.fullmatch(r"\d{10}", input_phone):
             return jsonify({"success": False, "message": "Invalid mobile number"}), 400
 
+        # ================= DB CHECK =================
         if not student.parent_mobile:
-            return jsonify({"success": False, "message": "Parent number not in DB"}), 400
+            return jsonify({"success": False, "message": "Parent number not available in DB"}), 400
 
-        if clean_phone(student.parent_mobile) != clean_phone(input_phone):
+        # 🔥 MAIN MATCH LOGIC
+        if clean_phone(input_phone) != clean_phone(student.parent_mobile):
             return jsonify({
                 "success": False,
-                "message": "Entered parent number does not match our records"
+                "message": "Parent mobile number does not match our records"
             }), 400
 
-        # ================= PREVENT MULTIPLE =================
+        # ================= PREVENT MULTIPLE REQUESTS =================
         today = date.today()
 
         existing = GatePass.query.filter(
@@ -69,11 +72,11 @@ def apply_gatepass():
             except Exception as e:
                 print("IMAGE ERROR:", e)
 
-        # ================= CREATE =================
+        # ================= CREATE GATEPASS =================
         gp = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=student.parent_mobile,  # 🔥 always DB value
+            parent_mobile=input_phone,   # 🔥 FIXED (use entered number after validation)
             image=image_url,
             status="PendingFaculty",
             created_at=datetime.utcnow(),
@@ -224,7 +227,6 @@ def faculty_action(id):
         if not gp or gp.status != "PendingFaculty":
             return jsonify({"success": False, "message": "Invalid gatepass"}), 400
 
-        # 🔥 SAFE JSON
         data = request.get_json(silent=True) or {}
 
         action = data.get("action")
