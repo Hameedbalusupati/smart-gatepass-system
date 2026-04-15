@@ -9,8 +9,13 @@ from sqlalchemy import func
 gatepass_bp = Blueprint("gatepass_bp", __name__)
 
 
+# ================= HELPER =================
+def clean_phone(p):
+    return str(p).strip().replace(" ", "").replace("-", "")
+
+
 # =================================================
-# APPLY GATEPASS
+# APPLY GATEPASS (🔥 FIXED)
 # =================================================
 @gatepass_bp.route("/apply", methods=["POST"])
 @jwt_required()
@@ -25,14 +30,23 @@ def apply_gatepass():
         data = request.get_json() or {}
 
         reason = (data.get("reason") or "").strip()
-        parent_mobile = (data.get("parent_mobile") or "").strip()
+        input_phone = (data.get("parent_mobile") or "").strip()
 
-        if not reason or not parent_mobile:
+        if not reason or not input_phone:
             return jsonify({"success": False, "message": "All fields required"}), 400
 
-        if not re.fullmatch(r"\d{10}", parent_mobile):
+        # ================= VALIDATE FORMAT =================
+        if not re.fullmatch(r"\d{10}", input_phone):
             return jsonify({"success": False, "message": "Invalid mobile number"}), 400
 
+        # ================= 🔥 CRITICAL CHECK =================
+        if not student.parent_mobile:
+            return jsonify({"success": False, "message": "Parent number not available in DB"}), 400
+
+        if clean_phone(student.parent_mobile) != clean_phone(input_phone):
+            return jsonify({"success": False, "message": "Parent number mismatch"}), 400
+
+        # ================= PREVENT MULTIPLE REQUESTS =================
         today = date.today()
 
         existing = GatePass.query.filter(
@@ -43,10 +57,11 @@ def apply_gatepass():
         if existing:
             return jsonify({"success": False, "message": "Already applied today"}), 400
 
+        # ================= CREATE GATEPASS =================
         gp = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=parent_mobile,
+            parent_mobile=student.parent_mobile,  # ✅ ALWAYS FROM DB
             status="PendingFaculty",
             created_at=datetime.utcnow(),
             is_used=False
@@ -118,22 +133,15 @@ def faculty_pending():
             if not student:
                 continue
 
-            date_str = g.created_at.strftime("%Y-%m-%d") if g.created_at else ""
-            time_str = g.created_at.strftime("%I:%M %p") if g.created_at else ""
-
-            image_url = None
-            if student.profile_image:
-                image_url = f"{base_url}/{student.profile_image}"
-
             result.append({
                 "id": g.id,
                 "student_name": student.name,
-                "student_image": image_url,
+                "student_image": f"{base_url}/{student.profile_image}" if student.profile_image else None,
                 "reason": g.reason,
                 "parent_mobile": g.parent_mobile,
                 "status": g.status,
-                "date": date_str,
-                "time": time_str
+                "date": g.created_at.strftime("%Y-%m-%d") if g.created_at else "",
+                "time": g.created_at.strftime("%I:%M %p") if g.created_at else ""
             })
 
         return jsonify({"success": True, "gatepasses": result})
@@ -144,7 +152,7 @@ def faculty_pending():
 
 
 # =================================================
-# FACULTY HISTORY (FULL FIX)
+# FACULTY HISTORY
 # =================================================
 @gatepass_bp.route("/faculty/gatepasses/history", methods=["GET"])
 @jwt_required()
@@ -167,21 +175,14 @@ def faculty_history():
             if not student:
                 continue
 
-            date_str = g.created_at.strftime("%Y-%m-%d") if g.created_at else ""
-            time_str = g.created_at.strftime("%I:%M %p") if g.created_at else ""
-
-            image_url = None
-            if student.profile_image:
-                image_url = f"{base_url}/{student.profile_image}"
-
             result.append({
                 "id": g.id,
                 "student_name": student.name,
                 "parent_mobile": g.parent_mobile,
                 "status": g.status,
-                "date": date_str,
-                "time": time_str,
-                "student_image": image_url
+                "date": g.created_at.strftime("%Y-%m-%d") if g.created_at else "",
+                "time": g.created_at.strftime("%I:%M %p") if g.created_at else "",
+                "student_image": f"{base_url}/{student.profile_image}" if student.profile_image else None
             })
 
         return jsonify({"success": True, "gatepasses": result})
@@ -216,6 +217,7 @@ def faculty_action(id):
 
         if action == "approve":
             gp.status = "PendingHOD"
+            gp.faculty_approved_at = datetime.utcnow()
 
         elif action == "reject":
             if not rejection_reason:
