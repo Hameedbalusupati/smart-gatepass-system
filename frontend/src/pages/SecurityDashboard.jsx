@@ -20,9 +20,7 @@ export default function SecurityDashboard() {
       const token = localStorage.getItem("access_token");
 
       const res = await API.get("/security/exit-count", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       setExitCount(res.data.total_exits || 0);
@@ -113,9 +111,7 @@ export default function SecurityDashboard() {
         "/security/verify_qr",
         { qr_token: qrToken },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -145,21 +141,16 @@ export default function SecurityDashboard() {
         `/security/confirm_exit/${data?.gatepass_id}`,
         {},
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       if (res.data?.success) {
         setMessage("Exit Confirmed ✅");
-
         setData(null);
         scannedRef.current = false;
-
         fetchExitCount();
 
-        // 🔥 AUTO RESTART SCANNER
         setTimeout(() => {
           startScanner();
         }, 1000);
@@ -170,14 +161,19 @@ export default function SecurityDashboard() {
     }
   };
 
-  // ================= IMAGE FIX =================
+  // ================= 🔥 FIXED IMAGE FUNCTION =================
   const getImageUrl = (img) => {
     if (!img) return "https://via.placeholder.com/120";
 
-    if (img.startsWith("http")) return img;
+    // ✅ HTTPS fix (IMPORTANT)
+    if (img.startsWith("http://")) {
+      return img.replace("http://", "https://");
+    }
 
+    if (img.startsWith("https://")) return img;
+
+    // ✅ Relative path fix
     const cleanPath = img.replace(/^\/+/, "");
-
     return `${BACKEND_URL}/${cleanPath}`;
   };
 
@@ -215,7 +211,9 @@ export default function SecurityDashboard() {
             <h3>Student Details</h3>
 
             <img
-              src={getImageUrl(data.profile_image)}
+              src={getImageUrl(
+                data.profile_image || data.student_image
+              )}
               alt="student"
               style={image}
               onError={(e) => {
