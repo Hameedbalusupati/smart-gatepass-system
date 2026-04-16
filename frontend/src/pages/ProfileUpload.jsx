@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { uploadProfile } from "../api/uploadService";
+import API from "../api/api"; // ✅ direct API use cheddam
 
 function ProfileUpload() {
   const [image, setImage] = useState(null);
@@ -41,17 +41,30 @@ function ProfileUpload() {
     try {
       setLoading(true);
 
-      // 🔥 FIX: send FILE directly (NOT FormData)
-      const res = await uploadProfile(image);
+      // 🔥 IMPORTANT FIX: use FormData
+      const formData = new FormData();
+      formData.append("image", image);
 
-      alert(res?.message || "Upload successful");
+      const res = await API.post("/upload-profile", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-      // ✅ Redirect to dashboard
+      alert(res.data?.message || "Upload successful");
+
+      // ✅ IMPORTANT: update localStorage
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+
+      // ✅ Redirect
       navigate("/student");
 
     } catch (error) {
+      console.error("UPLOAD ERROR:", error);
+
       alert(
-        error.message || "Upload failed. Please try again."
+        error.response?.data?.message ||
+        "Upload failed. Please try again."
       );
     } finally {
       setLoading(false);

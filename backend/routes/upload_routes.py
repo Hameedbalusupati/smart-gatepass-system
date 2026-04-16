@@ -12,7 +12,7 @@ upload_bp = Blueprint("upload", __name__)
 @jwt_required()
 def upload_profile():
     try:
-        # 🔐 Get logged-in user ID from JWT
+        # 🔐 Get logged-in user ID
         user_id = get_jwt_identity()
 
         # ✅ Check file exists
@@ -21,15 +21,22 @@ def upload_profile():
 
         file = request.files["image"]
 
-        # ✅ Validate file name
-        if file.filename == "":
+        # ✅ Validate filename
+        if file.filename.strip() == "":
             return jsonify({"message": "Empty file name"}), 400
 
-        # ☁️ Upload image to Cloudinary
+        # ✅ Optional: validate file type
+        allowed_extensions = ["png", "jpg", "jpeg", "webp"]
+        if "." in file.filename:
+            ext = file.filename.rsplit(".", 1)[1].lower()
+            if ext not in allowed_extensions:
+                return jsonify({"message": "Invalid file type"}), 400
+
+        # ☁️ Upload to Cloudinary
         try:
             image_url = upload_image(file)
         except Exception as e:
-            print("CLOUDINARY ERROR:", e)
+            print("CLOUDINARY ERROR:", str(e))
             return jsonify({"message": "Image upload failed"}), 500
 
         if not image_url:
@@ -37,17 +44,17 @@ def upload_profile():
 
         print("UPLOADED IMAGE URL:", image_url)
 
-        # ✅ Fetch user from DB
+        # ✅ Fetch user
         user = User.query.get(user_id)
 
         if not user:
             return jsonify({"message": "User not found"}), 404
 
-        # ✅ Save image URL in DB
+        # ✅ Save image in DB
         user.profile_image = image_url
         db.session.commit()
 
-        # ✅ Success response (IMPORTANT: consistent key name)
+        # 🔥 IMPORTANT: send BOTH keys (to avoid frontend bugs)
         return jsonify({
             "message": "Profile image uploaded successfully",
             "user": {
@@ -55,7 +62,12 @@ def upload_profile():
                 "name": user.name,
                 "email": user.email,
                 "role": user.role,
-                "profile_image": user.profile_image   # 🔥 consistent key
+
+                # ✅ MAIN FIELD
+                "profile_image": user.profile_image,
+
+                # ✅ BACKWARD COMPATIBILITY (VERY IMPORTANT 🔥)
+                "image": user.profile_image
             }
         }), 200
 
