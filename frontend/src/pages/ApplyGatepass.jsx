@@ -10,7 +10,7 @@ export default function ApplyGatepass() {
   });
 
   const [parentMobile, setParentMobile] = useState("");
-  const [hasImage, setHasImage] = useState(null); // ✅ FIX
+  const [hasImage, setHasImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -21,21 +21,25 @@ export default function ApplyGatepass() {
       try {
         const res = await API.get("/student/profile");
 
-        const userData = res.data.user;
+        console.log("PROFILE RESPONSE:", res.data);
 
-        setParentMobile(userData?.parent_mobile || "");
+        const userData = res?.data?.user || {};
 
-        // ✅ correct check
-        if (userData?.image || userData?.profile_image) {
-          setHasImage(true);
-        } else {
-          setHasImage(false);
-        }
+        setParentMobile(userData.parent_mobile || "");
+
+        // ✅ STRONG IMAGE CHECK (ANY FIELD WITH URL)
+        const imageExists = Object.values(userData).some(
+          (val) =>
+            typeof val === "string" &&
+            (val.includes("http") || val.includes("cloudinary"))
+        );
+
+        setHasImage(imageExists);
 
       } catch (error) {
         console.error("Profile error:", error);
         setMessage("Failed to load profile");
-        setHasImage(false); // fallback
+        setHasImage(false);
       }
     };
 
@@ -56,23 +60,18 @@ export default function ApplyGatepass() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return; // ✅ prevent double submit
+
     setMessage("");
     setSuccess(false);
 
-    // 🔥 WAIT UNTIL LOADED
     if (hasImage === null) {
       setMessage("Please wait, loading profile...");
       return;
     }
 
-    // 🔥 FIXED CHECK
-    if (hasImage === false) {
+    if (!hasImage) {
       setMessage("Please upload profile image first");
-
-      setTimeout(() => {
-        navigate("/profile-upload");
-      }, 1500);
-
       return;
     }
 
@@ -94,11 +93,12 @@ export default function ApplyGatepass() {
         parent_mobile: parentMobile,
       });
 
-      setMessage(res.data.message || "Gatepass applied successfully");
+      setMessage(res.data?.message || "Gatepass applied successfully");
       setSuccess(true);
 
       setForm({ reason: "" });
 
+      // ✅ redirect after success
       setTimeout(() => {
         navigate("/student-dashboard");
       }, 1500);
@@ -144,6 +144,7 @@ export default function ApplyGatepass() {
             style={{
               ...styles.button,
               backgroundColor: loading ? "#64748b" : "#22c55e",
+              cursor: loading ? "not-allowed" : "pointer",
             }}
           >
             {loading ? "Submitting..." : "Apply Gatepass"}
@@ -151,7 +152,12 @@ export default function ApplyGatepass() {
         </form>
 
         {message && (
-          <p style={{ ...styles.message, color: success ? "#22c55e" : "#ef4444" }}>
+          <p
+            style={{
+              ...styles.message,
+              color: success ? "#22c55e" : "#ef4444",
+            }}
+          >
             {message}
           </p>
         )}
@@ -160,8 +166,7 @@ export default function ApplyGatepass() {
   );
 }
 
-/* ===== STYLES ===== */
-
+// ===== STYLES =====
 const styles = {
   page: {
     minHeight: "100vh",
@@ -170,7 +175,6 @@ const styles = {
     justifyContent: "center",
     alignItems: "center",
   },
-
   container: {
     background: "#111827",
     padding: "25px",
@@ -179,33 +183,27 @@ const styles = {
     maxWidth: "400px",
     color: "white",
   },
-
   title: {
     textAlign: "center",
     marginBottom: "15px",
   },
-
   form: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
   },
-
   input: {
     padding: "10px",
     borderRadius: "5px",
     border: "1px solid #334155",
     color: "white",
   },
-
   button: {
     padding: "10px",
     border: "none",
     borderRadius: "5px",
     color: "white",
-    cursor: "pointer",
   },
-
   message: {
     marginTop: "10px",
     textAlign: "center",

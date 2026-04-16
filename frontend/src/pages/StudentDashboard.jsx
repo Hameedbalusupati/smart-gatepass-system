@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/api.js";
 
@@ -10,15 +10,37 @@ export default function StudentDashboard() {
     parent_mobile: "",
   });
 
+  const [hasImage, setHasImage] = useState(null);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Get user from localStorage
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user"))
-      : null;
+  // ================= FETCH PROFILE =================
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await API.get("/student/profile");
+
+        console.log("PROFILE:", res.data);
+
+        const user = res.data.user;
+
+        const imageExists =
+          user?.image ||
+          user?.profile_image ||
+          user?.image_url ||
+          user?.profileImage;
+
+        setHasImage(!!imageExists);
+
+      } catch (error) {
+        console.error("Profile fetch error:", error);
+        setHasImage(false);
+      }
+    };
+
+    fetchProfile();
+  }, []);
 
   // ================= HANDLE INPUT =================
   const handleChange = (e) => {
@@ -37,22 +59,23 @@ export default function StudentDashboard() {
     setMessage("");
     setSuccess(false);
 
-    // 🔥 PROFILE IMAGE CHECK (MAIN FIX)
-    if (!user?.image) {
+    if (hasImage === null) {
+      setMessage("Loading profile...");
+      return;
+    }
+
+    if (!hasImage) {
       setMessage("Please upload profile image first");
-      navigate("/profile-upload");
       return;
     }
 
     const { reason, parent_mobile } = form;
 
-    // ✅ VALIDATION
     if (!reason.trim() || !parent_mobile) {
       setMessage("Reason and parent mobile are required");
       return;
     }
 
-    // ✅ MOBILE VALIDATION
     if (!/^\d{10}$/.test(parent_mobile)) {
       setMessage("Enter valid 10-digit mobile number");
       return;
@@ -61,7 +84,6 @@ export default function StudentDashboard() {
     try {
       setLoading(true);
 
-      // ✅ NO NEED TOKEN (handled by interceptor)
       const res = await API.post("/student/apply_gatepass", {
         reason: reason.trim(),
         parent_mobile: parent_mobile,
@@ -70,11 +92,15 @@ export default function StudentDashboard() {
       setMessage(res.data.message || "Gatepass applied successfully");
       setSuccess(true);
 
-      // RESET FORM
       setForm({
         reason: "",
         parent_mobile: "",
       });
+
+      // ✅ USE navigate (FIXED ERROR)
+      setTimeout(() => {
+        navigate("/student-dashboard");
+      }, 1500);
 
     } catch (error) {
       setSuccess(false);
@@ -150,7 +176,6 @@ const styles = {
     backgroundColor: "#0f172a",
     color: "white",
   },
-
   card: {
     width: "420px",
     background: "#111827",
@@ -158,16 +183,13 @@ const styles = {
     borderRadius: "10px",
     boxShadow: "0 10px 25px rgba(0,0,0,0.6)",
   },
-
   title: {
     textAlign: "center",
     marginBottom: "20px",
   },
-
   subTitle: {
     marginBottom: "10px",
   },
-
   input: {
     width: "100%",
     padding: "10px",
@@ -177,7 +199,6 @@ const styles = {
     backgroundColor: "#020617",
     color: "white",
   },
-
   applyBtn: {
     width: "100%",
     padding: "12px",
@@ -187,7 +208,6 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
   },
-
   message: {
     marginTop: "15px",
     textAlign: "center",
