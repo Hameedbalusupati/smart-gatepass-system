@@ -21,7 +21,7 @@ def get_student():
     except:
         return None, jsonify({"success": False, "message": "Invalid token"}), 401
 
-    student = db.session.get(User, student_id)
+    student = User.query.get(student_id)
 
     if not student or student.role.lower() != "student":
         return None, jsonify({"success": False, "message": "Access denied"}), 403
@@ -48,7 +48,10 @@ def profile():
                 "year": student.year or "",
                 "section": student.section or "",
                 "parent_mobile": student.parent_mobile or "",
-                "image": student.profile_image   # ✅ IMPORTANT
+
+                # ✅ CONSISTENT FIELDS
+                "image": student.profile_image,
+                "profile_image": student.profile_image
             }
         }), 200
 
@@ -76,7 +79,7 @@ def apply_gatepass():
         data = request.get_json(silent=True) or {}
 
         reason = (data.get("reason") or "").strip()
-        input_phone = (data.get("parent_mobile") or "").strip()
+        input_phone = clean_phone(data.get("parent_mobile") or "")
 
         # ================= VALIDATION =================
         if not reason:
@@ -103,8 +106,8 @@ def apply_gatepass():
                 "message": "Parent mobile not found in DB"
             }), 400
 
-        # 🔥 MATCH CHECK (YOUR REQUIREMENT)
-        if clean_phone(input_phone) != clean_phone(student.parent_mobile):
+        # 🔥 MATCH CHECK
+        if input_phone != clean_phone(student.parent_mobile):
             return jsonify({
                 "success": False,
                 "message": "Parent mobile mismatch"
@@ -128,8 +131,8 @@ def apply_gatepass():
         gp = GatePass(
             student_id=student.id,
             reason=reason,
-            parent_mobile=input_phone,         # ✅ user input
-            image=student.profile_image,       # ✅ Cloudinary image
+            parent_mobile=input_phone,
+            image=student.profile_image,
             status="PendingFaculty",
             created_at=datetime.utcnow()
         )

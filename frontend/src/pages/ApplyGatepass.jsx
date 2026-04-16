@@ -10,7 +10,7 @@ export default function ApplyGatepass() {
   });
 
   const [parentMobile, setParentMobile] = useState("");
-  const [hasImage, setHasImage] = useState(true); // ✅ NEW
+  const [hasImage, setHasImage] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -27,8 +27,8 @@ export default function ApplyGatepass() {
 
         setParentMobile(userData?.parent_mobile || "");
 
-        // ✅ FIX: check image from backend
-        if (!userData?.image) {
+        // ✅ 🔥 FIXED IMAGE CHECK (IMPORTANT)
+        if (!userData?.image && !userData?.profile_image) {
           setHasImage(false);
         } else {
           setHasImage(true);
@@ -95,7 +95,7 @@ export default function ApplyGatepass() {
 
       setForm({ reason: "" });
 
-      // ✅ Optional redirect
+      // ✅ Redirect after success
       setTimeout(() => {
         navigate("/student-dashboard");
       }, 1500);
@@ -131,7 +131,6 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          {/* 📞 PHONE DISPLAY */}
           <div
             style={{
               ...styles.input,
