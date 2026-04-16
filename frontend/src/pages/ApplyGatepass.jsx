@@ -10,15 +10,10 @@ export default function ApplyGatepass() {
   });
 
   const [parentMobile, setParentMobile] = useState("");
+  const [hasImage, setHasImage] = useState(true); // ✅ NEW
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
-
-  // ✅ Get user
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user"))
-      : null;
 
   // ================= FETCH PROFILE =================
   useEffect(() => {
@@ -28,7 +23,17 @@ export default function ApplyGatepass() {
 
         console.log("PROFILE DATA:", res.data);
 
-        setParentMobile(res.data.user?.parent_mobile || "");
+        const userData = res.data.user;
+
+        setParentMobile(userData?.parent_mobile || "");
+
+        // ✅ FIX: check image from backend
+        if (!userData?.image) {
+          setHasImage(false);
+        } else {
+          setHasImage(true);
+        }
+
       } catch (error) {
         console.error("Profile error:", error);
         setMessage("Failed to load profile");
@@ -55,10 +60,14 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // 🔥 IMAGE CHECK
-    if (!user?.image) {
+    // 🔥 FIXED IMAGE CHECK
+    if (!hasImage) {
       setMessage("Please upload profile image first");
-      navigate("/profile-upload");
+
+      setTimeout(() => {
+        navigate("/profile-upload");
+      }, 1500);
+
       return;
     }
 
@@ -76,7 +85,6 @@ export default function ApplyGatepass() {
     try {
       setLoading(true);
 
-      // ✅ FIXED: SEND parent_mobile
       const res = await API.post("/student/apply_gatepass", {
         reason: form.reason.trim(),
         parent_mobile: parentMobile,
@@ -86,6 +94,11 @@ export default function ApplyGatepass() {
       setSuccess(true);
 
       setForm({ reason: "" });
+
+      // ✅ Optional redirect
+      setTimeout(() => {
+        navigate("/student-dashboard");
+      }, 1500);
 
     } catch (error) {
       console.error("APPLY ERROR:", error);
