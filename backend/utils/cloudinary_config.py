@@ -20,22 +20,41 @@ print("=============================")
 # ================= UPLOAD FUNCTION =================
 def upload_image(file):
     try:
+        # ================= VALIDATION =================
         if not file:
             print("❌ No file received")
             return None
 
-        # 🔥 VERY IMPORTANT FIX
-        # use file.stream instead of file
+        if file.filename == "":
+            print("❌ Empty filename")
+            return None
+
+        # ================= RESET POINTER =================
+        file.seek(0)
+
+        # ================= UPLOAD =================
         result = cloudinary.uploader.upload(
-            file.stream,
+            file,  # ✅ DO NOT USE file.stream
             folder="gatepass_students",
-            resource_type="image"
+            resource_type="image",
+            overwrite=True
         )
 
-        print("✅ UPLOAD SUCCESS:", result.get("secure_url"))
+        # ================= RESPONSE CHECK =================
+        if not result:
+            print("❌ Cloudinary returned empty result")
+            return None
 
-        return result.get("secure_url")
+        image_url = result.get("secure_url")
+
+        if not image_url:
+            print("❌ secure_url missing:", result)
+            return None
+
+        print("✅ IMAGE UPLOADED:", image_url)
+
+        return image_url
 
     except Exception as e:
-        print("❌ CLOUDINARY FULL ERROR:", repr(e))
+        print("❌ CLOUDINARY ERROR:", str(e))
         return None
