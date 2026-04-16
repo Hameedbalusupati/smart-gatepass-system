@@ -13,7 +13,7 @@ QR_ALGORITHM = "HS256"
 
 
 # =========================================
-# VERIFY QR (FIXED + IMPROVED)
+# VERIFY QR (FIXED PROPERLY)
 # =========================================
 @security_bp.route("/verify_qr", methods=["POST"])
 @jwt_required()
@@ -28,7 +28,7 @@ def verify_qr():
                 "message": "QR token missing"
             }), 400
 
-        # ✅ Decode QR token
+        # ✅ Decode token
         decoded = jwt.decode(
             qr_token,
             Config.QR_SECRET_KEY,
@@ -40,7 +40,7 @@ def verify_qr():
         if not gatepass_id:
             return jsonify({
                 "success": False,
-                "message": "Invalid QR data"
+                "message": "Invalid QR"
             }), 400
 
         # ✅ Fetch gatepass
@@ -66,12 +66,8 @@ def verify_qr():
                 "message": "Student not found"
             }), 404
 
-        # ✅ FIXED IMAGE URL (NO DEPENDENCY ON MODEL)
-        base_url = request.host_url.rstrip("/")
-
-        profile_image = None
-        if student.profile_image:
-            profile_image = f"{base_url}/{student.profile_image}"
+        # ✅ FIX IMAGE (VERY IMPORTANT)
+        profile_image = student.profile_image  # 🔥 use direct URL (Cloudinary)
 
         return jsonify({
             "success": True,
@@ -86,7 +82,7 @@ def verify_qr():
             "section": student.section,
             "parent_mobile": gatepass.parent_mobile,
 
-            "profile_image": profile_image   # ✅ FIXED
+            "profile_image": profile_image  # ✅ FINAL FIX
         })
 
     except jwt.ExpiredSignatureError:
@@ -110,7 +106,7 @@ def verify_qr():
 
 
 # =========================================
-# CONFIRM EXIT (NO CHANGE NEEDED)
+# CONFIRM EXIT (IMPROVED)
 # =========================================
 @security_bp.route("/confirm_exit/<int:gatepass_id>", methods=["POST"])
 @jwt_required()
@@ -150,7 +146,7 @@ def confirm_exit(gatepass_id):
 
 
 # =========================================
-# EXIT HISTORY (NO CHANGE)
+# EXIT HISTORY
 # =========================================
 @security_bp.route("/exit-history", methods=["GET"])
 @jwt_required()
@@ -178,7 +174,7 @@ def exit_history():
 
 
 # =========================================
-# EXIT COUNT (NO CHANGE)
+# EXIT COUNT
 # =========================================
 @security_bp.route("/exit-count", methods=["GET"])
 @jwt_required()

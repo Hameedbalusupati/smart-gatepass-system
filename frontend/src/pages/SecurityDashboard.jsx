@@ -12,17 +12,10 @@ export default function SecurityDashboard() {
   const qrRef = useRef(null);
   const scannedRef = useRef(false);
 
-  const BACKEND_URL = API.defaults.baseURL.replace("/api", "");
-
   // ================= FETCH EXIT COUNT =================
   const fetchExitCount = async () => {
     try {
-      const token = localStorage.getItem("access_token");
-
-      const res = await API.get("/security/exit-count", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      const res = await API.get("/security/exit-count");
       setExitCount(res.data.total_exits || 0);
     } catch (err) {
       console.error("Exit count error:", err);
@@ -79,7 +72,7 @@ export default function SecurityDashboard() {
       );
 
       setIsScanning(true);
-      setMessage("Scanning...");
+      setMessage("Scanning QR...");
     } catch (err) {
       console.error(err);
       setMessage("Camera error");
@@ -95,7 +88,7 @@ export default function SecurityDashboard() {
       setIsScanning(false);
       setMessage("Scanner stopped");
     } catch (err) {
-      console.error("Stop error:", err);
+      console.error(err);
     }
   };
 
@@ -105,15 +98,9 @@ export default function SecurityDashboard() {
       setLoading(true);
       setMessage("Verifying QR... ⏳");
 
-      const token = localStorage.getItem("access_token");
-
-      const res = await API.post(
-        "/security/verify_qr",
-        { qr_token: qrToken },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const res = await API.post("/security/verify_qr", {
+        qr_token: qrToken,
+      });
 
       if (!res.data?.success) {
         setMessage(res.data?.message || "Invalid QR");
@@ -125,7 +112,7 @@ export default function SecurityDashboard() {
       setMessage("QR Verified ✅");
     } catch (err) {
       console.error(err);
-      setMessage("Verification failed");
+      setMessage("Verification failed ❌");
       scannedRef.current = false;
     } finally {
       setLoading(false);
@@ -135,46 +122,47 @@ export default function SecurityDashboard() {
   // ================= CONFIRM EXIT =================
   const confirmExit = async () => {
     try {
-      const token = localStorage.getItem("access_token");
+      setLoading(true);
 
       const res = await API.post(
-        `/security/confirm_exit/${data?.gatepass_id}`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        `/security/confirm_exit/${data?.gatepass_id}`
       );
 
       if (res.data?.success) {
         setMessage("Exit Confirmed ✅");
+
         setData(null);
         scannedRef.current = false;
+
         fetchExitCount();
 
+        // 🔥 Restart scanner automatically
         setTimeout(() => {
           startScanner();
         }, 1000);
       }
     } catch (err) {
       console.error(err);
-      setMessage("Exit failed");
+      setMessage("Exit failed ❌");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ================= 🔥 FIXED IMAGE FUNCTION =================
+  // ================= IMAGE FIX =================
   const getImageUrl = (img) => {
     if (!img) return "https://via.placeholder.com/120";
 
-    // ✅ HTTPS fix (IMPORTANT)
+    // ✅ If already Cloudinary or HTTPS
+    if (img.startsWith("https://")) return img;
+
+    // ✅ Fix HTTP → HTTPS
     if (img.startsWith("http://")) {
       return img.replace("http://", "https://");
     }
 
-    if (img.startsWith("https://")) return img;
-
-    // ✅ Relative path fix
-    const cleanPath = img.replace(/^\/+/, "");
-    return `${BACKEND_URL}/${cleanPath}`;
+    // ❌ Avoid broken relative paths
+    return "https://via.placeholder.com/120";
   };
 
   return (
@@ -210,10 +198,9 @@ export default function SecurityDashboard() {
           <div style={resultBox}>
             <h3>Student Details</h3>
 
+            {/* ✅ IMAGE */}
             <img
-              src={getImageUrl(
-                data.profile_image || data.student_image
-              )}
+              src={getImageUrl(data.profile_image)}
               alt="student"
               style={image}
               onError={(e) => {
