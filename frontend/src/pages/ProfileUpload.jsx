@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../api/api"; // ✅ direct API use cheddam
+import API from "../api/api.js";
 
 function ProfileUpload() {
   const [image, setImage] = useState(null);
@@ -41,20 +41,22 @@ function ProfileUpload() {
     try {
       setLoading(true);
 
-      // 🔥 IMPORTANT FIX: use FormData
       const formData = new FormData();
       formData.append("image", image);
 
-      const res = await API.post("/upload-profile", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      // 🔥 FIXED API URL
+      const res = await API.post(
+        "/upload/upload-profile",
+        formData
+        // ❌ DO NOT set Content-Type manually
+      );
 
       alert(res.data?.message || "Upload successful");
 
-      // ✅ IMPORTANT: update localStorage
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      // ✅ Save updated user
+      if (res.data?.user) {
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+      }
 
       // ✅ Redirect
       navigate("/student");
@@ -64,6 +66,7 @@ function ProfileUpload() {
 
       alert(
         error.response?.data?.message ||
+        error.message ||
         "Upload failed. Please try again."
       );
     } finally {
@@ -108,6 +111,7 @@ function ProfileUpload() {
 }
 
 export default ProfileUpload;
+
 
 // ================= STYLES =================
 const styles = {
