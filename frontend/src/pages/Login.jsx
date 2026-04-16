@@ -53,32 +53,33 @@ export default function Login() {
 
       console.log("LOGIN RESPONSE:", data);
 
-      // ✅ Normalize role
-      const role = data.role?.toLowerCase().trim();
+      // ✅ FIX: Correct structure (based on backend)
+      const userData = data.user;
 
-      // ✅ CREATE USER OBJECT (IMPORTANT 🔥)
+      const role = userData.role?.toLowerCase().trim();
+
+      // ✅ CREATE USER OBJECT (FIXED 🔥)
       const user = {
-        id: data.id,
-        name: data.name,
-        email: email,
+        id: userData.id,
+        name: userData.name,
         role: role,
-        image: data.image || null
+        profile_image: userData.profile_image || null
       };
 
-      // ✅ STORE EVERYTHING
+      // ✅ STORE DATA
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("role", role); // optional
-      localStorage.setItem("name", data.name || "");
-      localStorage.setItem("user_id", data.id || "");
+      localStorage.setItem("role", role);
+      localStorage.setItem("name", user.name || "");
+      localStorage.setItem("user_id", user.id || "");
 
       // ✅ NAVBAR UPDATE
       window.dispatchEvent(new Event("authChanged"));
 
       // ================= 🔥 PROFILE CHECK =================
       if (role === "student") {
-        if (!user.image) {
-          navigate("/profile-upload"); // 🔥 MAIN FIX
+        if (!user.profile_image) {
+          navigate("/profile-upload");   // ✅ CORRECT
         } else {
           navigate("/student");
         }

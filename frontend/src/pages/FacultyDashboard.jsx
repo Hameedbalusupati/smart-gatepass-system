@@ -32,7 +32,6 @@ export default function FacultyDashboard() {
 
       setPending(res1.data?.gatepasses || []);
       setHistory(res2.data?.gatepasses || []);
-
     } catch (err) {
       console.error("FETCH ERROR:", err);
 
@@ -69,18 +68,17 @@ export default function FacultyDashboard() {
       }
 
       await API.post(
-        `/faculty/gatepass/faculty_action/${id}`, // ✅ CORRECT URL
+        `/faculty/gatepass/faculty_action/${id}`,
         payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json", // ✅ IMPORTANT FIX
+            "Content-Type": "application/json",
           },
         }
       );
 
       fetchData();
-
     } catch (err) {
       console.error("ACTION ERROR:", err);
       alert(err.response?.data?.message || "Action failed");
@@ -139,26 +137,31 @@ export default function FacultyDashboard() {
                 )}
               </p>
 
-              {/* 🔥 STUDENT PROFILE IMAGE */}
-              {p.student_image && (
-                <img
-                  src={p.student_image}
-                  alt="student"
-                  style={styles.image}
-                  onError={(e) => {
-                    e.target.src = "https://via.placeholder.com/100";
-                  }}
-                />
-              )}
+              {/* ✅ IMAGE SECTION */}
+              <div style={{ display: "flex", gap: "10px" }}>
+                
+                {/* STUDENT IMAGE */}
+                {p.student_image && (
+                  <img
+                    src={p.student_image}
+                    alt="student"
+                    style={styles.image}
+                    onError={(e) => {
+                      e.target.src = "https://via.placeholder.com/100";
+                    }}
+                  />
+                )}
 
-              {/* 🔥 GATEPASS IMAGE */}
-              {p.gatepass_image && (
-                <img
-                  src={p.gatepass_image}
-                  alt="gatepass"
-                  style={styles.image}
-                />
-              )}
+                {/* GATEPASS IMAGE (only if different) */}
+                {p.gatepass_image && p.gatepass_image !== p.student_image && (
+                  <img
+                    src={p.gatepass_image}
+                    alt="gatepass"
+                    style={styles.image}
+                  />
+                )}
+
+              </div>
 
               <div style={styles.btnRow}>
                 <button

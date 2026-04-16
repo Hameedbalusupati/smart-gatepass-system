@@ -5,8 +5,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
 from models import db, User
-
-# 🔥 Cloudinary
 from utils.cloudinary_config import upload_image
 
 auth_bp = Blueprint("auth_bp", __name__)
@@ -33,14 +31,14 @@ def register():
 
         file = request.files.get("profile_image")
 
-        # ================= VALIDATION =================
+        # VALIDATION
         if not college_id or not name or not email or not password or not role:
             return jsonify({"message": "All fields are required"}), 400
 
         if role not in ["student", "faculty", "hod", "security"]:
             return jsonify({"message": "Invalid role"}), 400
 
-        # ================= EMAIL =================
+        # EMAIL VALIDATION
         parts = email.split("@")
         if len(parts) != 2 or parts[1] != "pace.ac.in":
             return jsonify({"message": "Use college email"}), 400
@@ -48,13 +46,13 @@ def register():
         if role == "student" and parts[0] != college_id.lower():
             return jsonify({"message": "Email must match roll number"}), 400
 
-        # ================= YEAR =================
+        # YEAR
         try:
             year = int(year) if year else 1
         except:
             return jsonify({"message": "Invalid year"}), 400
 
-        # ================= DUPLICATE =================
+        # DUPLICATE CHECK
         existing_user = User.query.filter(
             (func.lower(User.email) == email) |
             (func.upper(User.college_id) == college_id)
@@ -63,7 +61,7 @@ def register():
         if existing_user:
             return jsonify({"message": "User already exists"}), 400
 
-        # ================= IMAGE =================
+        # IMAGE UPLOAD
         image_url = None
         if file:
             try:
@@ -71,7 +69,7 @@ def register():
             except Exception as e:
                 print("IMAGE ERROR:", e)
 
-        # ================= CREATE =================
+        # CREATE USER
         user = User(
             college_id=college_id,
             name=name,
@@ -100,7 +98,7 @@ def register():
 
 
 # =================================================
-# LOGIN (🔥 IMAGE CHECK ADDED)
+# LOGIN (🔥 FIXED VERSION)
 # =================================================
 @auth_bp.route("/login", methods=["POST", "OPTIONS"])
 def login():
@@ -116,7 +114,7 @@ def login():
         if not email or not password:
             return jsonify({"message": "Email & password required"}), 400
 
-        # ================= FIND USER =================
+        # FIND USER
         user = User.query.filter(func.lower(User.email) == email).first()
 
         if not user:
@@ -125,22 +123,25 @@ def login():
         if not check_password_hash(user.password, password):
             return jsonify({"message": "Invalid credentials"}), 401
 
-        # ================= TOKEN =================
+        # TOKEN
         token = create_access_token(identity=str(user.id))
 
-        # 🔥 IMAGE CHECK (IMPORTANT)
+        # IMAGE CHECK (🔥 FIXED SAFE CHECK)
         require_image = False
-        if user.role == "student" and not user.profile_image:
+        if user.role == "student" and (user.profile_image is None or user.profile_image == ""):
             require_image = True
 
+        # 🔥 IMPORTANT: CONSISTENT FIELD NAME
         return jsonify({
             "access_token": token,
-            "role": user.role,
-            "name": user.name,
-            "id": user.id,
-            "department": user.department,
-            "profile_image": user.profile_image,
-            "require_image": require_image   # 🔥 NEW FIELD
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "role": user.role,
+                "department": user.department,
+                "profile_image": user.profile_image,   # ✅ consistent
+                "require_image": require_image
+            }
         }), 200
 
     except Exception as e:

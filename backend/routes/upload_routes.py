@@ -2,45 +2,52 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from models import db, User
-
-# ✅ Import Cloudinary function
 from utils.cloudinary_config import upload_image
 
 upload_bp = Blueprint("upload", __name__)
+
 
 # ================= UPLOAD PROFILE IMAGE =================
 @upload_bp.route("/upload-profile", methods=["POST"])
 @jwt_required()
 def upload_profile():
     try:
-        # 🔐 Get logged-in user id
+        # 🔐 Get logged-in user ID from JWT
         user_id = get_jwt_identity()
 
-        # ✅ Validate file
-        file = request.files.get("image")
+        # ✅ Check file exists
+        if "image" not in request.files:
+            return jsonify({"message": "No file provided"}), 400
 
-        if not file:
-            return jsonify({"error": "No file provided"}), 400
+        file = request.files["image"]
 
-        # ☁️ Upload to Cloudinary
-        image_url = upload_image(file)
+        # ✅ Validate file name
+        if file.filename == "":
+            return jsonify({"message": "Empty file name"}), 400
+
+        # ☁️ Upload image to Cloudinary
+        try:
+            image_url = upload_image(file)
+        except Exception as e:
+            print("CLOUDINARY ERROR:", e)
+            return jsonify({"message": "Image upload failed"}), 500
 
         if not image_url:
-            return jsonify({"error": "Cloudinary upload failed"}), 500
+            return jsonify({"message": "Cloudinary upload failed"}), 500
 
-        print("CLOUDINARY URL:", image_url)  # 🔥 debug
+        print("UPLOADED IMAGE URL:", image_url)
 
-        # ✅ Get user
+        # ✅ Fetch user from DB
         user = User.query.get(user_id)
 
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            return jsonify({"message": "User not found"}), 404
 
-        # ✅ Save URL in DB
+        # ✅ Save image URL in DB
         user.profile_image = image_url
         db.session.commit()
 
-        # ✅ Response
+        # ✅ Success response (IMPORTANT: consistent key name)
         return jsonify({
             "message": "Profile image uploaded successfully",
             "user": {
@@ -48,10 +55,11 @@ def upload_profile():
                 "name": user.name,
                 "email": user.email,
                 "role": user.role,
-                "image": user.profile_image
+                "profile_image": user.profile_image   # 🔥 consistent key
             }
         }), 200
 
     except Exception as e:
+        db.session.rollback()
         print("UPLOAD ERROR:", str(e))
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"message": "Internal server error"}), 500
