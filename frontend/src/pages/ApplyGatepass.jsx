@@ -10,7 +10,7 @@ export default function ApplyGatepass() {
   });
 
   const [parentMobile, setParentMobile] = useState("");
-  const [hasImage, setHasImage] = useState(true);
+  const [hasImage, setHasImage] = useState(null); // ✅ FIX
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [success, setSuccess] = useState(false);
@@ -21,22 +21,21 @@ export default function ApplyGatepass() {
       try {
         const res = await API.get("/student/profile");
 
-        console.log("PROFILE DATA:", res.data);
-
         const userData = res.data.user;
 
         setParentMobile(userData?.parent_mobile || "");
 
-        // ✅ 🔥 FIXED IMAGE CHECK (IMPORTANT)
-        if (!userData?.image && !userData?.profile_image) {
-          setHasImage(false);
-        } else {
+        // ✅ correct check
+        if (userData?.image || userData?.profile_image) {
           setHasImage(true);
+        } else {
+          setHasImage(false);
         }
 
       } catch (error) {
         console.error("Profile error:", error);
         setMessage("Failed to load profile");
+        setHasImage(false); // fallback
       }
     };
 
@@ -60,8 +59,14 @@ export default function ApplyGatepass() {
     setMessage("");
     setSuccess(false);
 
-    // 🔥 FIXED IMAGE CHECK
-    if (!hasImage) {
+    // 🔥 WAIT UNTIL LOADED
+    if (hasImage === null) {
+      setMessage("Please wait, loading profile...");
+      return;
+    }
+
+    // 🔥 FIXED CHECK
+    if (hasImage === false) {
       setMessage("Please upload profile image first");
 
       setTimeout(() => {
@@ -71,7 +76,6 @@ export default function ApplyGatepass() {
       return;
     }
 
-    // 🔥 VALIDATION
     if (!form.reason.trim()) {
       setMessage("Reason is required");
       return;
@@ -95,7 +99,6 @@ export default function ApplyGatepass() {
 
       setForm({ reason: "" });
 
-      // ✅ Redirect after success
       setTimeout(() => {
         navigate("/student-dashboard");
       }, 1500);
@@ -131,20 +134,13 @@ export default function ApplyGatepass() {
             style={styles.input}
           />
 
-          <div
-            style={{
-              ...styles.input,
-              textAlign: "center",
-              background: "#020617",
-              border: "1px solid #334155",
-            }}
-          >
+          <div style={{ ...styles.input, textAlign: "center" }}>
             📞 {parentMobile || "Loading..."}
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || hasImage === null}
             style={{
               ...styles.button,
               backgroundColor: loading ? "#64748b" : "#22c55e",
@@ -155,12 +151,7 @@ export default function ApplyGatepass() {
         </form>
 
         {message && (
-          <p
-            style={{
-              ...styles.message,
-              color: success ? "#22c55e" : "#ef4444",
-            }}
-          >
+          <p style={{ ...styles.message, color: success ? "#22c55e" : "#ef4444" }}>
             {message}
           </p>
         )}
