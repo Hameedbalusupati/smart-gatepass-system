@@ -6,115 +6,118 @@ from sqlalchemy import func
 
 app = create_app()
 
-with app.app_context():
-    try:
-        # ================= LOAD EXCEL =================
-        df = pd.read_excel("Student_dataset_phone_numbers.xlsm")
-        print("📂 Excel Loaded Successfully")
 
-        print("🧾 Excel Columns:", df.columns.tolist())
+def import_excel():
+    with app.app_context():
+        try:
+            # ================= LOAD EXCEL =================
+            df = pd.read_excel("Student_dataset_phone_numbers.xlsm")
+            print("📂 Excel Loaded Successfully")
+            print("🧾 Columns:", df.columns.tolist())
 
-        for _, row in df.iterrows():
-            roll = None
+            count_add = 0
+            count_update = 0
 
-            try:
-                # ================= BASIC FIELDS =================
-                roll = str(row.get("roll_number", "")).strip().upper()
-                name = str(row.get("name", "")).strip()
+            for _, row in df.iterrows():
+                roll = None
 
-                if not roll or not name:
-                    print("⚠️ Skipping invalid row")
-                    continue
+                try:
+                    # ================= BASIC FIELDS =================
+                    roll = str(row.get("roll_number", "")).strip().upper()
+                    name = str(row.get("name", "")).strip()
 
-                # ================= PHONE =================
-                phone = None
-                for col in df.columns:
-                    if col.strip().lower() in ["parent_number", "phone number", "phone", "mobile"]:
-                        value = row[col]
-                        if pd.notna(value):
-                            phone = str(value).strip()
-                        break
+                    if not roll or not name:
+                        print("⚠️ Skipping invalid row")
+                        continue
 
-                # ================= SECTION =================
-                section = None
-                for col in df.columns:
-                    if col.strip().lower() == "section":
-                        value = row[col]
-                        if pd.notna(value):
-                            section = str(value).strip().upper()
-                        break
-
-                # ================= CLEAN =================
-                if phone in ["nan", "", None]:
+                    # ================= PHONE =================
                     phone = None
+                    for col in df.columns:
+                        if col.strip().lower() in ["parent_number", "phone number", "phone", "mobile"]:
+                            value = row[col]
+                            if pd.notna(value):
+                                phone = str(value).strip()
+                            break
 
-                if section in ["nan", "", None]:
+                    # ================= SECTION =================
                     section = None
+                    for col in df.columns:
+                        if col.strip().lower() == "section":
+                            value = row[col]
+                            if pd.notna(value):
+                                section = str(value).strip().upper()
+                            break
 
-                # ================= FIXED DATA =================
-                year = 3
-                email = f"{roll.lower()}@pace.ac.in"
-                hashed_password = generate_password_hash("temp123")
+                    # ================= CLEAN =================
+                    if phone in ["nan", "", None]:
+                        phone = None
 
-                role = "student"
-                department = "AIDS"
+                    if section in ["nan", "", None]:
+                        section = None
 
-                # 🔥 IMPORTANT: NO IMAGE FROM EXCEL
-                profile_path = None
+                    # ================= FIXED DATA =================
+                    year = 3
+                    email = f"{roll.lower()}@pace.ac.in"
+                    hashed_password = generate_password_hash("temp123")
 
-                # ================= CHECK EXISTING =================
-                with db.session.no_autoflush:
+                    role = "student"
+                    department = "AIDS"
+
+                    # ================= CHECK EXISTING =================
                     existing = User.query.filter(
                         func.upper(User.college_id) == roll
                     ).first()
 
-                # ================= UPDATE =================
-                if existing:
-                    existing.name = name
-                    existing.email = email
-                    existing.parent_mobile = phone
-                    existing.department = department
-                    existing.year = year
-                    existing.section = section
+                    # ================= UPDATE =================
+                    if existing:
+                        existing.name = name
+                        existing.email = email
+                        existing.parent_mobile = phone
+                        existing.department = department
+                        existing.year = year
+                        existing.section = section
 
-                    # ❌ DO NOT overwrite existing Cloudinary image
-                    if not existing.profile_image:
-                        existing.profile_image = None
+                        if not existing.password:
+                            existing.password = hashed_password
 
-                    if not existing.password:
-                        existing.password = hashed_password
+                        count_update += 1
+                        print(f"🔄 Updated: {roll}")
 
-                    print(f"🔄 Updated: {roll}")
+                    # ================= INSERT =================
+                    else:
+                        user = User(
+                            college_id=roll,
+                            name=name,
+                            email=email,
+                            password=hashed_password,
+                            role=role,
+                            department=department,
+                            year=year,
+                            section=section,
+                            profile_image=None,
+                            parent_mobile=phone
+                        )
 
-                # ================= INSERT =================
-                else:
-                    user = User(
-                        college_id=roll,
-                        name=name,
-                        email=email,
-                        password=hashed_password,
-                        role=role,
-                        department=department,
-                        year=year,
-                        section=section,
-                        profile_image=None,   # 🔥 IMPORTANT
-                        parent_mobile=phone
-                    )
+                        db.session.add(user)
+                        count_add += 1
+                        print(f"✅ Added: {roll}")
 
-                    db.session.add(user)
-                    print(f"✅ Added: {roll}")
+                except Exception as row_error:
+                    db.session.rollback()
+                    print(f"❌ Row Error ({roll}):", row_error)
 
-            except Exception as row_error:
+            # ================= FINAL COMMIT =================
+            try:
+                db.session.commit()
+                print(f"🎉 Done! Added: {count_add}, Updated: {count_update}")
+            except Exception as commit_error:
                 db.session.rollback()
-                print(f"❌ Row Error ({roll}):", row_error)
+                print("🔥 COMMIT ERROR:", commit_error)
 
-        # ================= FINAL COMMIT =================
-        try:
-            db.session.commit()
-            print("🎉 ALL students imported successfully")
-        except Exception as commit_error:
-            db.session.rollback()
-            print("🔥 COMMIT ERROR:", commit_error)
+        except Exception as e:
+            print("🔥 IMPORT ERROR:", e)
 
-    except Exception as e:
-        print("🔥 IMPORT ERROR:", e)
+
+# ================= RUN MANUALLY =================
+if __name__ == "__main__":
+    import_excel()
